@@ -23,6 +23,7 @@ import SupportAgentIcon from '@mui/icons-material/SupportAgent';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest';
 import CampaignIcon from '@mui/icons-material/Campaign';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 const schema = yup.object().shape({
   email: yup.string().trim().email('Enter a valid email').required('Email is required'),
@@ -106,6 +107,19 @@ export const Login = () => {
 
   return (
     <Box>
+      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-start' }}>
+        <Button
+          component={RouterLink}
+          to="/"
+          variant="text"
+          color="secondary"
+          size="small"
+          startIcon={<ArrowBackIcon />}
+          sx={{ textTransform: 'none', fontWeight: 600 }}
+        >
+          Back to Homepage
+        </Button>
+      </Box>
       <Box sx={{ mb: 3, textAlign: 'center' }}>
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
           Welcome back

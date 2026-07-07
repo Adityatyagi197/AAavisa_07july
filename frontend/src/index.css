@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
 @import "tailwindcss";
 
 @theme {
@@ -12,6 +14,14 @@
   --font-size-h6: 0.75rem;
   --font-size-body1: 0.825rem;
   --font-size-body2: 0.775rem;
+
+  /* Custom Brand Theme Colors */
+  --color-brand-navy: #051A3B;
+  --color-brand-navy-light: #0B2A59;
+  --color-brand-gold: #C59B27;
+  --color-brand-gold-light: #E5C058;
+  --color-brand-gold-dark: #A37E1C;
+  --color-brand-cream: #FAF6ED;
 }
 
 html,

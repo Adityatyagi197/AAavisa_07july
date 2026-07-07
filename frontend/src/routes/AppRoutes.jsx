@@ -66,6 +66,7 @@ import ClientIntakeForm from '../pages/public/ClientIntakeForm';
 import LeadIntakeForm from '../pages/public/LeadIntakeForm';
 import EligibilityBookingForm from '../pages/public/EligibilityBookingForm';
 import SwornTranslationForm from '../pages/public/SwornTranslationForm';
+import LandingPage from '../pages/public/LandingPage';
 import ClientPortalLogin from '../pages/public/ClientPortalLogin';
 import ClientPortalChangePassword from '../pages/public/ClientPortalChangePassword';
 import ClientPortalDocs from '../pages/public/ClientPortalDocs';
@@ -297,6 +298,9 @@ export const AppRoutes = () => {
       <Route path="/public/booking/eligibility" element={<EligibilityBookingForm />} />
       <Route path="/public/translation" element={<SwornTranslationForm />} />
 
+      {/* Public Landing Page */}
+      <Route path="/" element={<LandingPage />} />
+
       {/* Client Portal (Protected via simple login or token in real app, keeping route structure) */}
       <Route path="/portal/login" element={<ClientPortalLogin />} />
       <Route path="/portal/change-password" element={
@@ -520,7 +524,6 @@ export const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
         {/* Leads Module (Admins, Consultants, Operations) */}
         <Route
