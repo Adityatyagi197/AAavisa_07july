@@ -1,0 +1,1496 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import Box from '@mui/material/Box';
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import Divider from '@mui/material/Divider';
+import CircularProgress from '@mui/material/CircularProgress';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import LogoutIcon from '@mui/icons-material/Logout';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+
+import Tab from '@mui/material/Tab';
+import Tabs from '@mui/material/Tabs';
+import TextField from '@mui/material/TextField';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Chip from '@mui/material/Chip';
+import Accordion from '@mui/material/Accordion';
+import AccordionSummary from '@mui/material/AccordionSummary';
+import AccordionDetails from '@mui/material/AccordionDetails';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import LockIcon from '@mui/icons-material/Lock';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import VideoCameraFrontIcon from '@mui/icons-material/VideoCameraFront';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
+import Grid from '@mui/material/Grid';
+import InputAdornment from '@mui/material/InputAdornment';
+import IconButton from '@mui/material/IconButton';
+
+import { dbService } from '../../services/dbService';
+import FileUploader from '../../components/FileUploader';
+import StatusBadge from '../../components/StatusBadge';
+import AppModal from '../../components/AppModal';
+import { useAlert } from '../../contexts/AlertContext';
+import { SERVICES, PACKAGES } from '../../constants/mockData';
+
+const TRANSLATIONS = {
+  English: {
+    welcome: "Welcome",
+    logout: "Log out",
+    schedule_tab: "1. Schedule Consultation",
+    docs_tab: "2. Document Center",
+    booking_title: "Book Free Expert Consultation",
+    booking_desc: "Please select a date and an available hour. Our system will automatically match you with a case officer.",
+    policy_title: "⚠️ IMPORTANT POLICY NOTE",
+    policy_desc: "If you do not join your scheduled Free Eligibility Assessment within 10 minutes of the appointment time, your booking will be automatically cancelled. Due to high demand, missed appointments are not eligible for rescheduling. This policy helps us provide fair access to all applicants.",
+    step1: "Step 1: Choose Date",
+    step2: "Step 2: Choose Available Slot (Movie-Ticket Style)",
+    step3: "Step 3: Client Details & Language Preference",
+    lang_label: "Preferred Consultation Language",
+    nationality: "Nationality",
+    residence: "Country of Residence",
+    step4: "Step 4: Consultation Objective",
+    notes_label: "What is your main goal for this visa consultation?",
+    confirm_booking: "Confirm Consultation Booking",
+    booked_consultations: "Your Consultations History",
+    no_consultations: "No consultation records found.",
+    checklist_title: "Required Documents Checklist",
+    checklist_desc: "Upload required visa application documents. Category-specific folders are automatically managed.",
+    upload_required: "Please upload the following documents to continue with your visa application.",
+    calculator_title: "Spanish Sworn Translation Word Counter & Price Calculator",
+    calculator_desc: "Determine your translation costs instantly by entering your source language and word count. Upload documents directly for sworn certified Spanish translations.",
+    select_source_lang: "Select Source Language",
+    word_count: "Word Count",
+    upload_targets: "Upload Target Documents for Verification",
+    calculate_price: "Calculate Price",
+    total_words: "Total Words",
+    final_price: "Final Price",
+    proceed_payment: "Proceed with Payment"
+  },
+  Arabic: {
+    welcome: "مرحباً",
+    logout: "تسجيل الخروج",
+    schedule_tab: "١. جدولة الاستشارة",
+    docs_tab: "٢. مركز المستندات",
+    booking_title: "احجز استشارتك المجانية مع الخبراء",
+    booking_desc: "يرجى تحديد التاريخ والوقت المتاحين. سيقوم نظامنا بمطابقتك مع موظف الحالة تلقائياً.",
+    policy_title: "⚠️ تنبيه هام بخصوص السياسة",
+    policy_desc: "إذا لم تنضم إلى تقييم الأهلية المجاني المقرر خلال 10 دقائق من موعد الموعد، فسيتم إلغاء حجزك تلقائياً. نظراً للطلب المتزايد، فإن المواعيد الفائتة غير قابلة لإعادة الجدولة. تساعدنا هذه السياسة في توفير وصول عادل لجميع المتقدمين.",
+    step1: "الخطوة ١: اختر التاريخ",
+    step2: "الخطوة ٢: اختر الموعد المتاح (بنظام التذاكر)",
+    step3: "الخطوة ٣: تفاصيل العميل واللغة المفضلة",
+    lang_label: "اللغة المفضلة للاستشارة",
+    nationality: "الجنسية",
+    residence: "بلد الإقامة",
+    step4: "الخطوة ٤: هدف الاستشارة",
+    notes_label: "ما هو هدفك الرئيسي من هذه الاستشارة الخاصة بالتأشيرة؟",
+    confirm_booking: "تأكيد حجز الاستشارة",
+    booked_consultations: "سجل الاستشارات الخاصة بك",
+    no_consultations: "لم يتم العثور على سجلات استشارة.",
+    checklist_title: "قائمة المستندات المطلوبة",
+    checklist_desc: "قم بتحميل مستندات طلب التأشيرة المطلوبة. يتم إدارة المجلدات الخاصة بكل فئة تلقائياً.",
+    upload_required: "يرجى تحميل المستندات التالية لمتابعة طلب التأشيرة الخاص بك.",
+    calculator_title: "حاسبة الأسعار وعداد الكلمات للترجمة الإسبانية المحلفة",
+    calculator_desc: "حدد تكلفة الترجمة فوراً عن طريق إدخال لغتك الأم وعدد الكلمات. قم بتحميل المستندات مباشرة للحصول على ترجمة إسبانية معتمدة ومحلفة.",
+    select_source_lang: "اختر اللغة الأم",
+    word_count: "عدد الكلمات",
+    upload_targets: "تحميل المستندات المراد ترجمتها للتحقق",
+    calculate_price: "احسب السعر",
+    total_words: "إجمالي الكلمات",
+    final_price: "السعر النهائي",
+    proceed_payment: "المتابعة لإجراء الدفع"
+  },
+  Spanish: {
+    welcome: "Bienvenido",
+    logout: "Cerrar sesión",
+    schedule_tab: "1. Programar Consulta",
+    docs_tab: "2. Centro de Documentos",
+    booking_title: "Reservar Consulta Gratuita con Expertos",
+    booking_desc: "Seleccione una fecha y una hora disponible. Nuestro sistema le asignará automáticamente un asesor de casos.",
+    policy_title: "⚠️ NOTA DE POLÍTICA IMPORTANTE",
+    policy_desc: "Si no se une a su Evaluación de Elegibilidad Gratuita programada dentro de los 10 minutos posteriores a la hora de la cita, su reserva se cancelará automáticamente. Debido a la alta demanda, las citas perdidas no son elegibles para reprogramación. Esta política nos ayuda a brindar un acceso justo a todos los solicitantes.",
+    step1: "Paso 1: Elija la Fecha",
+    step2: "Paso 2: Elija el Horario Disponible (Estilo Boleto de Cine)",
+    step3: "Paso 3: Detalles del Cliente y Preferencia de Idioma",
+    lang_label: "Idioma de Consulta Preferido",
+    nationality: "Nacionalidad",
+    residence: "País de Residencia",
+    step4: "Paso 4: Objetivo de la Consulta",
+    notes_label: "¿Cuál es su objetivo principal para esta consulta de visa?",
+    confirm_booking: "Confirmar Reserva de Consulta",
+    booked_consultations: "Historial de sus Consultas",
+    no_consultations: "No se encontraron registros de consultas.",
+    checklist_title: "Lista de Documentos Requeridos",
+    checklist_desc: "Suba los documentos requeridos para la solicitud de visa. Las carpetas específicas por categoría se gestionan automáticamente.",
+    upload_required: "Por favor, suba los siguientes documentos para continuar con su solicitud de visa.",
+    calculator_title: "Calculadora de Precios y Contador de Palabras de Traducción Jurada al Español",
+    calculator_desc: "Determine los costos de traducción al instante ingresando el idioma de origen y el número de palabras. Suba documentos directamente para traducciones juradas certificadas al español.",
+    select_source_lang: "Seleccionar Idioma de Origen",
+    word_count: "Cantidad de Palabras",
+    upload_targets: "Subir Documentos para Verificación",
+    calculate_price: "Calcular Precio",
+    total_words: "Total de Palabras",
+    final_price: "Precio Final",
+    proceed_payment: "Proceder al Pago"
+  },
+  French: {
+    welcome: "Bienvenue",
+    logout: "Se déconnecter",
+    schedule_tab: "1. Planifier la Consultation",
+    docs_tab: "2. Centre de Documents",
+    booking_title: "Réserver une Consultation Gratuite",
+    booking_desc: "Veuillez sélectionner une date et une heure disponible. Notre système vous affectera automatiquement un gestionnaire de dossier.",
+    policy_title: "⚠️ NOTE DE POLITIQUE IMPORTANTE",
+    policy_desc: "Si vous ne rejoignez pas votre évaluation d'éligibilité gratuite planifiée dans les 10 minutes suivant l'heure du rendez-vous, votre réservation sera automatiquement annulée. En raison de la forte demande, les rendez-vous manqués ne peuvent pas être reprogrammés. Cette politique nous aide à offrir un accès équitable à tous les candidats.",
+    step1: "Étape 1: Choisissez la Date",
+    step2: "Étape 2: Choisissez un Créneau Disponible",
+    step3: "Étape 3: Détails du Client et Langue Préférée",
+    lang_label: "Langue de Consultation Préférée",
+    nationality: "Nationalité",
+    residence: "Pays de Résidence",
+    step4: "Étape 4: Objectif de la Consultation",
+    notes_label: "Quel est votre objectif principal pour cette consultation de visa?",
+    confirm_booking: "Confirmer la Réservation",
+    booked_consultations: "Historique de vos Consultations",
+    no_consultations: "Aucun dossier de consultation trouvé.",
+    checklist_title: "Liste des Documents Requis",
+    checklist_desc: "Téléchargez les documents de demande de visa requis. Les dossiers spécifiques aux catégories sont gérés automatiquement.",
+    upload_required: "Veuillez télécharger les documents suivants pour continuer votre demande de visa.",
+    calculator_title: "Calculateur de Prix & Compteur de Mots pour Traduction Assermentée en Espagnol",
+    calculator_desc: "Déterminez instantanément vos coûts de traduction en saisissant votre langue source et le nombre de mots. Téléchargez les documents pour une traduction assermentée certifiée espagnole.",
+    select_source_lang: "Sélectionner la Langue Source",
+    word_count: "Nombre de Mots",
+    upload_targets: "Télécharger les Documents pour Vérification",
+    calculate_price: "Calculer le Prix",
+    total_words: "Total des Mots",
+    final_price: "Prix Final",
+    proceed_payment: "Procéder au Paiement"
+  },
+  German: {
+    welcome: "Willkommen",
+    logout: "Abmelden",
+    schedule_tab: "1. Beratung buchen",
+    docs_tab: "2. Dokumentencenter",
+    booking_title: "Kostenlose Expertenberatung buchen",
+    booking_desc: "Bitte wählen Sie ein Datum und ein verfügbares Zeitfenster. Unser System wird Ihnen automatisch einen Fallbearbeiter zuweisen.",
+    policy_title: "⚠️ WICHTIGER RICHTLINIENHINWEIS",
+    policy_desc: "Wenn Sie nicht innerhalb von 10 Minuten nach dem vereinbarten Termin an Ihrer geplanten kostenlosen Eignungsprüfung teilnehmen, wird Ihre Buchung automatisch storniert. Aufgrund der hohen Nachfrage können verpasste Termine nicht verschoben werden. Diese Richtlinie hilft uns, allen Bewerbern einen fairen Zugang zu bieten.",
+    step1: "Schritt 1: Datum wählen",
+    step2: "Schritt 2: Verfügbares Zeitfenster wählen",
+    step3: "Schritt 3: Kundendetails & Bevorzugte Sprache",
+    lang_label: "Bevorzugte Beratungssprache",
+    nationality: "Staatsangehörigkeit",
+    residence: "Wohnsitzland",
+    step4: "Schritt 4: Beratungsziel",
+    notes_label: "Was ist Ihr Hauptziel für diese Visumberatung?",
+    confirm_booking: "Beratungsbuchung bestätigen",
+    booked_consultations: "Ihre Beratungshistorie",
+    no_consultations: "Keine Beratungsdaten gefunden.",
+    checklist_title: "Checkliste für erforderliche Dokumente",
+    checklist_desc: "Laden Sie die erforderlichen Unterlagen für den Visumantrag hoch. Kategoriespezifische Ordner werden automatisch verwaltet.",
+    upload_required: "Bitte laden Sie die folgenden Dokumente hoch, um mit Ihrem Visumantrag fortzufahren.",
+    calculator_title: "Wortzähler und Preisrechner für vereidigte spanische Übersetzungen",
+    calculator_desc: "Ermitteln Sie Ihre Übersetzungskosten sofort, indem Sie Ihre Ausgangssprache und die Wortanzahl eingeben. Laden Sie Dokumente direkt für eine zertifizierte vereidigte spanische Übersetzung hoch.",
+    select_source_lang: "Ausgangssprache auswählen",
+    word_count: "Wortanzahl",
+    upload_targets: "Zieldokumente zur Überprüfung hochladen",
+    calculate_price: "Preis berechnen",
+    total_words: "Gesamtwörter",
+    final_price: "Endpreis",
+    proceed_payment: "Mit der Zahlung fortfahren"
+  },
+  Urdu: {
+    welcome: "خوش آمدید",
+    logout: "لاگ آؤٹ",
+    schedule_tab: "1۔ مشاورت کا شیڈول",
+    docs_tab: "2۔ دستاویزات کا مرکز",
+    booking_title: "مفت ماہرانہ مشاورت بک کریں",
+    booking_desc: "براہ کرم دستیاب تاریخ اور وقت منتخب کریں۔ ہمارا نظام خود بخود آپ کو کیس آفیسر سے مماثل کر دے گا۔",
+    policy_title: "⚠️ اہم پالیسی نوٹ",
+    policy_desc: "اگر آپ مقررہ وقت کے 10 منٹ کے اندر اپنی طے شدہ مفت اہلیت کی تشخیص میں شامل نہیں ہوتے ہیں، تو آپ کی بکنگ خود بخود منسوخ ہو جائے گی۔ زیادہ مانگ کی وجہ سے، چھوٹ جانے والی ملاقاتیں دوبارہ شیڈول کرنے کی اہل نہیں ہیں۔ یہ پالیسی ہمیں تمام درخواست دہندگان کو یکساں رسائی فراہم کرنے میں مدد کرتی ہے۔",
+    step1: "مرحلہ 1: تاریخ منتخب کریں",
+    step2: "مرحلہ 2: دستیاب وقت منتخب کریں (ٹکٹ کے انداز میں)",
+    step3: "مرحلہ 3: کسٹمر کی تفصیلات اور زبان کی ترجیح",
+    lang_label: "مشاورت کی پسندیدہ زبان",
+    nationality: "قومیت",
+    residence: "رہائشی ملک",
+    step4: "مرحلہ 4: مشاورت کا مقصد",
+    notes_label: "اس ویزا مشاورت کے لیے آپ کا بنیادی مقصد کیا ہے؟",
+    confirm_booking: "مشاورت کی بکنگ کی تصدیق کریں",
+    booked_consultations: "آپ کی مشاورت کی تاریخ",
+    no_consultations: "کوئی مشاورتی ریکارڈ نہیں ملا۔",
+    checklist_title: "مطلوبہ دستاویزات کی فہرست",
+    checklist_desc: "ویزہ کی درخواست کے لیے مطلوبہ دستاویزات اپ لوڈ کریں۔ زمرہ کے لحاظ سے فولڈرز کا انتظام خود بخود کیا جاتا ہے۔",
+    upload_required: "اپنی ویزا درخواست جاری رکھنے کے لیے براہ کرم درج ذیل دستاویزات اپ لوڈ کریں۔",
+    calculator_title: "ہسپانوی حلفیہ ترجمہ ورڈ کاؤنٹر اور قیمت کا کیلکولیٹر",
+    calculator_desc: "اپنی اصل زبان اور الفاظ کی تعداد درج کر کے فوری طور پر اپنے ترجمے کے اخراجات معلوم کریں۔ تصدیق شدہ ہسپانوی حلفیہ ترجمہ کے لیے دستاویزات براہ راست اپ لوڈ کریں۔",
+    select_source_lang: "اصل زبان منتخب کریں",
+    word_count: "الفاظ کی تعداد",
+    upload_targets: "تصدیق کے لیے دستاویزات اپ لوڈ کریں",
+    calculate_price: "قیمت کا حساب لگائیں",
+    total_words: "کل الفاظ",
+    final_price: "حتمی قیمت",
+    proceed_payment: "ادائیگی کے ساتھ آگے بڑھیں"
+  }
+};
+
+export const ClientPortalDocs = () => {
+  const { clientId } = useParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { showAlert } = useAlert();
+  const [tabValue, setTabValue] = useState(0);
+  const [portalLang, setPortalLang] = useState(() => {
+    return localStorage.getItem('client-portal-lang') || 'English';
+  });
+
+  const changeLanguage = (newLang) => {
+    setPortalLang(newLang);
+    localStorage.setItem('client-portal-lang', newLang);
+  };
+
+  const t = (key) => {
+    const custom = {
+      English: {
+        select_target_lang: "Select Target Language",
+        target_lang_label: "Target Language"
+      },
+      Arabic: {
+        select_target_lang: "اختر اللغة المستهدفة",
+        target_lang_label: "اللغة المستهدفة"
+      },
+      Spanish: {
+        select_target_lang: "Seleccionar Idioma de Destino",
+        target_lang_label: "Idioma de Destino"
+      },
+      French: {
+        select_target_lang: "Sélectionner la Langue Cible",
+        target_lang_label: "Langue Cible"
+      },
+      German: {
+        select_target_lang: "Zielsprache auswählen",
+        target_lang_label: "Zielsprache"
+      },
+      Urdu: {
+        select_target_lang: "ہدف زبان منتخب کریں",
+        target_lang_label: "ہدف زبان"
+      }
+    };
+
+    if (custom[portalLang] && custom[portalLang][key]) {
+      return custom[portalLang][key];
+    }
+    if (TRANSLATIONS[portalLang] && TRANSLATIONS[portalLang][key]) {
+      return TRANSLATIONS[portalLang][key];
+    }
+    return TRANSLATIONS['English'][key] || key;
+  };
+
+  // Slot booking state
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedTime, setSelectedTime] = useState('');
+  const [meetingNotes, setMeetingNotes] = useState('');
+  const [preferredLang, setPreferredLang] = useState('English');
+  const [nationality, setNationality] = useState('');
+  const [countryOfResidence, setCountryOfResidence] = useState('');
+
+  // Sworn Translation State
+  const [sourceLang, setSourceLang] = useState('English');
+  const [targetLang, setTargetLang] = useState('Spanish');
+  const [wordCount, setWordCount] = useState(250);
+  const [wordRate, setWordRate] = useState(0.12);
+  const [calcPrice, setCalcPrice] = useState(30);
+  const [translationPaid, setTranslationPaid] = useState(false);
+  const [isCalculated, setIsCalculated] = useState(false);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [translationStatus, setTranslationStatus] = useState('word_calculated');
+  const [translationFiles, setTranslationFiles] = useState([]);
+
+  // Visa Package selection & Billing states
+  const [selectedPackage, setSelectedPackage] = useState('full_process');
+  const [billingTermsChecked, setBillingTermsChecked] = useState(false);
+  const [billingPaymentMethod, setBillingPaymentMethod] = useState('card');
+
+  // Fetch client details
+  const { data: clients = [], isLoading: isClientsLoading } = useQuery({
+    queryKey: ['clients'],
+    queryFn: dbService.getClients });
+
+  const client = clients.find((c) => c.id === clientId);
+
+  useEffect(() => {
+    if (client) {
+      setPreferredLang(client.preferredLanguage || 'English');
+      setNationality(client.nationality || '');
+      setCountryOfResidence(client.countryOfResidence || '');
+      if (client.preferredLanguage) {
+        setPortalLang(client.preferredLanguage);
+        localStorage.setItem('client-portal-lang', client.preferredLanguage);
+      }
+    }
+  }, [client]);
+
+  const { data: documents = [], isLoading: isDocsLoading } = useQuery({
+    queryKey: ['documents'],
+    queryFn: dbService.getDocuments });
+
+  const { data: consultations = [], isLoading: isConsultationsLoading } = useQuery({
+    queryKey: ['consultations'],
+    queryFn: dbService.getConsultations });
+
+  const { data: agents = [] } = useQuery({
+    queryKey: ['agents'],
+    queryFn: dbService.getAgents });
+
+  const { data: generalSettings } = useQuery({
+    queryKey: ['settings-general'],
+    queryFn: dbService.getSettings
+  });
+
+  const getRateForLang = (lang) => {
+    if (generalSettings && Array.isArray(generalSettings.swornTranslationRates)) {
+      const match = generalSettings.swornTranslationRates.find(r => r.name === lang);
+      if (match) return match.rate;
+    }
+    if (lang === 'Arabic' || lang === 'Chinese') return 0.16;
+    if (lang === 'French' || lang === 'German') return 0.14;
+    if (lang === 'Urdu') return 0.15;
+    return 0.12;
+  };
+
+  useEffect(() => {
+    if (generalSettings && Array.isArray(generalSettings.swornTranslationRates) && generalSettings.swornTranslationRates.length > 0) {
+      const exists = generalSettings.swornTranslationRates.some(r => r.name === sourceLang);
+      if (!exists) {
+        setSourceLang(generalSettings.swornTranslationRates[0].name);
+      }
+    }
+  }, [generalSettings, sourceLang]);
+
+  useEffect(() => {
+    let rate = getRateForLang(sourceLang);
+    if (sourceLang.toLowerCase() === targetLang.toLowerCase()) {
+      rate = 0;
+    } else if (targetLang !== 'Spanish') {
+      const targetRate = getRateForLang(targetLang);
+      rate = parseFloat(((rate + targetRate) / 2).toFixed(2));
+    }
+    setWordRate(rate);
+    setCalcPrice(parseFloat((wordCount * rate).toFixed(2)));
+  }, [generalSettings, sourceLang, targetLang, wordCount]);
+
+  // Mutations
+  const uploadDocMutation = useMutation({
+    mutationFn: dbService.uploadDocument,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      showAlert('Document uploaded successfully. It is now pending review.', 'success');
+    } });
+
+  const bookMeetingMutation = useMutation({
+    mutationFn: dbService.bookClientConsultation,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['consultations'] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      showAlert('Your consultation has been booked successfully!', 'success');
+      setSelectedDate('');
+      setSelectedTime('');
+      setMeetingNotes('');
+    }
+  });
+
+  const selectAndPayPackageMutation = useMutation({
+    mutationFn: async ({ packageId, amount, discount }) => {
+      // 1. Update client object in local storage
+      const clients = JSON.parse(localStorage.getItem('crm-clients') || '[]');
+      const updatedClients = clients.map(c => {
+        if (c.id === client.id) {
+          return {
+            ...c,
+            packagePaid: true,
+            packageId,
+            status: 'Payment Received',
+            visaStatus: 'Document Preparation'
+          };
+        }
+        return c;
+      });
+      localStorage.setItem('crm-clients', JSON.stringify(updatedClients));
+
+      // 2. Create invoice in payments database
+      const payments = JSON.parse(localStorage.getItem('crm-payments') || '[]');
+      const newInvoice = {
+        id: 'INV-2026-' + String(payments.length + 1).padStart(3, '0'),
+        clientId: client.id,
+        clientName: `${client.firstName} ${client.lastName}`,
+        serviceId: client.serviceId,
+        packageId,
+        amount,
+        discount,
+        status: 'Paid',
+        billingDate: new Date().toISOString().split('T')[0],
+        dueDate: new Date().toISOString().split('T')[0],
+        paymentMethod: billingPaymentMethod === 'card' ? 'Credit Card' : (billingPaymentMethod === 'apple' ? 'Apple Pay / Google Pay' : 'Link Wallet'),
+        transactionId: 'TXN_' + Math.floor(Math.random() * 1000000000)
+      };
+      payments.unshift(newInvoice);
+      localStorage.setItem('crm-payments', JSON.stringify(payments));
+
+      return newInvoice;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['payments'] });
+      showAlert('Payment completed successfully! Document Center is now unlocked.', 'success');
+      setTabValue(1); // Switch directly to Document Uploads tab!
+    }
+  });
+
+  const handleDocUploaded = (docData, belongsTo) => {
+    uploadDocMutation.mutate({
+      ...docData,
+      belongsTo
+    });
+  };
+
+  const handleLogout = () => {
+    showAlert('Successfully logged out.', 'info');
+    navigate('/portal/login');
+  };
+
+  const handleBookConsultation = () => {
+    if (!selectedDate || !selectedTime) {
+      showAlert('Please select a date and a time slot.', 'warning');
+      return;
+    }
+    if (!nationality.trim() || !countryOfResidence.trim()) {
+      showAlert('Nationality and Country of Residence are required to complete your booking.', 'warning');
+      return;
+    }
+    bookMeetingMutation.mutate({
+      clientId: client.id,
+      meetingDate: selectedDate,
+      meetingTime: selectedTime,
+      notes: meetingNotes,
+      preferredLanguage: preferredLang,
+      nationality: nationality.trim(),
+      countryOfResidence: countryOfResidence.trim()
+    });
+  };
+
+  if (isClientsLoading || isDocsLoading || isConsultationsLoading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!client) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', flexDirection: 'column', gap: 2 }}>
+        <Typography variant="h6">Client profile not found.</Typography>
+        <Button onClick={() => navigate('/portal/login')}>Go Back to Login</Button>
+      </Box>
+    );
+  }
+
+  // Next 5 working dates helper
+  const getNextWorkingDates = () => {
+    const dates = [];
+    let current = new Date();
+    while (dates.length < 5) {
+      current.setDate(current.getDate() + 1);
+      // Exclude weekends (0: Sunday, 6: Saturday)
+      if (current.getDay() !== 0 && current.getDay() !== 6) {
+        dates.push({
+          val: current.toISOString().split('T')[0],
+          label: current.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+        });
+      }
+    }
+    return dates;
+  };
+
+  const bookingDates = getNextWorkingDates();
+
+  // Hourly slots config
+  const TIME_SLOTS = ['10:00', '11:00', '12:00', '14:00', '15:00', '16:00'];
+
+  // Check which slots are already booked on selected date
+  const getBookedSlotsForDate = (dateVal) => {
+    if (!dateVal) return [];
+    const agentId = client.assignedConsultantId || 'unassigned';
+    return consultations
+      .filter(c => c.meetingDate === dateVal && c.assignedConsultantId === agentId && c.status !== 'Cancelled')
+      .map(c => c.meetingTime);
+  };
+
+  const bookedSlots = getBookedSlotsForDate(selectedDate);
+
+  // Client specific details
+  const clientDocuments = documents.filter((d) => d.clientId === client.id);
+  const clientConsultations = consultations.filter((c) => c.leadId === client.id);
+  const activeConsultation = clientConsultations.find(c => c.status === 'Scheduled' || c.status === 'Pending Assignment');
+  const assignedAgent = agents.find(a => a.id === client.assignedConsultantId);
+
+  // Document categories checklist
+  const REQUIRED_CATEGORIES = {
+    dnv: ['Passport (Copy)', 'Employment Verification Letter', 'Remote Income Bank Statements', 'Social Security Certificate'],
+    nlv: ['Passport (Copy)', 'Spanish Health Insurance Policy', 'Clean Criminal Record Certificate', 'Savings Bank Statements'],
+    study: ['Passport (Copy)', 'Complutense Admission Letter', 'Medical Certificate', 'Sufficient Funds Guarantee'],
+    property: ['Passport (Copy)', 'Property Purchase Escrow Registry', 'Spanish Bank Account Certificate'],
+    family: ['Passport (Copy)', 'Relationship Verification Certificate', 'Sufficient Income Proof']
+  };
+
+  const getRequiredList = () => {
+    return REQUIRED_CATEGORIES[client.serviceId] || ['Passport (Copy)'];
+  };
+
+  const requiredCategories = getRequiredList();
+
+  // Generate dependent sections
+  const applicantsList = [];
+  applicantsList.push('Main Applicant');
+  for (let i = 1; i < (client.applicantsCount || 1); i++) {
+    applicantsList.push(`Dependent ${i}`);
+  }
+
+  const isRTL = portalLang === 'Arabic' || portalLang === 'Urdu';
+
+  return (
+    <Box 
+      dir={isRTL ? 'rtl' : 'ltr'} 
+      sx={{ 
+        bgcolor: 'background.default', 
+        minHeight: '100vh', 
+        py: 4, 
+        px: { xs: 2, md: 6 },
+        textAlign: isRTL ? 'right' : 'left'
+      }}
+    >
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, maxWidth: 950, mx: 'auto', flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+          <Box
+            sx={{
+              width: 40,
+              height: 40,
+              borderRadius: 1,
+              background: 'linear-gradient(135deg, #2563EB 0%, #14B8A6 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontWeight: 800,
+              fontSize: '1.2rem' }}
+          >
+            A³
+          </Box>
+          <Box sx={{ textAlign: isRTL ? 'right' : 'left' }}>
+            <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2 }}>{t('welcome')}, {client.firstName} {client.lastName}</Typography>
+            <Typography variant="caption" color="text.secondary">Secure Relocation & Booking Portal ({client.id})</Typography>
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+          <FormControl size="small" sx={{ minWidth: 120 }}>
+            <Select
+              value={portalLang}
+              onChange={(e) => changeLanguage(e.target.value)}
+              sx={{ borderRadius: 2, height: 36, bgcolor: 'background.paper', fontSize: '0.85rem', fontWeight: 600 }}
+            >
+              <MenuItem value="English">English 🇺🇸</MenuItem>
+              <MenuItem value="Arabic">العربية 🇦🇪</MenuItem>
+              <MenuItem value="Spanish">Español 🇪🇸</MenuItem>
+              <MenuItem value="French">Français 🇫🇷</MenuItem>
+              <MenuItem value="German">Deutsch 🇩🇪</MenuItem>
+              <MenuItem value="Urdu">Urdu 🇵🇰</MenuItem>
+            </Select>
+          </FormControl>
+          <Button startIcon={<LogoutIcon />} onClick={handleLogout} color="inherit" sx={{ textTransform: 'none', fontWeight: 700 }}>
+            {t('logout')}
+          </Button>
+        </Box>
+      </Box>
+
+      {/* Tabs */}
+      <Box sx={{ maxWidth: 950, mx: 'auto', mb: 3 }}>
+        <Tabs
+          value={tabValue}
+          onChange={(e, val) => setTabValue(val)}
+          indicatorColor="primary"
+          textColor="primary"
+          sx={{ borderBottom: 1, borderColor: 'divider' }}
+        >
+          <Tab label={t('schedule_tab')} sx={{ textTransform: 'none', fontWeight: 700 }} />
+          <Tab label={t('docs_tab')} sx={{ textTransform: 'none', fontWeight: 700 }} />
+          {client && (client.serviceId === 'sworn_translation' || client.serviceId === 'translation' || client.serviceId === 'sworn') ? (
+            <Tab label={t('calculator_title')} sx={{ textTransform: 'none', fontWeight: 700 }} />
+          ) : (
+            <Tab label="3. Visa Packages & Billing" sx={{ textTransform: 'none', fontWeight: 700 }} />
+          )}
+        </Tabs>
+      </Box>
+
+      <Box sx={{ maxWidth: 950, mx: 'auto' }}>
+        {/* Tab 0: Schedule Consultation */}
+        {tabValue === 0 && (
+          <Box className="grid grid-cols-12 gap-2">
+            {/* If consultation is already scheduled */}
+            {activeConsultation ? (
+              <Box className="col-span-12">
+                <Paper sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'success.main', bgcolor: '#F0FDF4', boxShadow: 'none' }}>
+                  <Typography variant="h5" sx={{ fontWeight: 800, mb: 1, display: 'flex', alignItems: 'center', gap: 1, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                    <CheckCircleIcon color="success" /> Consultation Confirmed!
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    Your free expert visa consultation has been successfully registered. Please find the details below:
+                  </Typography>
+
+                  <Box className="grid grid-cols-12 gap-2" sx={{ mb: 3 }}>
+                    <Box className="col-span-12 sm:col-span-4">
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>DATE & TIME</Typography>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{activeConsultation.meetingDate} at {activeConsultation.meetingTime}</Typography>
+                    </Box>
+                    <Box className="col-span-12 sm:col-span-4">
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>ASSIGNED CASE MANAGER</Typography>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{assignedAgent ? assignedAgent.name : 'Awaiting manual/workload assignment'}</Typography>
+                    </Box>
+                    <Box className="col-span-12 sm:col-span-4">
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>STATUS</Typography>
+                      <Box sx={{ mt: 0.5 }}>
+                        <Chip
+                          label={activeConsultation.status === 'Scheduled' ? 'Confirmed & Scheduled' : 'Awaiting Assignment'}
+                          color={activeConsultation.status === 'Scheduled' ? 'success' : 'warning'}
+                          size="small"
+                          sx={{ fontWeight: 700 }}
+                        />
+                      </Box>
+                    </Box>
+                  </Box>
+
+                  {activeConsultation.status === 'Scheduled' && activeConsultation.meetingLink && (
+                    <Box sx={{ p: 2, bgcolor: '#DCFCE7', borderRadius: 2, border: '1px dashed', borderColor: 'success.main', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                        <VideoCameraFrontIcon color="success" />
+                        <Box>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Your Video Consultation Link is Ready</Typography>
+                          <Typography variant="caption" color="text.secondary">Use this to join the expert call at the scheduled time.</Typography>
+                        </Box>
+                      </Box>
+                      <Button variant="contained" color="success" href={activeConsultation.meetingLink} target="_blank">
+                        Join Zoom Call
+                      </Button>
+                    </Box>
+                  )}
+                </Paper>
+              </Box>
+            ) : (
+              // If NO consultation is booked yet
+              <Box className="col-span-12">
+                <Paper sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
+                  <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>{t('booking_title')}</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    {t('booking_desc')}
+                  </Typography>
+
+                  <Box
+                    sx={{
+                      p: 2,
+                      mb: 3,
+                      bgcolor: '#FEF3C7',
+                      border: '1px solid #F59E0B',
+                      borderRadius: 2.5,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 0.5
+                    }}
+                  >
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#92400E', display: 'flex', alignItems: 'center', gap: 0.5, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                      {t('policy_title')}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#B45309', fontWeight: 500, lineHeight: 1.5 }}>
+                      {t('policy_desc')}
+                    </Typography>
+                  </Box>
+
+                  {/* 1. Date selector */}
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>{t('step1')}</Typography>
+                  <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 4, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                    {bookingDates.map((date) => (
+                      <Button
+                        key={date.val}
+                        variant={selectedDate === date.val ? 'contained' : 'outlined'}
+                        color={selectedDate === date.val ? 'secondary' : 'inherit'}
+                        onClick={() => { setSelectedDate(date.val); setSelectedTime(''); }}
+                        sx={{ p: 2, borderRadius: 2, textTransform: 'none', display: 'flex', flexDirection: 'column', gap: 0.5, minWidth: 100 }}
+                      >
+                        <CalendarMonthIcon size="small" />
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{date.label}</Typography>
+                      </Button>
+                    ))}
+                  </Box>
+
+                  {/* 2. Time selector */}
+                  {selectedDate && (
+                    <Box sx={{ mb: 4 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>{t('step2')}</Typography>
+                      <Box className="grid grid-cols-12 gap-5" sx={{ maxWidth: 500 }}>
+                        {TIME_SLOTS.map((slot) => {
+                          const isBooked = bookedSlots.includes(slot);
+                          return (
+                            <Box className="col-span-4" key={slot}>
+                              <Button
+                                fullWidth
+                                disabled={isBooked}
+                                variant={selectedTime === slot ? 'contained' : 'outlined'}
+                                color={selectedTime === slot ? 'primary' : 'inherit'}
+                                onClick={() => setSelectedTime(slot)}
+                                sx={{ py: 1.5, borderRadius: 2, fontWeight: 700 }}
+                              >
+                                {slot} {isBooked ? '(Booked)' : ''}
+                              </Button>
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    </Box>
+                  )}
+
+                  {/* 3. Notes */}
+                  {selectedDate && selectedTime && (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, maxWidth: 500 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{t('step3')}</Typography>
+                      
+                      <FormControl fullWidth size="small">
+                        <InputLabel id="preferred-lang-label">{t('lang_label')}</InputLabel>
+                        <Select
+                          labelId="preferred-lang-label"
+                          value={preferredLang}
+                          onChange={(e) => setPreferredLang(e.target.value)}
+                          label={t('lang_label')}
+                        >
+                          <MenuItem value="English">English</MenuItem>
+                          <MenuItem value="Arabic">Arabic</MenuItem>
+                          <MenuItem value="Spanish">Spanish</MenuItem>
+                          <MenuItem value="French">French</MenuItem>
+                          <MenuItem value="Urdu">Urdu</MenuItem>
+                          <MenuItem value="German">German</MenuItem>
+                        </Select>
+                      </FormControl>
+
+                      <TextField
+                        label={t('nationality')}
+                        placeholder="e.g. British, Indian, Emirati"
+                        fullWidth
+                        size="small"
+                        value={nationality}
+                        onChange={(e) => setNationality(e.target.value)}
+                      />
+
+                      <TextField
+                        label={t('residence')}
+                        placeholder="e.g. United Arab Emirates, UK"
+                        fullWidth
+                        size="small"
+                        value={countryOfResidence}
+                        onChange={(e) => setCountryOfResidence(e.target.value)}
+                      />
+
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mt: 1 }}>{t('step4')}</Typography>
+                      <TextField
+                        label={t('notes_label')}
+                        multiline
+                        rows={2}
+                        fullWidth
+                        size="small"
+                        value={meetingNotes}
+                        onChange={(e) => setMeetingNotes(e.target.value)}
+                      />
+                      <Button variant="contained" color="secondary" size="large" onClick={handleBookConsultation} sx={{ textTransform: 'none', fontWeight: 700 }}>
+                        {t('confirm_booking')}
+                      </Button>
+                    </Box>
+                  )}
+                </Paper>
+              </Box>
+            )}
+
+            {/* Past Booked consultations */}
+            <Box className="col-span-12" sx={{ mt: 2 }}>
+              <Paper sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
+                <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>{t('booked_consultations')}</Typography>
+                {clientConsultations.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">{t('no_consultations')}</Typography>
+                ) : (
+                  <List>
+                    {clientConsultations.map((c) => (
+                      <Paper key={c.id} sx={{ p: 2, mb: 1.5, bgcolor: 'background.neutral', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid', borderColor: 'divider', boxShadow: 'none', flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                        <Box sx={{ textAlign: isRTL ? 'right' : 'left' }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{c.meetingDate} at {c.meetingTime} (45 mins)</Typography>
+                          <Typography variant="caption" color="text.secondary">Notes: {c.notes}</Typography>
+                        </Box>
+                        <Chip label={c.status} color={c.status === 'Completed' ? 'default' : 'success'} size="small" sx={{ fontWeight: 700 }} />
+                      </Paper>
+                    ))}
+                  </List>
+                )}
+              </Paper>
+            </Box>
+          </Box>
+        )}
+
+        {/* Tab 1: Document Center */}
+        {tabValue === 1 && (
+          <Box className="grid grid-cols-12 gap-4">
+            {/* If package is not paid, show shield lock */}
+            {!client.packagePaid ? (
+              <Box className="col-span-12">
+                <Paper sx={{ p: 6, borderRadius: 4, border: '1px solid', borderColor: 'divider', textAlign: 'center', bgcolor: 'rgba(11, 27, 61, 0.01)', boxShadow: 'none' }}>
+                  <LockIcon sx={{ fontSize: 56, color: 'text.secondary', mb: 2, opacity: 0.8 }} />
+                  <Typography variant="h5" sx={{ fontWeight: 800, color: 'primary.main', mb: 1.5 }}>Document Center is Locked</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 500, mx: 'auto', mb: 3, lineHeight: 1.6 }}>
+                    Please complete your visa package payment or wait for administrative approval to unlock the document uploader panel.
+                  </Typography>
+                  <Button variant="contained" color="secondary" onClick={() => setTabValue(2)} sx={{ px: 4, py: 1.25, borderRadius: 2.5, fontWeight: 700, textTransform: 'none' }}>
+                    Go to Billing & Payments
+                  </Button>
+                </Paper>
+              </Box>
+            ) : (
+              <Box className="grid grid-cols-12 gap-4 col-span-12">
+                {/* Checklist guide */}
+                <Box className="col-span-12 lg:col-span-4">
+                  <Paper sx={{ p: 3.5, borderRadius: 3.5, border: '1px solid', borderColor: 'divider', boxShadow: 'none', height: '100%' }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1 }}>{t('checklist_title')}</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                      {t('checklist_desc')}
+                    </Typography>
+                    <Divider sx={{ my: 2 }} />
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3, lineHeight: 1.6 }}>
+                      {t('upload_required')}
+                    </Typography>
+
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                      {requiredCategories.map((cat, idx) => (
+                        <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                          <CheckCircleIcon sx={{ fontSize: 18, color: clientDocuments.some(d => d.category === cat) ? 'success.main' : 'text.disabled' }} />
+                          <Typography variant="body2" sx={{ fontWeight: 600, color: clientDocuments.some(d => d.category === cat) ? 'text.primary' : 'text.secondary', fontSize: '0.88rem' }}>{cat}</Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  </Paper>
+                </Box>
+
+                {/* Uploaders */}
+                <Box className="col-span-12 lg:col-span-8">
+                  <Paper sx={{ p: 4, borderRadius: 3.5, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
+                    <Typography variant="h6" sx={{ fontWeight: 800, mb: 3 }}>Category Document Uploaders</Typography>
+
+                    {/* Dependent wise accordions */}
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {applicantsList.map((person, index) => {
+                        const personDocs = clientDocuments.filter(d => d.belongsTo === person || (!d.belongsTo && person === 'Main Applicant'));
+                        return (
+                          <Accordion key={person} defaultExpanded={index === 0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '12px !important', boxShadow: 'none', '&:before': { display: 'none' } }}>
+                            <AccordionSummary expandMoreIcon={<ExpandMoreIcon />}>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1.5, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                                📁 {person === 'Main Applicant' ? `${person} (${client.firstName} ${client.lastName})` : person}
+                                <Chip label={`${personDocs.length} files`} size="small" color="primary" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 800 }} />
+                              </Typography>
+                            </AccordionSummary>
+                            <AccordionDetails sx={{ px: 3, pb: 3, textAlign: isRTL ? 'right' : 'left' }}>
+                              <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+                                Upload files specifically belonging to **{person}**. Required files include: {requiredCategories.join(', ')}.
+                              </Typography>
+
+                              <FileUploader
+                                onUpload={(docData) => handleDocUploaded(docData, person)}
+                                clientId={client.id}
+                                clientName={`${client.firstName} ${client.lastName}`}
+                              />
+
+                              <Divider sx={{ my: 3 }} />
+
+                              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 2 }}>Files uploaded for {person}:</Typography>
+                              {personDocs.length === 0 ? (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', py: 2 }}>No files uploaded yet for this applicant.</Typography>
+                              ) : (
+                                <List disablePadding>
+                                  {personDocs.map((doc) => (
+                                    <Paper
+                                      key={doc.id}
+                                      sx={{
+                                        p: 2,
+                                        mb: 1.5,
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                        boxShadow: 'none',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        bgcolor: doc.status === 'Approved' ? '#F0FDF4' : 'background.paper',
+                                        flexDirection: isRTL ? 'row-reverse' : 'row'
+                                      }}
+                                    >
+                                      <Box sx={{ textAlign: isRTL ? 'right' : 'left' }}>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{doc.name || doc.fileName}</Typography>
+                                        <Typography variant="caption" color="text.secondary" display="block">
+                                          Category: {doc.category} | Uploaded on: {doc.uploadedDate ? new Date(doc.uploadedDate).toLocaleDateString() : 'Recently'}
+                                        </Typography>
+                                        {doc.comment && (
+                                          <Typography variant="body2" sx={{ mt: 0.5, color: doc.status === 'Approved' ? 'success.main' : 'error.main', fontStyle: 'italic', fontSize: '0.75rem' }}>
+                                            Note: {doc.comment}
+                                          </Typography>
+                                        )}
+                                      </Box>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                        <StatusBadge status={doc.status} />
+                                      </Box>
+                                    </Paper>
+                                  ))}
+                                </List>
+                              )}
+                            </AccordionDetails>
+                          </Accordion>
+                        );
+                      })}
+                    </Box>
+                  </Paper>
+                </Box>
+              </Box>
+            )}
+          </Box>
+        )}
+
+        {/* Tab 2: Sworn Translation Calculator */}
+        {tabValue === 2 && (client.serviceId === 'sworn_translation' || client.serviceId === 'translation' || client.serviceId === 'sworn') && (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Paper sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
+              <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>{t('calculator_title')}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+                {t('calculator_desc')}
+              </Typography>
+
+              <Grid container spacing={3} sx={{ flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                {/* Inputs Panel */}
+                <Grid item xs={12} md={7}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <FormControl fullWidth>
+                      <InputLabel id="source-lang-select-label">{t('select_source_lang')}</InputLabel>
+                      <Select
+                        labelId="source-lang-select-label"
+                        value={sourceLang}
+                        onChange={(e) => setSourceLang(e.target.value)}
+                        label={t('select_source_lang')}
+                      >
+                        {generalSettings && Array.isArray(generalSettings.swornTranslationRates) && generalSettings.swornTranslationRates.length > 0 ? (
+                          generalSettings.swornTranslationRates.map((langPair) => (
+                            <MenuItem key={langPair.id} value={langPair.name}>
+                              {langPair.name} (€{Number(langPair.rate).toFixed(2)} / word)
+                            </MenuItem>
+                          ))
+                        ) : (
+                          ['English', 'French', 'German', 'Arabic', 'Chinese', 'Urdu'].map((name) => (
+                            <MenuItem key={name} value={name}>
+                              {name} (€{getRateForLang(name).toFixed(2)} / word)
+                            </MenuItem>
+                          ))
+                        )}
+                      </Select>
+                    </FormControl>
+
+                    <FormControl fullWidth>
+                      <InputLabel id="target-lang-select-label">{t('select_target_lang')}</InputLabel>
+                      <Select
+                        labelId="target-lang-select-label"
+                        value={targetLang}
+                        onChange={(e) => setTargetLang(e.target.value)}
+                        label={t('select_target_lang')}
+                      >
+                        <MenuItem value="Spanish">Spanish (Español) 🇪🇸</MenuItem>
+                        <MenuItem value="English">English 🇺🇸</MenuItem>
+                        <MenuItem value="Arabic">Arabic (العربية) 🇦🇪</MenuItem>
+                        <MenuItem value="French">French (Français) 🇫🇷</MenuItem>
+                        <MenuItem value="German">German (Deutsch) 🇩🇪</MenuItem>
+                        <MenuItem value="Urdu">Urdu (اردو) 🇵🇰</MenuItem>
+                      </Select>
+                    </FormControl>
+
+                    <TextField
+                      label={t('word_count')}
+                      type="number"
+                      value={wordCount}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10);
+                        if (isNaN(val)) {
+                          setWordCount('');
+                        } else {
+                          setWordCount(val);
+                        }
+                      }}
+                      placeholder="e.g. 500"
+                      fullWidth
+                      error={wordCount !== '' && wordCount <= 0}
+                      helperText={wordCount !== '' && wordCount <= 0 ? "Word count must be greater than 0" : "Please count the words in your target documents manually or upload a PDF for automatic word analysis."}
+                    />
+
+                    <Box sx={{ p: 2, bgcolor: 'background.neutral', borderRadius: 2, border: '1px solid', borderColor: 'divider', textAlign: isRTL ? 'right' : 'left' }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>{t('upload_targets')}</Typography>
+                      <FileUploader 
+                        onUpload={(file) => {
+                          setTranslationFiles(prev => [...prev, file]);
+                          showAlert('File uploaded successfully for sworn translation analysis!', 'success');
+                        }}
+                        clientId={client.id}
+                        clientName={`${client.firstName} ${client.lastName}`}
+                      />
+                      {translationFiles.length > 0 && (
+                        <Box sx={{ mt: 2 }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>UPLOADED FILES:</Typography>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 0.5 }}>
+                            {translationFiles.map((file, idx) => (
+                              <Paper key={idx} sx={{ p: 1, px: 2, bgcolor: '#F9FAFB', border: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>{file.name || `document_${idx + 1}.pdf`}</Typography>
+                                <Typography variant="caption" color="text.secondary">{file.size ? `${(file.size / 1024).toFixed(1)} KB` : '182 KB'}</Typography>
+                              </Paper>
+                            ))}
+                          </Box>
+                        </Box>
+                      )}
+                    </Box>
+
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      size="large"
+                      onClick={() => {
+                        const total = wordCount * wordRate;
+                        setCalcPrice(parseFloat(total.toFixed(2)));
+                        setIsCalculated(true);
+                        setTranslationStatus('word_calculated');
+                        showAlert('Price calculated successfully!', 'success');
+                      }}
+                      disabled={!wordCount || wordCount <= 0}
+                      sx={{ py: 1.5, fontWeight: 700, textTransform: 'none' }}
+                    >
+                      {t('calculate_price')}
+                    </Button>
+                  </Box>
+                </Grid>
+
+                {/* Pricing Box & Progress */}
+                <Grid item xs={12} md={5}>
+                  <Paper sx={{ p: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', bgcolor: '#F9FAFB', textAlign: isRTL ? 'right' : 'left' }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Translation Summary</Typography>
+                      <Divider sx={{ my: 1.5 }} />
+                      
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                        <Typography variant="body2" color="text.secondary">Translation Route:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{sourceLang} to {targetLang}</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                        <Typography variant="body2" color="text.secondary">Word Rate:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>€{wordRate.toFixed(2)} / word</Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                        <Typography variant="body2" color="text.secondary">Total Words:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{wordCount} Words</Typography>
+                      </Box>
+
+                      <Divider sx={{ my: 1.5 }} />
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Total Final Price:</Typography>
+                        <Typography variant="h4" color="secondary.main" sx={{ fontWeight: 900 }}>€{calcPrice.toFixed(2)}</Typography>
+                      </Box>
+
+                      {/* Timeline status track */}
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', mt: 2, display: 'block' }}>Translation Lifecycle Status</Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+                        <Box sx={{ display: 'flex', gap: 1.5, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' }}>
+                          <CheckCircleIcon color={isCalculated ? 'success' : 'disabled'} sx={{ fontSize: '1.25rem' }} />
+                          <Typography variant="body2" sx={{ fontWeight: 600, color: isCalculated ? 'text.primary' : 'text.disabled' }}>1. Price Quoted & Verified</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 1.5, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' }}>
+                          <CheckCircleIcon color={translationPaid ? 'success' : 'disabled'} sx={{ fontSize: '1.25rem' }} />
+                          <Typography variant="body2" sx={{ fontWeight: 600, color: translationPaid ? 'text.primary' : 'text.disabled' }}>2. Payment Processed</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 1.5, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' }}>
+                          <CheckCircleIcon color={translationStatus === 'processing' || translationStatus === 'completed' || translationStatus === 'delivered' ? 'success' : 'disabled'} sx={{ fontSize: '1.25rem' }} />
+                          <Typography variant="body2" sx={{ fontWeight: 600, color: (translationStatus === 'processing' || translationStatus === 'completed' || translationStatus === 'delivered') ? 'text.primary' : 'text.disabled' }}>3. In Process (Sworn Translators Assigned)</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 1.5, flexDirection: isRTL ? 'row-reverse' : 'row', alignItems: 'center' }}>
+                          <CheckCircleIcon color={translationStatus === 'delivered' ? 'success' : 'disabled'} sx={{ fontSize: '1.25rem' }} />
+                          <Typography variant="body2" sx={{ fontWeight: 600, color: translationStatus === 'delivered' ? 'text.primary' : 'text.disabled' }}>4. Certified PDF Sworn File Delivered</Typography>
+                        </Box>
+                      </Box>
+                    </Box>
+
+                    <Box sx={{ mt: 3 }}>
+                      {translationPaid ? (
+                        <Box>
+                          <Chip label="Payment Verified" color="success" sx={{ py: 1, fontSize: '0.975rem', fontWeight: 800, mb: 1.5, width: '100%' }} />
+                          {translationStatus === 'delivered' ? (
+                            <Button variant="contained" color="secondary" fullWidth href="#" onClick={(e) => { e.preventDefault(); showAlert('Downloading certified Spanish sworn translation PDF...', 'info'); }}>
+                              Download Sworn Translation PDF
+                            </Button>
+                          ) : (
+                            <Button 
+                              variant="outlined" 
+                              color="secondary" 
+                              fullWidth
+                              onClick={() => {
+                                setTranslationStatus('delivered');
+                                showAlert('Demo translation file completed & delivered!', 'success');
+                              }}
+                            >
+                              Simulate Translators Completion
+                            </Button>
+                          )}
+                        </Box>
+                      ) : (
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          fullWidth
+                          size="large"
+                          disabled={!isCalculated}
+                          onClick={() => setPaymentModalOpen(true)}
+                          sx={{ py: 1.2, fontWeight: 700, textTransform: 'none' }}
+                        >
+                          {t('proceed_payment')}
+                        </Button>
+                      )}
+                    </Box>
+                  </Paper>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Box>
+        )}
+
+        {tabValue === 2 && client && client.serviceId !== 'sworn_translation' && client.serviceId !== 'translation' && client.serviceId !== 'sworn' && (() => {
+          const baseServicePrice = SERVICES.find(s => s.id === client.serviceId)?.basePrice || 1500;
+          const numApplicants = client.applicantsCount || 1;
+
+          const optionAPrice = baseServicePrice;
+          const optionBPrice = baseServicePrice + 700;
+          
+          let optionBDiscount = 0;
+          if (numApplicants >= 1) optionBDiscount += 500;
+          if (numApplicants > 1) optionBDiscount += (numApplicants - 1) * 250;
+
+          const optionCPrice = 700;
+          const schengenPrice = 400;
+
+          return (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {client.packagePaid ? (
+                <Paper sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'success.main', bgcolor: '#F0FDF4', boxShadow: 'none', textAlign: 'center' }}>
+                  <CheckCircleIcon color="success" sx={{ fontSize: 56, mb: 2 }} />
+                  <Typography variant="h5" sx={{ fontWeight: 800, mb: 1.5 }}>Visa Relocation Package Active & Paid</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 500, mx: 'auto', mb: 3 }}>
+                    Your visa relocation package payment has been verified. You can now access your document checklist and upload your files under the <strong>Document Center</strong> tab.
+                  </Typography>
+                  <Button variant="contained" color="success" onClick={() => setTabValue(1)} sx={{ px: 4, py: 1.25, borderRadius: 2.5, fontWeight: 700, textTransform: 'none' }}>
+                    Go to Document Center
+                  </Button>
+                </Paper>
+              ) : (
+                <Paper sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
+                  <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>Visa Packages & Billing Hub</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+                    Please select your preferred relocation package below to initiate checkout and unlock your document checklists.
+                  </Typography>
+
+                  <Grid container spacing={3}>
+                    <Grid item xs={12} md={8}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 2 }}>Select Relocation Package</Typography>
+                      
+                      {client.serviceId === 'tourism' || client.serviceId === 'tourist' ? (
+                        <Card sx={{ border: '2px solid', borderColor: 'secondary.main', bgcolor: 'rgba(20, 184, 166, 0.02)', borderRadius: 3, cursor: 'pointer' }}>
+                          <CardContent>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Schengen Tourist Visa Package</Typography>
+                              <Typography variant="h6" color="secondary.main" sx={{ fontWeight: 800 }}>€400</Typography>
+                            </Box>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                              Complete Schengen guidance, invitation preparation, checklist review, and embassy appointment scheduling.
+                            </Typography>
+                            <Chip label="Selected Package" color="secondary" size="small" sx={{ fontWeight: 700 }} />
+                          </CardContent>
+                        </Card>
+                      ) : (
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                          <Card 
+                            onClick={() => setSelectedPackage('full_process')}
+                            sx={{ 
+                              border: selectedPackage === 'full_process' ? '2px solid' : '1px solid', 
+                              borderColor: selectedPackage === 'full_process' ? 'secondary.main' : 'divider', 
+                              bgcolor: selectedPackage === 'full_process' ? 'rgba(20, 184, 166, 0.02)' : 'background.paper', 
+                              borderRadius: 3, 
+                              cursor: 'pointer',
+                              boxShadow: 'none'
+                            }}
+                          >
+                            <CardContent>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>OPTION A: FULL PROCESSING PACKAGE</Typography>
+                                <Typography variant="h6" color="secondary.main" sx={{ fontWeight: 800 }}>€{optionAPrice}</Typography>
+                              </Box>
+                              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                Complete professional end-to-end support for Spain Residency applications from eligibility to submission.
+                              </Typography>
+                              {selectedPackage === 'full_process' && (
+                                <Chip label="Selected" color="secondary" size="small" sx={{ fontWeight: 700 }} />
+                              )}
+                            </CardContent>
+                          </Card>
+
+                          <Card 
+                            onClick={() => setSelectedPackage('premium')}
+                            sx={{ 
+                              border: selectedPackage === 'premium' ? '2px solid' : '1px solid', 
+                              borderColor: selectedPackage === 'premium' ? 'secondary.main' : 'divider', 
+                              bgcolor: selectedPackage === 'premium' ? 'rgba(20, 184, 166, 0.02)' : 'background.paper', 
+                              borderRadius: 3, 
+                              cursor: 'pointer',
+                              boxShadow: 'none'
+                            }}
+                          >
+                            <CardContent>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>OPTION B: PREMIUM PACKAGE</Typography>
+                                <Typography variant="h6" color="secondary.main" sx={{ fontWeight: 800 }}>€{optionBPrice}</Typography>
+                              </Box>
+                              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                Everything in Full Process + complete relocation administrative assistance (NIE/TIE fingerprint appointments, empadronamiento local registration, Social Security, Spanish Bank setup).
+                              </Typography>
+                              {selectedPackage === 'premium' && (
+                                <Chip label="Selected" color="secondary" size="small" sx={{ fontWeight: 700 }} />
+                              )}
+                            </CardContent>
+                          </Card>
+
+                          <Card 
+                            onClick={() => setSelectedPackage('relocation')}
+                            sx={{ 
+                              border: selectedPackage === 'relocation' ? '2px solid' : '1px solid', 
+                              borderColor: selectedPackage === 'relocation' ? 'secondary.main' : 'divider', 
+                              bgcolor: selectedPackage === 'relocation' ? 'rgba(20, 184, 166, 0.02)' : 'background.paper', 
+                              borderRadius: 3, 
+                              cursor: 'pointer',
+                              boxShadow: 'none'
+                            }}
+                          >
+                            <CardContent>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>OPTION C: ADMINISTRATIVE RELOCATION PACKAGE</Typography>
+                                <Typography variant="h6" color="secondary.main" sx={{ fontWeight: 800 }}>€{optionCPrice}</Typography>
+                              </Box>
+                              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                Post-approval administrative relocation support for clients who already have their visa approved and need settlement help in Spain.
+                              </Typography>
+                              {selectedPackage === 'relocation' && (
+                                <Chip label="Selected" color="secondary" size="small" sx={{ fontWeight: 700 }} />
+                              )}
+                            </CardContent>
+                          </Card>
+                        </Box>
+                      )}
+                    </Grid>
+
+                    <Grid item xs={12} md={4}>
+                      <Paper sx={{ p: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none', bgcolor: '#F9FAFB' }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Order Summary</Typography>
+                        <Divider sx={{ my: 1.5 }} />
+
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Typography variant="body2" color="text.secondary">Base Relocation Fee:</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 700 }}>€{client.serviceId === 'tourism' || client.serviceId === 'tourist' ? schengenPrice : baseServicePrice}</Typography>
+                          </Box>
+
+                          {selectedPackage === 'premium' && client.serviceId !== 'tourism' && client.serviceId !== 'tourist' && (
+                            <>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography variant="body2" color="text.secondary">Relocation Add-on:</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 700 }}>+€700</Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'success.main' }}>
+                                <Typography variant="body2" color="inherit">Bilingual Applicant Discounts:</Typography>
+                                <Typography variant="body2" sx={{ fontWeight: 700 }}>-€{optionBDiscount}</Typography>
+                              </Box>
+                            </>
+                          )}
+
+                          {selectedPackage === 'relocation' && client.serviceId !== 'tourism' && client.serviceId !== 'tourist' && (
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'error.main' }}>
+                              <Typography variant="body2" color="inherit">Administrative Mode Override:</Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 700 }}>-€{baseServicePrice}</Typography>
+                            </Box>
+                          )}
+
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <Typography variant="body2" color="text.secondary">VAT (5%):</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                              €{(parseFloat(selectedPackage === 'premium' ? optionBPrice - optionBDiscount : (selectedPackage === 'relocation' ? optionCPrice : (client.serviceId === 'tourism' || client.serviceId === 'tourist' ? schengenPrice : optionAPrice))) * 0.05).toFixed(2)}
+                            </Typography>
+                          </Box>
+
+                          <Divider sx={{ my: 1 }} />
+
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>Payable Total:</Typography>
+                            <Typography variant="h5" color="secondary.main" sx={{ fontWeight: 900 }}>
+                              €{(
+                                parseFloat(selectedPackage === 'premium' ? optionBPrice - optionBDiscount : (selectedPackage === 'relocation' ? optionCPrice : (client.serviceId === 'tourism' || client.serviceId === 'tourist' ? schengenPrice : optionAPrice))) * 1.05
+                              ).toFixed(2)}
+                            </Typography>
+                          </Box>
+                        </Box>
+
+                        <Divider sx={{ my: 2 }} />
+
+                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, textTransform: 'uppercase', display: 'block', mb: 1 }}>Payment Provider</Typography>
+                        <TextField
+                          select
+                          size="small"
+                          fullWidth
+                          value={billingPaymentMethod}
+                          onChange={(e) => setBillingPaymentMethod(e.target.value)}
+                          sx={{ mb: 2 }}
+                        >
+                          <MenuItem value="card">Credit Card (Visa/Mastercard) 💳</MenuItem>
+                          <MenuItem value="apple">Apple Pay / Google Pay 📱</MenuItem>
+                          <MenuItem value="wallet">Link Wallet Selector 💼</MenuItem>
+                          <MenuItem value="tabby">Tabby installment (UAE Only)</MenuItem>
+                          <MenuItem value="tamara">Tamara installment (UAE Only)</MenuItem>
+                        </TextField>
+
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', mb: 2 }}>
+                          <input 
+                            type="checkbox" 
+                            id="billing-tc-checkbox" 
+                            checked={billingTermsChecked}
+                            onChange={(e) => setBillingTermsChecked(e.target.checked)}
+                            style={{ marginTop: 3, transform: 'scale(1.1)', cursor: 'pointer' }}
+                          />
+                          <label htmlFor="billing-tc-checkbox" style={{ fontSize: '0.75rem', color: '#6B7280', cursor: 'pointer', lineHeight: 1.3 }}>
+                            I agree to Spain Visa Terms of Service, <strong>50% Refund Guarantee</strong> policies if refused, and relocation conditions.
+                          </label>
+                        </Box>
+
+                        <Button
+                          variant="contained"
+                          color="secondary"
+                          fullWidth
+                          disabled={selectAndPayPackageMutation.isPending}
+                          onClick={() => {
+                            if (!billingTermsChecked) {
+                              showAlert('You must accept the terms and refund policy to check out.', 'warning');
+                              return;
+                            }
+                            const finalAmount = parseFloat(selectedPackage === 'premium' ? optionBPrice : (selectedPackage === 'relocation' ? optionCPrice : (client.serviceId === 'tourism' || client.serviceId === 'tourist' ? schengenPrice : optionAPrice)));
+                            const finalDiscount = selectedPackage === 'premium' ? optionBDiscount : 0;
+                            selectAndPayPackageMutation.mutate({
+                              packageId: selectedPackage,
+                              amount: finalAmount,
+                              discount: finalDiscount
+                            });
+                          }}
+                          sx={{ py: 1.25, fontWeight: 700, textTransform: 'none' }}
+                        >
+                          Authorize Secure Checkout
+                        </Button>
+
+                        <Box sx={{ mt: 2, p: 1.5, border: '1px solid', borderColor: 'error.main', bgcolor: '#FEF2F2', borderRadius: 2 }}>
+                          <Typography variant="caption" sx={{ fontWeight: 800, color: 'error.main', display: 'block', mb: 0.5 }}>⚠️ REFUND GUARANTEE TERMS</Typography>
+                          <Typography variant="caption" sx={{ color: '#991B1B', display: 'block', fontSize: '0.68rem', lineHeight: 1.3 }}>
+                            If your visa application gets refused by the consulate, you are entitled to a 50% refund under company refund rules.
+                          </Typography>
+                        </Box>
+                      </Paper>
+                    </Grid>
+                  </Grid>
+                </Paper>
+              )}
+            </Box>
+          );
+        })()}
+      </Box>
+
+      {/* Modal: Translation Payment Simulation */}
+      <AppModal
+        open={paymentModalOpen}
+        onClose={() => setPaymentModalOpen(false)}
+        title="Secure Sworn Translation Checkout"
+        actions={
+          <>
+            <Button onClick={() => setPaymentModalOpen(false)} variant="outlined">
+              Cancel
+            </Button>
+          </>
+        }
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+          <Typography variant="body2" color="text.secondary">
+            Secure checkout for Spanish Sworn Translation certification order. Total payable sum: <strong>€{calcPrice.toFixed(2)}</strong>.
+          </Typography>
+
+          <Divider />
+
+          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Choose Payment Provider</Typography>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Button variant="outlined" sx={{ flexGrow: 1, py: 1 }}>Visa / Mastercard</Button>
+            <Button variant="outlined" sx={{ flexGrow: 1, py: 1 }}>Apple Pay / Google Pay</Button>
+            <Button variant="outlined" sx={{ flexGrow: 1, py: 1 }}>Tamara (Split 4x)</Button>
+            <Button variant="outlined" sx={{ flexGrow: 1, py: 1 }}>Tabby</Button>
+          </Box>
+
+          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start', mt: 1 }}>
+            <input 
+              type="checkbox" 
+              id="tc-checkbox" 
+              style={{ marginTop: 4, transform: 'scale(1.2)' }}
+            />
+            <label htmlFor="tc-checkbox" style={{ fontSize: '0.825rem', color: '#6B7280', cursor: 'pointer', lineHeight: 1.4 }}>
+              I agree to the Spain Visa Legal Relocation Terms of Service, sworn affidavit declaration policies, and 50% refund schedule conditions.
+            </label>
+          </Box>
+
+          <Button
+            variant="contained"
+            color="secondary"
+            fullWidth
+            size="large"
+            onClick={() => {
+              const tcChecked = document.getElementById('tc-checkbox')?.checked;
+              if (!tcChecked) {
+                showAlert('You must agree to the Terms & Conditions before checking out.', 'warning');
+                return;
+              }
+              setTranslationPaid(true);
+              setTranslationStatus('processing');
+              setPaymentModalOpen(false);
+              showAlert('Payment successful! Your documents have been dispatched to our sworn translators.', 'success');
+            }}
+            sx={{ mt: 1.5, py: 1.5, fontWeight: 700 }}
+          >
+            Authorize Payment Simulation
+          </Button>
+        </Box>
+      </AppModal>
+    </Box>
+  );
+};
+
+export default ClientPortalDocs;
