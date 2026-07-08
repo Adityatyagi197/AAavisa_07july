@@ -61,7 +61,7 @@ export const SuperAdminClientList = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { showAlert } = useAlert();
-  const { isAdmin, isSuperAdmin, isOperations, currentUser } = useAuth();
+  const { isAdmin, isSuperAdmin, isOperations, currentUser, isViewOnlyMenu } = useAuth();
 
   const getRolePrefix = () => {
     if (!currentUser) return 'super_admin';
@@ -199,6 +199,16 @@ export const SuperAdminClientList = () => {
     queryFn: dbService.getLeadStages,
   });
 
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
+  const roleConfig = (customizationSettings?.[currentUser?.id] || customizationSettings?.[currentUser?.role]) || {};
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Clients');
+  const baseActions = roleConfig.actions?.clients || { canChangeVisaStatus: true, canVerifyDocs: true, canDelete: true };
+  const clientsActions = isViewOnly ? { canChangeVisaStatus: false, canVerifyDocs: false, canDelete: false } : baseActions;
+
   const clientStatuses = leadStages.map(s => s.name);
 
   // Mutation
@@ -329,14 +339,16 @@ export const SuperAdminClientList = () => {
         title="Admin Client Registry"
         subtitle="Track onboarding contracts, payment schedules, and visa application submission lifecycles."
         action={
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<AddIcon />}
-            onClick={() => setAddModalOpen(true)}
-          >
-            Add New Client
-          </Button>
+          (!isViewOnly && (isSuperAdmin || clientsActions.canCreate !== false)) && (
+            <Button
+              variant="contained"
+              color="secondary"
+              startIcon={<AddIcon />}
+              onClick={() => setAddModalOpen(true)}
+            >
+              Add New Client
+            </Button>
+          )
         }
       />
 
@@ -497,6 +509,7 @@ export const SuperAdminClientList = () => {
 
         <AppTable
           columns={columns}
+          context="clients"
           data={paginatedClients}
           count={filteredClients.length}
           page={page}

@@ -243,13 +243,15 @@ export const DashboardLayout = () => {
 
   // WebSockets Real-Time Sync
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser?.id) return;
     
     // Connect to backend Socket.io
     const socket = io('http://localhost:5000');
     
     // Join the specific role room
     socket.emit('join-role', currentUser.role);
+    // Join the specific user room
+    socket.emit('join-user', currentUser.id);
 
     // Listen for permission updates
     socket.on('permissions_updated', (newPermissions) => {
@@ -264,7 +266,7 @@ export const DashboardLayout = () => {
     return () => {
       socket.disconnect();
     };
-  }, [currentUser, queryClient, showAlert]);
+  }, [currentUser?.id, currentUser?.role, queryClient, showAlert]);
 
   const [connectedPlatforms, setConnectedPlatforms] = useState(() => {
     try {
@@ -301,7 +303,7 @@ export const DashboardLayout = () => {
     window.addEventListener('storage', handleStorageChange);
     handleStorageChange();
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [location.pathname]);
+  }, []);
 
   useEffect(() => {
     if (location.pathname.startsWith('/social-inbox')) {
@@ -323,15 +325,14 @@ export const DashboardLayout = () => {
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
   const handleDrawerToggle = () => setMobileOpen(!mobileOpen);
 
-  const handleRoleChange = (event) => {
+  const handleRoleChange = async (event) => {
     const role = event.target.value;
-    changeRole(role);
+    await changeRole(role);
     showAlert(`Role switched to ${role.toUpperCase()}`, 'info');
     navigate('/dashboard');
   };
 
   const navigateTo = (path) => {
-    localStorage.setItem('routing-click-log', `Clicked: ${path} at ${new Date().toLocaleTimeString()}`);
     // If navigating to main client lists, clear their sessionStorage filters
     if (path.endsWith('/clients')) {
       sessionStorage.removeItem('adminClientList_filters');
@@ -381,6 +382,7 @@ export const DashboardLayout = () => {
     if (currentUser.role === 'consultant') return 'agent';
     if (currentUser.role === 'super_admin') return 'super_admin';
     if (currentUser.role === 'marketing') return 'marketing-manager';
+
     return currentUser.role;
   };
 
@@ -593,7 +595,7 @@ export const DashboardLayout = () => {
     {
       label: 'Snapchat',
       channel: 'snapchat',
-      icon: <ChatIcon sx={{ color: '#FFFC00' }} />,
+      icon: <ChatIcon sx={{ color: '#E8C200' }} />,
       path: '/social-inbox?channel=snapchat'
     },
     {
@@ -786,8 +788,8 @@ export const DashboardLayout = () => {
     } else {
       // 2. Otherwise fall back to role-based settings (or static fallback)
       if (currentUser?.role !== 'super_admin') {
-        if (customizationSettings && customizationSettings[currentUser?.role]) {
-          const allowedMenus = customizationSettings[currentUser?.role].menus || [];
+        if (customizationSettings && (customizationSettings[currentUser?.id] || customizationSettings[currentUser?.role])) {
+          const allowedMenus = (customizationSettings[currentUser?.id] || customizationSettings[currentUser?.role]).menus || [];
           if (!allowedMenus.includes(item.label)) return null;
         } else {
           // Fallback to static check if settings are not loaded yet
@@ -1098,11 +1100,17 @@ export const DashboardLayout = () => {
                 }}
               >
                 <MenuItem value="super_admin">CEO 👑</MenuItem>
-                <MenuItem value="admin">Manager 💼</MenuItem>
-                <MenuItem value="operations">Ops ⚙️</MenuItem>
-                <MenuItem value="consultant">Agent 🧑‍💼</MenuItem>
-                <MenuItem value="finance">Finance 💵</MenuItem>
-                <MenuItem value="marketing">Marketing 📣</MenuItem>
+                {customizationSettings?.rolesDefinition?.map(role => (
+                  <MenuItem key={role.id} value={role.id}>{role.label.split('(')[0].trim()}</MenuItem>
+                )) || (
+                  <>
+                    <MenuItem value="admin">Manager 💼</MenuItem>
+                    <MenuItem value="operations">Ops ⚙️</MenuItem>
+                    <MenuItem value="consultant">Agent 🧑‍💼</MenuItem>
+                    <MenuItem value="finance">Finance 💵</MenuItem>
+                    <MenuItem value="marketing">Marketing 📣</MenuItem>
+                  </>
+                )}
               </Select>
             </FormControl>
 

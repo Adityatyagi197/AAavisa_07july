@@ -65,7 +65,14 @@ export const AdminLeadList = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { showAlert } = useAlert();
-  const { isAdmin, isOperations, currentUser } = useAuth();
+  const { isAdmin, isOperations, currentUser, isViewOnlyMenu } = useAuth();
+
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Leads');
 
   // Filters & State
   const [searchTerm, setSearchTerm] = useState('');
@@ -404,7 +411,7 @@ export const AdminLeadList = () => {
         title={(currentUser?.role === 'consultant' || currentUser?.role === 'agent') ? "Consultation Center" : "Lead Center"}
         subtitle={(currentUser?.role === 'consultant' || currentUser?.role === 'agent') ? "Manage your inbound consultation inquiries and qualification data." : "Manage inbound inquiries, lead qualification data, and consultant routing rules."}
         action={
-          (isAdmin || isOperations) && (
+          (!isViewOnly && (isAdmin || isOperations)) && (
             <Button
               variant="contained"
               color="secondary"
@@ -604,7 +611,7 @@ export const AdminLeadList = () => {
                 </IconButton>
               </Tooltip>
 
-              {(isAdmin || isOperations) && (
+              {(!isViewOnly && (isAdmin || isOperations)) && (
                 <Tooltip title="Assign Agent">
                   <IconButton size="small" onClick={() => handleOpenAssignModal(row)} color="secondary">
                     <PersonAddIcon fontSize="small" />
@@ -612,7 +619,7 @@ export const AdminLeadList = () => {
                 </Tooltip>
               )}
 
-              {(isAdmin || isOperations) && (
+              {(!isViewOnly && (isAdmin || isOperations)) && (
                 <Tooltip title="Delete Lead">
                   <IconButton size="small" onClick={() => handleDeleteLead(row.id)} color="error">
                     <DeleteIcon fontSize="small" />

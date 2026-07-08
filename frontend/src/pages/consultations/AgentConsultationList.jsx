@@ -35,7 +35,14 @@ import useAuth from '../../hooks/useAuth';
 export const AgentConsultationList = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser } = useAuth();
+  const { currentUser, isViewOnlyMenu } = useAuth();
+
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Consultations');
 
   const getCardIcon = (iconType) => {
     switch (iconType) {

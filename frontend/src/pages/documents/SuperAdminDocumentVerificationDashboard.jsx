@@ -24,6 +24,7 @@ import PageHeader from '../../components/PageHeader';
 import FilterPanel from '../../components/FilterPanel';
 import { useAlert } from '../../contexts/AlertContext';
 import { SERVICES } from '../../constants/mockData';
+import { useAuth } from '../../hooks/useAuth';
 
 // Icons
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
@@ -207,6 +208,20 @@ const renderMockPDFContent = (doc, client) => {
 export const SuperAdminDocumentVerificationDashboard = () => {
   const queryClient = useQueryClient();
   const { showAlert } = useAlert();
+  const { currentUser } = useAuth();
+
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
+  const { data: leadStages = [] } = useQuery({
+    queryKey: ['lead-stages'],
+    queryFn: dbService.getLeadStages
+  });
+
+  const roleConfig = (customizationSettings?.[currentUser?.id] || customizationSettings?.[currentUser?.role]) || {};
+  const clientsActions = roleConfig.actions?.clients || { canChangeVisaStatus: true, canVerifyDocs: true, canDelete: true };
 
   const [selectedClientId, setSelectedClientId] = useState('');
   const [clientSearch, setClientSearch] = useState('');
@@ -1007,7 +1022,7 @@ export const SuperAdminDocumentVerificationDashboard = () => {
                             variant="contained"
                             color="success"
                             size="small"
-                            disabled={isApproved || reviewDocumentMutation.isLoading}
+                            disabled={isApproved || reviewDocumentMutation.isLoading || clientsActions.canVerifyDocs === false}
                             onClick={() => {
                               reviewDocumentMutation.mutate({
                                 documentId: doc.id,
@@ -1023,7 +1038,7 @@ export const SuperAdminDocumentVerificationDashboard = () => {
                             variant="outlined"
                             color="error"
                             size="small"
-                            disabled={isRejected || reviewDocumentMutation.isLoading}
+                            disabled={isRejected || reviewDocumentMutation.isLoading || clientsActions.canVerifyDocs === false}
                             onClick={() => {
                               const reason = window.prompt(`Enter reason for rejecting "${doc.name || doc.fileName}":`);
                               if (reason !== null) {

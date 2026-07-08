@@ -28,6 +28,13 @@ io.on('connection', (socket) => {
     console.log(`Socket ${socket.id} joined room ${roomName}`);
   });
 
+  // When a user logs in, they also join their individual user room
+  socket.on('join-user', (userId) => {
+    const roomName = `user:${userId}`;
+    socket.join(roomName);
+    console.log(`Socket ${socket.id} joined room ${roomName}`);
+  });
+
   socket.on('disconnect', () => {
     console.log(`User disconnected from socket: ${socket.id}`);
   });

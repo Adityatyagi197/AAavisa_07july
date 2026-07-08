@@ -53,7 +53,11 @@ async function main() {
       await prisma.user.create({ data: user });
       console.log(`Created user: ${user.email} with role: ${user.role}`);
     } else {
-      console.log(`User already exists: ${user.email}`);
+      await prisma.user.update({
+        where: { email: user.email },
+        data: { password: user.password, role: user.role }
+      });
+      console.log(`Updated user password & role for: ${user.email}`);
     }
   }
 

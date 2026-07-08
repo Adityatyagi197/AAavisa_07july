@@ -40,10 +40,20 @@ import StatCard from '../../components/StatCard';
 import ChartCard from '../../components/ChartCard';
 import AppModal from '../../components/AppModal';
 import { useAlert } from '../../contexts/AlertContext';
+import useAuth from '../../hooks/useAuth';
 
 export const FinancePaymentDashboard = () => {
   const queryClient = useQueryClient();
   const { showAlert } = useAlert();
+  const { isViewOnlyMenu } = useAuth();
+
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Finance');
+
   const [tabValue, setTabValue] = useState(0);
 
   // Modal triggers
@@ -405,7 +415,7 @@ export const FinancePaymentDashboard = () => {
                       </TableCell>
                       <TableCell align="right">
                         <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                          {p.status !== 'Paid' && p.status !== 'Refunded (50%)' && (
+                          {!isViewOnly && p.status !== 'Paid' && p.status !== 'Refunded (50%)' && (
                             <Button size="small" variant="contained" color="success" onClick={() => updatePaymentStatusMutation.mutate({ id: p.id, status: 'Paid', method: 'Visa', txId: 'TXN-' + Date.now() })}>
                               Mark Paid
                             </Button>
@@ -562,7 +572,7 @@ export const FinancePaymentDashboard = () => {
                   onChange={(e) => setInvoiceForm({ ...invoiceForm, discount: e.target.value })}
                 />
 
-                <Button variant="contained" color="primary" onClick={handleGenerateInvoice}>
+                <Button variant="contained" color="primary" onClick={handleGenerateInvoice} disabled={isViewOnly || createInvoiceMutation.isPending}>
                   Create Invoice
                 </Button>
               </Box>
@@ -607,7 +617,7 @@ export const FinancePaymentDashboard = () => {
                   onChange={(e) => setLinkForm({ ...linkForm, description: e.target.value })}
                 />
 
-                <Button variant="contained" color="secondary" startIcon={<LinkIcon />} onClick={handleGeneratePaymentLink}>
+                <Button variant="contained" color="secondary" startIcon={<LinkIcon />} onClick={handleGeneratePaymentLink} disabled={isViewOnly}>
                   Generate Payment Link
                 </Button>
 

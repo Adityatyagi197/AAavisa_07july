@@ -59,6 +59,13 @@ export const AdminActiveCases = () => {
     queryKey: ['documents'],
     queryFn: dbService.getDocuments });
 
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+  const { isViewOnlyMenu } = useAuth();
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Active Cases');
+
   const updateClientMutation = useMutation({
     mutationFn: dbService.updateClient,
     onSuccess: () => {
@@ -362,6 +369,7 @@ export const AdminActiveCases = () => {
                                 <Select
                                   value={client.assignedHandlerId || ''}
                                   label="Assign Case Handler"
+                                  disabled={isViewOnly}
                                   onChange={(e) => handleAssignHandler(client, e.target.value)}
                                 >
                                   <MenuItem value=""><em>None Assigned</em></MenuItem>
@@ -527,6 +535,7 @@ export const AdminActiveCases = () => {
                               variant="contained" 
                               color="secondary"
                               size="small"
+                              disabled={isViewOnly}
                               sx={{ px: 3, fontWeight: 'bold', fontSize: '0.7rem' }}
                               onClick={() => {
                                 const input = document.getElementById(`comment-input-${client.id}`);

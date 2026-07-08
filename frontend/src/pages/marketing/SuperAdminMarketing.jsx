@@ -33,6 +33,7 @@ import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 
 import PageHeader from '../../components/PageHeader';
+import { useAuth } from '../../hooks/useAuth';
 
 // All lead sources including TikTok
 const ALL_SOURCES = [
@@ -68,6 +69,15 @@ const SOURCE_COLORS = {
 export const SuperAdminMarketing = () => {
   const queryClient = useQueryClient();
   const { showAlert } = useAlert();
+  const { currentUser } = useAuth();
+
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
+  const roleConfig = (customizationSettings?.[currentUser?.id] || customizationSettings?.[currentUser?.role]) || {};
+  const marketingActions = roleConfig.actions?.marketing || { canUpdateMarketingSpend: true };
 
   const { data: allLeads = [] } = useQuery({ queryKey: ['leads'], queryFn: dbService.getLeads });
   const { data: allClients = [] } = useQuery({ queryKey: ['clients'], queryFn: dbService.getClients });
@@ -321,23 +331,25 @@ export const SuperAdminMarketing = () => {
             <Typography variant="h6" sx={{ fontWeight: 800 }}>Ad Spend Configuration</Typography>
             <Typography variant="body2" color="text.secondary">Enter monthly ad budget per channel to calculate ROI & Cost Per Client.</Typography>
           </Box>
-          <Chip
-            label={showAdSpendEditor ? 'Cancel' : 'Edit Ad Spend'}
-            onClick={() => {
-              if (showAdSpendEditor) {
-                // Reset to fetched on cancel
-                const newSpend = { ...fetchedSpend };
-                ALL_SOURCES.forEach(src => {
-                  if (newSpend[src] === undefined) newSpend[src] = 0;
-                });
-                setAdSpend(newSpend);
-              }
-              setShowAdSpendEditor(!showAdSpendEditor);
-            }}
-            color="primary"
-            variant="outlined"
-            sx={{ fontWeight: 700, cursor: 'pointer' }}
-          />
+          {marketingActions.canUpdateMarketingSpend !== false && (
+            <Chip
+              label={showAdSpendEditor ? 'Cancel' : 'Edit Ad Spend'}
+              onClick={() => {
+                if (showAdSpendEditor) {
+                  // Reset to fetched on cancel
+                  const newSpend = { ...fetchedSpend };
+                  ALL_SOURCES.forEach(src => {
+                    if (newSpend[src] === undefined) newSpend[src] = 0;
+                  });
+                  setAdSpend(newSpend);
+                }
+                setShowAdSpendEditor(!showAdSpendEditor);
+              }}
+              color="primary"
+              variant="outlined"
+              sx={{ fontWeight: 700, cursor: 'pointer' }}
+            />
+          )}
         </Box>
 
         {showAdSpendEditor && (

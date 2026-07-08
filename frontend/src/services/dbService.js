@@ -137,15 +137,43 @@ export const dbService = {
 
   // SETTINGS & CUSTOMIZATION
   getCustomizationSettings: async () => {
-    const res = await apiClient.get('/settings/customization');
-    return res.data;
+    try {
+      const res = await apiClient.get('/settings/customization');
+      const localDataStr = localStorage.getItem('crm_customization_settings');
+      if (localDataStr) {
+        try {
+          const localData = JSON.parse(localDataStr);
+          // We prefer localData over backend during development to prevent data loss on nodemon restarts
+          // For rolesDefinition, we must ensure it replaces the default rather than just merging if it's longer
+          return { ...res.data, ...localData, rolesDefinition: localData.rolesDefinition || res.data.rolesDefinition };
+        } catch (e) {
+          console.error('Error parsing local settings', e);
+        }
+      }
+      return res.data;
+    } catch (error) {
+      const localDataStr = localStorage.getItem('crm_customization_settings');
+      if (localDataStr) {
+        return JSON.parse(localDataStr);
+      }
+      throw error;
+    }
   },
   saveCustomizationSettings: async (settings) => {
+    try {
+      localStorage.setItem('crm_customization_settings', JSON.stringify(settings));
+    } catch (e) {
+      console.error('Error saving settings to local storage', e);
+    }
     const res = await apiClient.put('/settings/customization', { settings });
     return res.data;
   },
   getLeadStages: async () => {
     const res = await apiClient.get('/settings/lead-stages');
+    return res.data;
+  },
+  saveLeadStages: async (stages) => {
+    const res = await apiClient.put('/settings/lead-stages', stages);
     return res.data;
   },
 
@@ -216,6 +244,8 @@ export const dbService = {
   // STUBS (To prevent UI crash where APIs are not yet built)
   getNotifications: async () => [],
   addNotification: async () => ({}),
+  markNotificationRead: async (id) => ({ id }),
+  markAllNotificationsRead: async () => ({}),
   getConversations: async () => [],
   getSettings: async () => {
     const res = await apiClient.get('/settings/company');

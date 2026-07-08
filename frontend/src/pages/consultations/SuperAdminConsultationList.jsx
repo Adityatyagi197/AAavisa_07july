@@ -40,15 +40,23 @@ import { dbService } from '../../services/dbService';
 import PageHeader from '../../components/PageHeader';
 import SearchBar from '../../components/SearchBar';
 import FilterPanel from '../../components/FilterPanel';
+import StatusBadge from '../../components/StatusBadge';
 import AppTable from '../../components/AppTable';
 import AppModal from '../../components/AppModal';
 import { useAlert } from '../../contexts/AlertContext';
 
 export const SuperAdminConsultationList = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, isViewOnlyMenu } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showAlert } = useAlert();
+
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Consultations');
 
   const getRolePrefix = () => {
     if (!currentUser) return 'super_admin';
@@ -179,6 +187,12 @@ export const SuperAdminConsultationList = () => {
     queryKey: ['agents'],
     queryFn: dbService.getAgents });
 
+  // Fetch dynamic stages
+  const { data: leadStages = [] } = useQuery({
+    queryKey: ['lead-stages'],
+    queryFn: dbService.getLeadStages
+  });
+
   // Fetch Auto-Assign Toggle Setting
   const { data: autoAssignEnabled = true } = useQuery({
     queryKey: ['auto-assign-setting'],
@@ -252,7 +266,7 @@ export const SuperAdminConsultationList = () => {
       id: 'consultant',
       label: 'Assigned Agent',
       render: (row) => {
-        const canEdit = ['super_admin', 'admin', 'operations'].includes(currentUser?.role);
+        const canEdit = !isViewOnly && ['super_admin', 'admin', 'operations'].includes(currentUser?.role);
         if (canEdit) {
           return (
             <Select
@@ -305,17 +319,13 @@ export const SuperAdminConsultationList = () => {
       label: 'Status',
       sortable: true,
       render: (row) => (
-        <Chip
-          label={row.status}
-          size="small"
-          color={row.status === 'Completed' ? 'default' : row.status === 'Scheduled' ? 'success' : 'warning'}
-          sx={{ fontWeight: 700 }}
-        />
+        <StatusBadge status={row.status} />
       )
     },
   ];
 
-  const statusOptions = ['Pending Assignment', 'Scheduled', 'Completed', 'No Show', 'Cancelled'];
+  const consultationStages = leadStages.filter(s => s.type === 'consultation').map(s => s.name);
+  const statusOptions = ['Pending Assignment', ...(consultationStages.length > 0 ? consultationStages : ['Scheduled', 'Completed', 'No Show', 'Cancelled'])];
 
   return (
     <Box>
@@ -331,18 +341,20 @@ export const SuperAdminConsultationList = () => {
         subtitle="Manage client schedules, configure auto-agent assignment switches, and confirm document portal access."
         action={
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-            <Paper variant="outlined" sx={{ px: 2, py: 0.5, borderRadius: 2, display: 'flex', alignItems: 'center', bgcolor: 'background.neutral' }}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={autoAssignEnabled}
-                    onChange={() => toggleAutoAssignMutation.mutate()}
-                    color="primary"
-                  />
-                }
-                label={<Typography sx={{ fontWeight: 700, fontSize: '0.8rem' }}>AUTO-ASSIGN AGENTS</Typography>}
-              />
-            </Paper>
+            {!isViewOnly && (
+              <Paper variant="outlined" sx={{ px: 2, py: 0.5, borderRadius: 2, display: 'flex', alignItems: 'center', bgcolor: 'background.neutral' }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={autoAssignEnabled}
+                      onChange={() => toggleAutoAssignMutation.mutate()}
+                      color="primary"
+                    />
+                  }
+                  label={<Typography sx={{ fontWeight: 700, fontSize: '0.8rem' }}>AUTO-ASSIGN AGENTS</Typography>}
+                />
+              </Paper>
+            )}
             <Button
               variant="contained"
               color="secondary"

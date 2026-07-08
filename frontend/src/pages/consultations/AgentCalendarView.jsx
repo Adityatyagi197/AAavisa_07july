@@ -70,7 +70,14 @@ export const AgentCalendarView = () => {
     }
   };
 
-  const { currentUser, isConsultant } = useAuth();
+  const { currentUser, isConsultant, isViewOnlyMenu } = useAuth();
+
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Consultations');
 
   const [activeAgentId, setActiveAgentId] = useState(isConsultant ? currentUser?.id || '' : '');
   const [selectedDate, setSelectedDate] = useState('2026-06-18');
@@ -174,14 +181,16 @@ export const AgentCalendarView = () => {
         title="Agent Calendar Scheduler"
         subtitle="Manage upcoming consultation meetings, time allocations, and client booking schedules."
         action={
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<AddIcon />}
-            onClick={() => setScheduleModalOpen(true)}
-          >
-            Book Appointment
-          </Button>
+          !isViewOnly && (
+            <Button
+              variant="contained"
+              color="secondary"
+              startIcon={<AddIcon />}
+              onClick={() => setScheduleModalOpen(true)}
+            >
+              Book Appointment
+            </Button>
+          )
         }
       />
 

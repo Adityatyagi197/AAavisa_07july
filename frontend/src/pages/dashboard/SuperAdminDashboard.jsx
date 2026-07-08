@@ -60,7 +60,7 @@ import { SERVICES } from '../../constants/mockData';
 
 export const SuperAdminDashboard = () => {
   const navigate = useNavigate();
-  const { isConsultant, isFinance, isAdmin, isOperations, currentUser } = useAuth();
+  const { isConsultant, isFinance, isAdmin, isOperations, currentUser, isViewOnlyMenu } = useAuth();
   const queryClient = useQueryClient();
   const { showAlert } = useAlert();
   const theme = useTheme();
@@ -221,6 +221,8 @@ export const SuperAdminDashboard = () => {
   const { data: payments = [] } = useQuery({ queryKey: ['payments'], queryFn: dbService.getPayments });
   const { data: notifications = [] } = useQuery({ queryKey: ['notifications'], queryFn: dbService.getNotifications });
   const { data: agentsList = [] } = useQuery({ queryKey: ['agents'], queryFn: dbService.getAgents });
+  const { data: customizationSettings } = useQuery({ queryKey: ['customization-settings'], queryFn: dbService.getCustomizationSettings });
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Dashboard');
 
   // Dynamic Date Range Calculation
   const parseDate = (dateStr) => {
@@ -491,10 +493,17 @@ export const SuperAdminDashboard = () => {
   return (
     <Box>
       <PageHeader
-        title="Dashboard Overview"
-        subtitle={`Welcome back, ${currentUser?.name || 'CEO'}. Here is your CRM overview.`}
+        title="Super Admin Dashboard"
+        subtitle={`Welcome back, ${currentUser?.name || 'Super Admin'}. Executive overview of CRM operations.`}
         action={
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, width: isMobile ? '100%' : 'auto' }}>
+          !isViewOnly && (
+            <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => navigate('/super_admin/leads')}>
+              Add New Lead
+            </Button>
+          )
+        }
+      />
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, width: isMobile ? '100%' : 'auto', mb: 3 }}>
             {/* Row 1: Presets + Custom toggle */}
             <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', flexWrap: 'wrap' }}>
               <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center', border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 0.5, bgcolor: 'background.paper' }}>
@@ -561,16 +570,6 @@ export const SuperAdminDashboard = () => {
                   />
                 </Box>
               )}
-              <Button
-                variant="contained"
-                color="primary"
-                size="small"
-                startIcon={<AddIcon />}
-                onClick={() => navigate('/super_admin/leads')}
-                sx={isMobile ? { flexGrow: 1 } : {}}
-              >
-                {isMobile ? 'New Lead' : 'Add New Lead'}
-              </Button>
             </Box>
             {/* Mobile custom date row */}
             {isMobile && showCustomDate && (
@@ -601,8 +600,6 @@ export const SuperAdminDashboard = () => {
               </Box>
             )}
           </Box>
-        }
-      />
 
       {/* Grid of Statistical Cards — 2-per-row on mobile, 4 on desktop */}
       <Box
@@ -811,10 +808,10 @@ export const SuperAdminDashboard = () => {
         {/* Recent Leads Table */}
         <Box className="col-span-12">
           <AppCard
-            title="Recent Lead registrations"
+            title="Recent Inbound Leads"
             subheader="Overview of the latest qualified inquiries"
             action={
-              <Button size="small" variant="text" color="secondary" onClick={() => navigate('/leads')}>
+              <Button size="small" variant="text" color="secondary" onClick={() => navigate('/super_admin/leads')}>
                 View All Leads
               </Button>
             }
@@ -823,7 +820,7 @@ export const SuperAdminDashboard = () => {
             <AppTable
               columns={leadsColumns}
               data={recentLeads}
-              onRowClick={(row) => navigate(`/leads/details/${row.id}`)}
+              onRowClick={(row) => navigate(`/super_admin/leads/details/${row.id}`)}
             />
           </AppCard>
         </Box>
@@ -879,7 +876,7 @@ export const SuperAdminDashboard = () => {
                   color="secondary"
                   fullWidth
                   sx={{ mt: 2 }}
-                  onClick={() => navigate('/consultations/calendar')}
+                  onClick={() => navigate('/super_admin/consultations/calendar')}
                 >
                   Open Calendar Scheduler
                 </Button>

@@ -31,11 +31,20 @@ import ListItemText from '@mui/material/ListItemText';
 import PageHeader from '../../components/PageHeader';
 import AppModal from '../../components/AppModal';
 import { useAlert } from '../../contexts/AlertContext';
+import useAuth from '../../hooks/useAuth';
 
 export const SuperAdminRefundCommissionHub = () => {
   const [tabValue, setTabValue] = useState(0);
   const queryClient = useQueryClient();
   const { showAlert } = useAlert();
+  const { isViewOnlyMenu } = useAuth();
+
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Finance');
 
   // Modals state
   const [refundModalOpen, setRefundModalOpen] = useState(false);
@@ -220,9 +229,11 @@ export const SuperAdminRefundCommissionHub = () => {
                         <TableCell sx={{ color: 'success.main', fontWeight: 600 }}>€{agent.totalPaid.toLocaleString()}</TableCell>
                         <TableCell sx={{ color: 'warning.main', fontWeight: 700 }}>€{(agent.totalEarned - agent.totalPaid).toLocaleString()}</TableCell>
                         <TableCell align="right">
-                          <Button size="small" variant="contained" color="secondary" onClick={() => handleOpenRateModal(agent)}>
-                            Modify Rate
-                          </Button>
+                          {!isViewOnly && (
+                            <Button size="small" variant="contained" color="secondary" onClick={() => handleOpenRateModal(agent)}>
+                              Modify Rate
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -289,9 +300,11 @@ export const SuperAdminRefundCommissionHub = () => {
       {tabValue === 1 && (
         <Box className="grid grid-cols-12 gap-2">
           <Box className="col-span-12" sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button variant="contained" color="primary" onClick={() => setRefundModalOpen(true)}>
-              Request Refund
-            </Button>
+            {!isViewOnly && (
+              <Button variant="contained" color="primary" onClick={() => setRefundModalOpen(true)}>
+                Request Refund
+              </Button>
+            )}
           </Box>
 
           <Box className="col-span-12 md:col-span-8">
@@ -336,17 +349,17 @@ export const SuperAdminRefundCommissionHub = () => {
                         </TableCell>
                         <TableCell align="right">
                           <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                            {ref.status === 'Pending Review' && (
+                            {!isViewOnly && ref.status === 'Pending Review' && (
                               <Button size="small" variant="outlined" color="success" onClick={() => handleUpdateRefundStatus(ref.id, 'Approved')}>
                                 Approve
                               </Button>
                             )}
-                            {ref.status === 'Approved' && (
+                            {!isViewOnly && ref.status === 'Approved' && (
                               <Button size="small" variant="contained" color="success" onClick={() => handleUpdateRefundStatus(ref.id, 'Processed')}>
                                 Process Refund
                               </Button>
                             )}
-                            {ref.status === 'Pending Review' && (
+                            {!isViewOnly && ref.status === 'Pending Review' && (
                               <Button size="small" variant="outlined" color="error" onClick={() => handleUpdateRefundStatus(ref.id, 'Cancelled')}>
                                 Reject
                               </Button>

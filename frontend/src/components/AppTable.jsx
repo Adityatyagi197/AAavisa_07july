@@ -9,11 +9,20 @@ import TableSortLabel from '@mui/material/TableSortLabel';
 import TablePagination from '@mui/material/TablePagination';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
-import Typography from '@mui/material/Box';
 import StatusBadge from './StatusBadge';
+
+import { useQuery } from '@tanstack/react-query';
+import { dbService } from '../services/dbService';
+import { useAuth } from '../hooks/useAuth';
+
+const DEFAULT_COLUMNS = {
+  leads: ['id', 'name', 'phone', 'email', 'nationality', 'service', 'status', 'assignedConsultant', 'source', 'createdDate'],
+  clients: ['id', 'name', 'nationality', 'service', 'package', 'status', 'visaStatus', 'assignedConsultant']
+};
 
 export const AppTable = ({
   columns,
+  context, // 'leads' or 'clients'
   data = [],
   onRowClick,
   actions,
@@ -28,11 +37,27 @@ export const AppTable = ({
   loading = false,
   maxHeight = 600,
 }) => {
+  const { currentUser } = useAuth();
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings,
+    enabled: !!currentUser
+  });
+
   const handleSort = (property) => {
     if (onSort) {
       onSort(property);
     }
   };
+
+  let visibleColumns = columns;
+  if (context && customizationSettings && currentUser && currentUser.role !== 'super_admin') {
+    const roleConfig = (customizationSettings[currentUser.id] || customizationSettings[currentUser.role]) || {};
+    const allowedColumns = roleConfig.columns?.[context] || DEFAULT_COLUMNS[context];
+    if (allowedColumns) {
+      visibleColumns = columns.filter(col => allowedColumns.includes(col.id));
+    }
+  }
 
   return (
     <Paper sx={{ width: '100%', overflow: 'hidden', borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
@@ -40,7 +65,7 @@ export const AppTable = ({
         <Table stickyHeader aria-label="customized table">
           <TableHead>
             <TableRow>
-              {columns.map((column) => (
+              {visibleColumns.map((column) => (
                 <TableCell
                   key={column.id}
                   align={column.align || 'left'}
@@ -49,7 +74,7 @@ export const AppTable = ({
                   sx={{
                     py: 1,
                     fontWeight: 600,
-                    fontSize: '0.8rem', // Reduced font size
+                    fontSize: '0.8rem',
                   }}
                 >
                   {column.sortable !== false ? (
@@ -75,13 +100,13 @@ export const AppTable = ({
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={columns.length + (actions ? 1 : 0)} align="center" sx={{ py: 8 }}>
+                <TableCell colSpan={visibleColumns.length + (actions ? 1 : 0)} align="center" sx={{ py: 8 }}>
                   <Box sx={{ color: 'text.secondary', fontWeight: 500 }}>Loading records...</Box>
                 </TableCell>
               </TableRow>
             ) : data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length + (actions ? 1 : 0)} align="center" sx={{ py: 8 }}>
+                <TableCell colSpan={visibleColumns.length + (actions ? 1 : 0)} align="center" sx={{ py: 8 }}>
                   <Box sx={{ color: 'text.secondary', fontWeight: 500 }}>No records found</Box>
                 </TableCell>
               </TableRow>
@@ -98,7 +123,7 @@ export const AppTable = ({
                     '&:last-child td, &:last-child th': { border: 0 },
                   }}
                 >
-                  {columns.map((column) => {
+                  {visibleColumns.map((column) => {
                     const value = row[column.id];
                     return (
                       <TableCell
@@ -106,7 +131,7 @@ export const AppTable = ({
                         align={column.align || 'left'}
                         sx={{
                           py: 0.8,
-                          fontSize: '0.8rem', // Reduced font size
+                          fontSize: '0.8rem',
                           whiteSpace: column.wrap ? 'normal' : 'nowrap',
                           minWidth: column.minWidth || '120px',
                         }}
@@ -125,7 +150,7 @@ export const AppTable = ({
                     <TableCell
                       align="right"
                       sx={{ py: 0.6 }}
-                      onClick={(e) => e.stopPropagation()} // Stop row click triggers when clicking actions
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
                         {actions(row)}

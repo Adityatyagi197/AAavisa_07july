@@ -6,10 +6,35 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import InfoIcon from '@mui/icons-material/Info';
 import BlockIcon from '@mui/icons-material/Block';
 import AutorenewIcon from '@mui/icons-material/Autorenew';
+import { useQuery } from '@tanstack/react-query';
+import { dbService } from '../services/dbService';
 
 export const StatusBadge = ({ status, size = 'small' }) => {
+  const { data: leadStages = [] } = useQuery({
+    queryKey: ['lead-stages'],
+    queryFn: dbService.getLeadStages,
+    staleTime: 300000
+  });
+
   const getBadgeConfig = (statusStr) => {
-    const s = (statusStr || '').toLowerCase();
+    const sStr = statusStr || '';
+    
+    // Check dynamic stages
+    const matchedStage = leadStages.find(stage => 
+      stage.name.toLowerCase() === sStr.toLowerCase() || stage.id.toLowerCase() === sStr.toLowerCase()
+    );
+
+    if (matchedStage) {
+      return {
+        label: matchedStage.name,
+        color: 'default',
+        icon: <span style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center' }}>{matchedStage.emoji || 'ℹ️'}</span>,
+        bg: (matchedStage.color || '#2196F3') + '15',
+        text: matchedStage.color || '#2196F3'
+      };
+    }
+
+    const s = sStr.toLowerCase();
     switch (s) {
       // Leads & Clients
       case 'new lead':
