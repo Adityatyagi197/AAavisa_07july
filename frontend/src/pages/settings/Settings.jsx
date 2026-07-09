@@ -183,8 +183,8 @@ export const Settings = () => {
   const canEditRates = () => {
     if (!currentUser) return false;
     if (currentUser.role === 'super_admin') return true;
-    if (customizationSettings && customizationSettings[currentUser.role]) {
-      const features = customizationSettings[currentUser.role].features || [];
+    if (customizationSettings && (customizationSettings[currentUser.id] || customizationSettings[currentUser.role])) {
+      const features = (customizationSettings[currentUser.id] || customizationSettings[currentUser.role]).features || [];
       return features.includes('canEditTranslationRates');
     }
     return currentUser.role === 'admin';

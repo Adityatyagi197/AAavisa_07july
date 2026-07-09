@@ -1,4 +1,11 @@
 let DEFAULT_CUSTOMIZATION = {
+  rolesDefinition: [
+    { id: 'admin', label: 'Admin (General Manager)' },
+    { id: 'operations', label: 'Operations Admin' },
+    { id: 'finance', label: 'Finance Officer' },
+    { id: 'consultant', label: 'Consultant / Visa Agent' },
+    { id: 'marketing', label: 'Marketing Executive' }
+  ],
   admin: {
       menus: ['Dashboard', 'Agents', 'Active Cases', 'Doc Verification', 'Finance', 'Closed Cases', 'Clients', 'Leads', 'Social Inbox', 'Marketing', 'Calendar', 'All Agents Performance', 'Integrations'],
       cards: ['Total Clients', 'Today\'s Clients', 'Total Consultations', 'Today\'s Consultations', 'Upcoming Meetings', 'Pending Payments', 'Total Revenue', 'Active Cases', 'Completed Cases', 'Lost Consultations', 'Revenue Today', 'Outstanding Revenue', 'Refunded (50% Rejections)'],
@@ -43,10 +50,11 @@ const updateCustomizationSettings = async (req, res) => {
     // BROADCAST the change using Socket.io to all affected users
     const io = req.app.get('io');
     if (io && settings) {
-      Object.keys(settings).forEach(role => {
-        if (role !== 'allowAdminCustomOverrides') {
-          console.log(`Emitting permissions_updated to room: role:${role}`);
-          io.to(`role:${role}`).emit('permissions_updated', settings[role]);
+      Object.keys(settings).forEach(key => {
+        if (key !== 'allowAdminCustomOverrides') {
+          console.log(`Emitting permissions_updated to room: role:${key} and user:${key}`);
+          io.to(`role:${key}`).emit('permissions_updated', settings[key]);
+          io.to(`user:${key}`).emit('permissions_updated', settings[key]);
         }
       });
     }
@@ -57,22 +65,37 @@ const updateCustomizationSettings = async (req, res) => {
   }
 };
 
+let CURRENT_LEAD_STAGES = [
+  { id: 'stage_new_lead', name: 'New Lead', type: 'lead', color: '#2196F3', emoji: '🆕' },
+  { id: 'stage_hot_lead', name: 'Hot Lead', type: 'lead', color: '#FF9800', emoji: '🔥' },
+  { id: 'stage_processing', name: 'Processing', type: 'lead', color: '#3F51B5', emoji: '⚙️' },
+  { id: 'stage_under_consultation', name: 'Under Consultation', type: 'lead', color: '#9C27B0', emoji: '📅' },
+  { id: 'stage_waiting_payment', name: 'Waiting for Payment', type: 'client', color: '#FF5722', emoji: '💳' },
+  { id: 'stage_documents_pending', name: 'Documents Pending', type: 'client', color: '#E91E63', emoji: '📎' },
+  { id: 'stage_under_process', name: 'Under Process', type: 'client', color: '#03A9F4', emoji: '📂' },
+  { id: 'stage_completed', name: 'Completed', type: 'client', color: '#4CAF50', emoji: '✅' },
+  { id: 'stage_closed', name: 'Closed', type: 'client', color: '#9E9E9E', emoji: '🔒' },
+  { id: 'stage_cold_lead', name: 'Cold Lead', type: 'lead', color: '#009688', emoji: '❄️' },
+  { id: 'stage_lost_lead', name: 'Lost Lead', type: 'lead', color: '#F44336', emoji: '❌' }
+];
+
 const getLeadStages = async (req, res) => {
-  const DEFAULT_LEAD_STAGES = [
-    { id: 'stage_new_lead', name: 'New Lead', type: 'lead', color: '#2196F3', emoji: '🆕' },
-    { id: 'stage_hot_lead', name: 'Hot Lead', type: 'lead', color: '#FF9800', emoji: '🔥' },
-    { id: 'stage_processing', name: 'Processing', type: 'lead', color: '#3F51B5', emoji: '⚙️' },
-    { id: 'stage_under_consultation', name: 'Under Consultation', type: 'lead', color: '#9C27B0', emoji: '📅' },
-    { id: 'stage_waiting_payment', name: 'Waiting for Payment', type: 'client', color: '#FF5722', emoji: '💳' },
-    { id: 'stage_documents_pending', name: 'Documents Pending', type: 'client', color: '#E91E63', emoji: '📎' },
-    { id: 'stage_under_process', name: 'Under Process', type: 'client', color: '#03A9F4', emoji: '📂' },
-    { id: 'stage_completed', name: 'Completed', type: 'client', color: '#4CAF50', emoji: '✅' },
-    { id: 'stage_closed', name: 'Closed', type: 'client', color: '#9E9E9E', emoji: '🔒' },
-    { id: 'stage_cold_lead', name: 'Cold Lead', type: 'lead', color: '#009688', emoji: '❄️' },
-    { id: 'stage_lost_lead', name: 'Lost Lead', type: 'lead', color: '#F44336', emoji: '❌' },
-  ];
-  res.json(DEFAULT_LEAD_STAGES);
-}
+  res.json(CURRENT_LEAD_STAGES);
+};
+
+const updateLeadStages = async (req, res) => {
+  try {
+    const stages = req.body;
+    if (Array.isArray(stages)) {
+      CURRENT_LEAD_STAGES = stages;
+      res.json({ success: true, message: 'Stages updated successfully', data: CURRENT_LEAD_STAGES });
+    } else {
+      res.status(400).json({ error: 'Invalid stages format' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
 
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
@@ -278,6 +301,7 @@ module.exports = {
   getCustomizationSettings, 
   updateCustomizationSettings,
   getLeadStages,
+  updateLeadStages,
   getCompanySettings,
   updateCompanySettings,
   getVisaServices,

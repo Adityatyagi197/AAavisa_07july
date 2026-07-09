@@ -94,7 +94,7 @@ export const AuthLayout = () => {
           px: 3,
           py: 4,
           position: 'relative',
-          overflowY: 'auto',
+          overflowY: 'hidden',
           background:
             theme.palette.mode === 'light'
               ? 'radial-gradient(circle at 0% 0%, #FFFFFF 0%, #EEF2F6 100%)'
@@ -118,7 +118,7 @@ export const AuthLayout = () => {
               theme.palette.mode === 'light'
                 ? '0px 25px 50px -12px rgba(15, 23, 42, 0.1)'
                 : '0px 25px 50px -12px rgba(0, 0, 0, 0.5)',
-            p: { xs: 4, sm: 5 },
+            p: { xs: 3, sm: 3.5 },
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'stretch',

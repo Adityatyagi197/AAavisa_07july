@@ -102,7 +102,19 @@ export const SuperAdminConsultationDetails = () => {
     queryKey: ['consultants'],
     queryFn: dbService.getConsultants });
 
+  const { data: leadStages = [] } = useQuery({
+    queryKey: ['lead-stages'],
+    queryFn: dbService.getLeadStages
+  });
+
   const cons = consultations.find((c) => c.id === id);
+
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+  const roleConfig = (customizationSettings?.[currentUser?.id] || customizationSettings?.[currentUser?.role]) || {};
+  const consultationActions = roleConfig.actions?.consultations || { canCreate: true, canAssignAgent: true, canComplete: true };
 
   // Mutations
   const updateStatusMutation = useMutation({
@@ -188,7 +200,7 @@ export const SuperAdminConsultationDetails = () => {
                   Claim Consultation (Pick Up)
                 </Button>
               ) : (
-                (cons.assignedConsultantId === currentUser?.id || currentUser?.role === 'admin' || currentUser?.role === 'operations') && (
+                (cons.assignedConsultantId === currentUser?.id || currentUser?.role === 'super_admin' || consultationActions.canComplete !== false) && (
                   <>
                     <Button
                       variant="contained"
@@ -208,7 +220,7 @@ export const SuperAdminConsultationDetails = () => {
                     <Button
                       variant="outlined"
                       color="error"
-                      startIcon={<HighlightOffIcon />}
+                      startIcon={<HighlightOffIcon sx={{ fontSize: '0.9rem' }} />}
                       onClick={() => handleStatusChange('Cancelled')}
                     >
                       Cancel Meeting

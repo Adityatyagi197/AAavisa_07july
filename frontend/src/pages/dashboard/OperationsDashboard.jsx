@@ -57,7 +57,7 @@ import { SERVICES } from '../../constants/mockData';
 
 export const OperationsDashboard = () => {
   const navigate = useNavigate();
-  const { isConsultant, isFinance, isAdmin, isOperations, currentUser } = useAuth();
+  const { isConsultant, isFinance, isAdmin, isOperations, currentUser, isViewOnlyMenu } = useAuth();
   const queryClient = useQueryClient();
   const { showAlert } = useAlert();
 
@@ -138,6 +138,7 @@ export const OperationsDashboard = () => {
   const { data: notifications = [] } = useQuery({ queryKey: ['notifications'], queryFn: dbService.getNotifications });
   const { data: agentsList = [] } = useQuery({ queryKey: ['agents'], queryFn: dbService.getAgents });
   const { data: customizationSettings } = useQuery({ queryKey: ['customization-settings'], queryFn: dbService.getCustomizationSettings });
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Dashboard');
 
   // Compute key stats
   const totalLeads = leads.length;
@@ -253,6 +254,13 @@ export const OperationsDashboard = () => {
       <PageHeader
         title="Operations Dashboard"
         subtitle="Operational metrics tracking for AAA Business Consultancy Spain Visa Operations."
+        action={
+          !isViewOnly && (
+            <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => navigate('/operations/leads')}>
+              Add New Lead
+            </Button>
+          )
+        }
       />
 
       {/* Grid of Statistical Cards */}
@@ -403,7 +411,7 @@ export const OperationsDashboard = () => {
             <AppTable
               columns={leadsColumns}
               data={recentLeads}
-              onRowClick={(row) => navigate(`/leads/details/${row.id}`)}
+              onRowClick={(row) => navigate(`/operations/leads/details/${row.id}`)}
             />
           </AppCard>
         </Box>
@@ -454,15 +462,15 @@ export const OperationsDashboard = () => {
                   </List>
                 )}
                 <Button
-                  variant="outlined"
-                  size="small"
-                  color="secondary"
-                  fullWidth
-                  sx={{ mt: 2 }}
-                  onClick={() => navigate('/consultations/calendar')}
-                >
-                  Open Calendar Scheduler
-                </Button>
+                variant="outlined"
+                size="small"
+                color="secondary"
+                fullWidth
+                sx={{ mt: 2 }}
+                onClick={() => navigate('/operations/consultations/calendar')}
+              >
+                Open Calendar Scheduler
+              </Button>
               </AppCard>
             </Box>
 

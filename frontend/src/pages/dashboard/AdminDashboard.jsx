@@ -57,7 +57,7 @@ import { SERVICES } from '../../constants/mockData';
 
 export const AdminDashboard = () => {
   const navigate = useNavigate();
-  const { isConsultant, isFinance, isAdmin, isOperations, currentUser } = useAuth();
+  const { isConsultant, isFinance, isAdmin, isOperations, currentUser, isViewOnlyMenu } = useAuth();
   const queryClient = useQueryClient();
   const { showAlert } = useAlert();
 
@@ -138,6 +138,8 @@ export const AdminDashboard = () => {
   const { data: notifications = [] } = useQuery({ queryKey: ['notifications'], queryFn: dbService.getNotifications });
   const { data: agentsList = [] } = useQuery({ queryKey: ['agents'], queryFn: dbService.getAgents });
   const { data: customizationSettings } = useQuery({ queryKey: ['customization-settings'], queryFn: dbService.getCustomizationSettings });
+
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Dashboard');
 
   // Compute key stats
   const totalLeads = leads.length;
@@ -255,9 +257,11 @@ export const AdminDashboard = () => {
         title="Dashboard Overview"
         subtitle={`Welcome back, ${currentUser?.name || 'Admin'}. Here is your CRM overview.`}
         action={
-          <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => navigate('/admin/leads')}>
-            Add New Lead
-          </Button>
+          !isViewOnly && (
+            <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => navigate('/admin/leads')}>
+              Add New Lead
+            </Button>
+          )
         }
       />
 

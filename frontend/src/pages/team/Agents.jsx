@@ -80,6 +80,12 @@ export const Agents = () => {
   const { data: allClients = [] } = useQuery({ queryKey: ['clients'], queryFn: dbService.getClients });
   const { data: allConsultations = [] } = useQuery({ queryKey: ['consultations'], queryFn: dbService.getConsultations });
   const { data: allPayments = [] } = useQuery({ queryKey: ['payments'], queryFn: dbService.getPayments });
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+  const { isViewOnlyMenu } = useAuth();
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Agents');
 
   // Fetch Agents dynamically
   const { data: agents = [], isLoading } = useQuery({
@@ -515,7 +521,7 @@ export const Agents = () => {
         title="Agents Management"
         subtitle="Manage agent accounts, review key performance metrics, commissions, and access privileges."
         action={
-          isAdmin && (
+          !isViewOnly && isAdmin && (
             <Button
               variant="contained"
               color="secondary"
@@ -697,7 +703,7 @@ export const Agents = () => {
                       />
                     )}
 
-                    {isAdmin && (
+                    {!isViewOnly && isAdmin && (
                       <Box sx={{ display: 'flex', gap: 1 }}>
                         <Button
                           variant="outlined"
@@ -955,10 +961,9 @@ export const Agents = () => {
             required
             helperText="Assign the system role determining permissions and sidebar access."
           >
-            <MenuItem value="admin">Admin (Super Admin)</MenuItem>
-            <MenuItem value="operations">Operations Manager</MenuItem>
-            <MenuItem value="finance">Finance Manager</MenuItem>
-            <MenuItem value="consultant">Agent (Spain Visa Expert)</MenuItem>
+            {customizationSettings?.rolesDefinition?.map(r => (
+              <MenuItem key={r.id} value={r.id}>{r.label.split('(')[0].trim()}</MenuItem>
+            ))}
           </TextField>
           <TextField label="Spoken Languages (comma-separated) *" placeholder="English, Spanish" value={languages} onChange={(e) => setLanguages(e.target.value)} fullWidth required />
           <TextField label="Nationalities (comma-separated)" placeholder="British" value={nationalities} onChange={(e) => setNationalities(e.target.value)} fullWidth />
@@ -1002,10 +1007,9 @@ export const Agents = () => {
             required
             helperText="Update the user system role determining permissions and sidebar access."
           >
-            <MenuItem value="admin">Admin (Super Admin)</MenuItem>
-            <MenuItem value="operations">Operations Manager</MenuItem>
-            <MenuItem value="finance">Finance Manager</MenuItem>
-            <MenuItem value="consultant">Agent (Spain Visa Expert)</MenuItem>
+            {customizationSettings?.rolesDefinition?.map(r => (
+              <MenuItem key={r.id} value={r.id}>{r.label.split('(')[0].trim()}</MenuItem>
+            ))}
           </TextField>
           <TextField label="Spoken Languages (comma-separated) *" placeholder="English, Spanish" value={languages} onChange={(e) => setLanguages(e.target.value)} fullWidth required />
           <TextField label="Nationalities (comma-separated)" placeholder="British" value={nationalities} onChange={(e) => setNationalities(e.target.value)} fullWidth />

@@ -24,6 +24,19 @@ import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import SettingsSuggestIcon from '@mui/icons-material/SettingsSuggest';
 import CampaignIcon from '@mui/icons-material/Campaign';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import FaceIcon from '@mui/icons-material/Face';
+import GroupIcon from '@mui/icons-material/Group';
+import StarIcon from '@mui/icons-material/Star';
+import VerifiedUserIcon from '@mui/icons-material/VerifiedUser';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import AssignmentIndIcon from '@mui/icons-material/AssignmentInd';
+import SecurityIcon from '@mui/icons-material/Security';
+import WorkIcon from '@mui/icons-material/Work';
+import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
+import GavelIcon from '@mui/icons-material/Gavel';
+import AssuredWorkloadIcon from '@mui/icons-material/AssuredWorkload';
+import RecordVoiceOverIcon from '@mui/icons-material/RecordVoiceOver';
+import LocalPoliceIcon from '@mui/icons-material/LocalPolice';
 
 const schema = yup.object().shape({
   email: yup.string().trim().email('Enter a valid email').required('Email is required'),
@@ -33,6 +46,52 @@ export const Login = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const { showAlert } = useAlert();
+
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
+  const dynamicRoles = customizationSettings?.rolesDefinition || [
+    { id: 'admin', label: 'Admin', icon: 'SupervisorAccountIcon' },
+    { id: 'operations', label: 'Operations', icon: 'SettingsSuggestIcon' },
+    { id: 'finance', label: 'Finance', icon: 'AccountBalanceWalletIcon' },
+    { id: 'consultant', label: 'Consultant', icon: 'SupportAgentIcon' },
+    { id: 'marketing', label: 'Marketing', icon: 'CampaignIcon' }
+  ];
+
+  const getRoleIcon = (role) => {
+    const iconName = role.icon || {
+      'admin': 'SupervisorAccountIcon',
+      'operations': 'SettingsSuggestIcon',
+      'finance': 'AccountBalanceWalletIcon',
+      'consultant': 'SupportAgentIcon',
+      'marketing': 'CampaignIcon'
+    }[role.id] || 'SupportAgentIcon';
+
+    switch (iconName) {
+      case 'SupervisorAccountIcon': return <SupervisorAccountIcon />;
+      case 'SettingsSuggestIcon': return <SettingsSuggestIcon />;
+      case 'AccountBalanceWalletIcon': return <AccountBalanceWalletIcon />;
+      case 'CampaignIcon': return <CampaignIcon />;
+      case 'FaceIcon': return <FaceIcon />;
+      case 'GroupIcon': return <GroupIcon />;
+      case 'StarIcon': return <StarIcon />;
+      case 'VerifiedUserIcon': return <VerifiedUserIcon />;
+      case 'EmojiEventsIcon': return <EmojiEventsIcon />;
+      case 'AssignmentIndIcon': return <AssignmentIndIcon />;
+      case 'SecurityIcon': return <SecurityIcon />;
+      case 'WorkIcon': return <WorkIcon />;
+      case 'BusinessCenterIcon': return <BusinessCenterIcon />;
+      case 'GavelIcon': return <GavelIcon />;
+      case 'AssuredWorkloadIcon': return <AssuredWorkloadIcon />;
+      case 'RecordVoiceOverIcon': return <RecordVoiceOverIcon />;
+      case 'LocalPoliceIcon': return <LocalPoliceIcon />;
+      case 'SupportAgentIcon':
+      default:
+        return <SupportAgentIcon />;
+    }
+  };
 
   const {
     register,
@@ -57,47 +116,17 @@ export const Login = () => {
 
   const handleQuickLogin = (role) => {
     let mockUser = {
-      id: 'admin-1',
-      name: 'General Manager',
-      email: 'manager@aaabusinessconsultancy.com',
-      role: 'admin',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150' };
+      id: role + '-user',
+      name: role.replace('_', ' ').toUpperCase() + ' Demo',
+      email: role + '@aaabusinessconsultancy.com',
+      role: role,
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150' 
+    };
 
-    if (role === 'consultant') {
-      mockUser = {
-        id: 'c1',
-        name: 'Sofia Rodriguez',
-        email: 'sofia.r@aaabusinessconsultancy.com',
-        role: 'consultant',
-        avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150' };
-    } else if (role === 'finance') {
-      mockUser = {
-        id: 'finance-staff',
-        name: 'Elena Finance',
-        email: 'finance@aaabusinessconsultancy.com',
-        role: 'finance',
-        avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150' };
-    } else if (role === 'operations') {
-      mockUser = {
-        id: 'operations-staff',
-        name: 'Carlos Ops',
-        email: 'ops@aaabusinessconsultancy.com',
-        role: 'operations',
-        avatar: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150' };
-    } else if (role === 'super_admin') {
-      mockUser = {
-        id: 'super-admin',
-        name: 'Wael Madi (CEO)',
-        email: 'wael.m@aaabusinessconsultancy.com',
-        role: 'super_admin',
-        avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150' };
-    } else if (role === 'marketing') {
-      mockUser = {
-        id: 'marketing-staff',
-        name: 'Marketing Manager',
-        email: 'marketing@aaabusinessconsultancy.com',
-        role: 'marketing',
-        avatar: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=150' };
+    if (role === 'super_admin') {
+      mockUser.id = 'super-admin';
+      mockUser.name = 'Wael Madi (CEO)';
+      mockUser.email = 'wael.m@aaabusinessconsultancy.com';
     }
 
     login(mockUser);
@@ -107,7 +136,7 @@ export const Login = () => {
 
   return (
     <Box>
-      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-start' }}>
+      <Box sx={{ mb: 1, display: 'flex', justifyContent: 'flex-start' }}>
         <Button
           component={RouterLink}
           to="/"
@@ -120,8 +149,8 @@ export const Login = () => {
           Back to Homepage
         </Button>
       </Box>
-      <Box sx={{ mb: 3, textAlign: 'center' }}>
-        <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+      <Box sx={{ mb: 2, textAlign: 'center' }}>
+        <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
           Welcome back
         </Typography>
         <Typography variant="body2" color="text.secondary">
@@ -130,7 +159,7 @@ export const Login = () => {
       </Box>
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.8 }}>
           <TextField
             {...register('email')}
             label="Email Address"
@@ -162,32 +191,22 @@ export const Login = () => {
         </Box>
       </form>
 
-      <Divider sx={{ my: 3 }}>
+      <Divider sx={{ my: 1.5 }}>
         <Chip label="DEMO QUICK LOGIN" size="small" sx={{ fontSize: '0.65rem', fontWeight: 700 }} />
       </Divider>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1 }}>
-        <Button variant="outlined" size="small" sx={{ py: 0.5, fontSize: '0.7rem' }} startIcon={<AdminPanelSettingsIcon />} fullWidth onClick={() => handleQuickLogin('super_admin')}>
-          Super Admin
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.6, justifyContent: 'center' }}>
+        <Button variant="outlined" size="small" sx={{ py: 0.5, fontSize: '0.75rem', flex: '1 1 calc(33.333% - 8px)', minWidth: '120px', maxWidth: '200px' }} startIcon={<AdminPanelSettingsIcon />} onClick={() => handleQuickLogin('super_admin')}>
+          <Box sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Super Admin</Box>
         </Button>
-        <Button variant="outlined" size="small" sx={{ py: 0.5, fontSize: '0.7rem' }} startIcon={<SupervisorAccountIcon />} fullWidth onClick={() => handleQuickLogin('admin')}>
-          Admin
-        </Button>
-        <Button variant="outlined" size="small" sx={{ py: 0.5, fontSize: '0.7rem' }} startIcon={<SupportAgentIcon />} fullWidth onClick={() => handleQuickLogin('consultant')}>
-          Agent
-        </Button>
-        <Button variant="outlined" size="small" sx={{ py: 0.5, fontSize: '0.7rem' }} startIcon={<AccountBalanceWalletIcon />} fullWidth onClick={() => handleQuickLogin('finance')}>
-          Finance
-        </Button>
-        <Button variant="outlined" size="small" sx={{ py: 0.5, fontSize: '0.7rem' }} startIcon={<SettingsSuggestIcon />} fullWidth onClick={() => handleQuickLogin('operations')}>
-          Operations
-        </Button>
-        <Button variant="outlined" size="small" sx={{ py: 0.5, fontSize: '0.7rem' }} startIcon={<CampaignIcon />} fullWidth onClick={() => handleQuickLogin('marketing')}>
-          Marketing
-        </Button>
+        {dynamicRoles.map(role => (
+          <Button key={role.id} variant="outlined" size="small" sx={{ py: 0.5, fontSize: '0.75rem', flex: '1 1 calc(33.333% - 8px)', minWidth: '120px', maxWidth: '200px' }} startIcon={getRoleIcon(role)} onClick={() => handleQuickLogin(role.id)}>
+            <Box sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{role.label.split('(')[0].trim()}</Box>
+          </Button>
+        ))}
       </Box>
-      <Box sx={{ mt: 4, textAlign: 'center' }}>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+      <Box sx={{ mt: 2, textAlign: 'center' }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
           Are you a client looking for your portal?
         </Typography>
         <Button 

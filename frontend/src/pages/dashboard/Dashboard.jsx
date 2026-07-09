@@ -3,7 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 
 export const Dashboard = () => {
-  const { isAdmin, isOperations, isConsultant, isFinance, isSuperAdmin, isMarketing } = useAuth();
+  const { isAdmin, isOperations, isConsultant, isFinance, isSuperAdmin, isMarketing, currentUser } = useAuth();
   const location = useLocation();
 
   const getRolePrefix = () => {
@@ -13,7 +13,8 @@ export const Dashboard = () => {
     if (isOperations) return 'operations';
     if (isConsultant) return 'agent';
     if (isFinance) return 'finance';
-    return '';
+
+    return currentUser?.role || '';
   };
 
   const prefix = getRolePrefix();

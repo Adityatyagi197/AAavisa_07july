@@ -33,7 +33,14 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 export const AgentClientList = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser } = useAuth();
+  const { currentUser, isViewOnlyMenu } = useAuth();
+
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Clients');
 
   // Filters & State
   const [searchTerm, setSearchTerm] = useState('');
@@ -420,6 +427,7 @@ export const AgentClientList = () => {
 
         <AppTable
           columns={columns}
+          context="clients"
           data={paginatedClients}
           count={filteredClients.length}
           page={page}

@@ -38,9 +38,16 @@ import { useAlert } from '../../contexts/AlertContext';
 export const AdminConsultationList = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser } = useAuth();
+  const { currentUser, isViewOnlyMenu } = useAuth();
   const queryClient = useQueryClient();
   const { showAlert } = useAlert();
+
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Consultations');
 
   const getCardIcon = (iconType) => {
     switch (iconType) {
@@ -193,7 +200,7 @@ export const AdminConsultationList = () => {
       id: 'consultant',
       label: 'Assigned Agent',
       render: (row) => {
-        const canEdit = ['super_admin', 'admin', 'operations'].includes(currentUser?.role);
+        const canEdit = !isViewOnly && ['super_admin', 'admin', 'operations'].includes(currentUser?.role);
         if (canEdit) {
           return (
             <Select

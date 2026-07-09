@@ -33,6 +33,7 @@ import PageHeader from '../../components/PageHeader';
 import StatusBadge from '../../components/StatusBadge';
 import AppModal from '../../components/AppModal';
 import { useAlert } from '../../contexts/AlertContext';
+import useAuth from '../../hooks/useAuth';
 import { SERVICES, PACKAGES } from '../../constants/mockData';
 
 export const InvoiceDetails = () => {
@@ -40,6 +41,14 @@ export const InvoiceDetails = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showAlert } = useAlert();
+  const { isViewOnlyMenu } = useAuth();
+
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Finance');
 
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [gateway, setGateway] = useState('Visa');
@@ -481,7 +490,7 @@ export const InvoiceDetails = () => {
             <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleDownload}>
               Download Invoice
             </Button>
-            {invoice.status === 'Pending' && (
+            {!isViewOnly && invoice.status === 'Pending' && (
               <>
                 <Button
                   variant="contained"

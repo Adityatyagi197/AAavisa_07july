@@ -60,8 +60,14 @@ export const AdminClientList = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const { showAlert } = useAlert();
-  const { isAdmin, isOperations, currentUser } = useAuth();
+  const { isAdmin, isOperations, currentUser, isViewOnlyMenu } = useAuth();
+
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Clients');
 
   // Filters & State
   const [searchTerm, setSearchTerm] = useState('');
@@ -323,14 +329,16 @@ export const AdminClientList = () => {
         title="Admin Client Registry"
         subtitle="Track onboarding contracts, payment schedules, and visa application submission lifecycles."
         action={
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<AddIcon />}
-            onClick={() => setAddModalOpen(true)}
-          >
-            Add New Client
-          </Button>
+          !isViewOnly && (
+            <Button
+              variant="contained"
+              color="secondary"
+              startIcon={<AddIcon />}
+              onClick={() => setAddModalOpen(true)}
+            >
+              Add New Client
+            </Button>
+          )
         }
       />
 
@@ -491,6 +499,7 @@ export const AdminClientList = () => {
 
         <AppTable
           columns={columns}
+          context="clients"
           data={paginatedClients}
           count={filteredClients.length}
           page={page}

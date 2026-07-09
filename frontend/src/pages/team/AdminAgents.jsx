@@ -142,7 +142,12 @@ export const AdminAgents = () => {
   const { data: allClients = [] } = useQuery({ queryKey: ['clients'], queryFn: dbService.getClients });
   const { data: allConsultations = [] } = useQuery({ queryKey: ['consultations'], queryFn: dbService.getConsultations });
   const { data: allPayments = [] } = useQuery({ queryKey: ['payments'], queryFn: dbService.getPayments });
-  const { data: customizationSettings } = useQuery({ queryKey: ['customization-settings'], queryFn: dbService.getCustomizationSettings });
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+  const { isViewOnlyMenu } = useAuth();
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Agents');
 
   // Fetch Agents dynamically
   const { data: agents = [], isLoading } = useQuery({
@@ -431,7 +436,7 @@ export const AdminAgents = () => {
         title="Agents Management"
         subtitle="Manage agent accounts, review key performance metrics, commissions, and access privileges."
         action={
-          isAdmin && (
+          !isViewOnly && isAdmin && (
             <Button
               variant="contained"
               color="secondary"
@@ -587,7 +592,7 @@ export const AdminAgents = () => {
                     </Box>
                   </Box>
 
-                  {isAdmin && (
+                  {!isViewOnly && isAdmin && (
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       <Button
                         variant="outlined"
@@ -786,11 +791,9 @@ export const AdminAgents = () => {
             required
             helperText="Assign the system role determining permissions and sidebar access."
           >
-            <MenuItem value="admin">Admin (General Manager)</MenuItem>
-            <MenuItem value="operations">Operations Manager</MenuItem>
-            <MenuItem value="finance">Finance Manager</MenuItem>
-            <MenuItem value="consultant">Agent (Spain Visa Expert)</MenuItem>
-            <MenuItem value="marketing">Marketing Executive</MenuItem>
+            {customizationSettings?.rolesDefinition?.map(r => (
+              <MenuItem key={r.id} value={r.id}>{r.label.split('(')[0].trim()}</MenuItem>
+            ))}
           </TextField>
           <TextField label="Spoken Languages (comma-separated) *" placeholder="English, Spanish" value={languages} onChange={(e) => setLanguages(e.target.value)} fullWidth required />
           <TextField label="Nationalities (comma-separated)" placeholder="British" value={nationalities} onChange={(e) => setNationalities(e.target.value)} fullWidth />
@@ -805,72 +808,7 @@ export const AdminAgents = () => {
           />
           <TextField label="Immigration Bio Description" multiline rows={3} value={bio} onChange={(e) => setBio(e.target.value)} fullWidth />
           
-          {currentUser?.customPermissions?.canManageOverrides && (
-            <>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={customPermissionsEnabled}
-                    onChange={(e) => setCustomPermissionsEnabled(e.target.checked)}
-                    color="secondary"
-                  />
-                }
-                label={<strong>Custom Permissions Override</strong>}
-              />
 
-              {customPermissionsEnabled && (
-                <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2, bgcolor: 'action.hover' }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Allowed Sidebar Pages (Menus)</Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
-                    {AVAILABLE_MENUS.map((menuName) => (
-                      <FormControlLabel
-                        key={menuName}
-                        control={
-                          <Checkbox
-                            size="small"
-                            checked={customMenus.includes(menuName)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setCustomMenus([...customMenus, menuName]);
-                              } else {
-                                setCustomMenus(customMenus.filter((m) => m !== menuName));
-                              }
-                            }}
-                          />
-                        }
-                        label={<Typography variant="body2">{menuName}</Typography>}
-                      />
-                    ))}
-                  </Box>
-
-                  <Divider sx={{ my: 2 }} />
-
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Allowed Dashboard KPI Cards</Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
-                    {AVAILABLE_CARDS.map((cardName) => (
-                      <FormControlLabel
-                        key={cardName}
-                        control={
-                          <Checkbox
-                            size="small"
-                            checked={customCards.includes(cardName)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setCustomCards([...customCards, cardName]);
-                              } else {
-                                setCustomCards(customCards.filter((c) => c !== cardName));
-                              }
-                            }}
-                          />
-                        }
-                        label={<Typography variant="body2">{cardName}</Typography>}
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              )}
-            </>
-          )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button onClick={() => setOpenAddModal(false)}>Cancel</Button>
@@ -901,11 +839,9 @@ export const AdminAgents = () => {
             required
             helperText="Update the user system role determining permissions and sidebar access."
           >
-            <MenuItem value="admin">Admin (General Manager)</MenuItem>
-            <MenuItem value="operations">Operations Manager</MenuItem>
-            <MenuItem value="finance">Finance Manager</MenuItem>
-            <MenuItem value="consultant">Agent (Spain Visa Expert)</MenuItem>
-            <MenuItem value="marketing">Marketing Executive</MenuItem>
+            {customizationSettings?.rolesDefinition?.map(r => (
+              <MenuItem key={r.id} value={r.id}>{r.label.split('(')[0].trim()}</MenuItem>
+            ))}
           </TextField>
           <TextField label="Spoken Languages (comma-separated) *" placeholder="English, Spanish" value={languages} onChange={(e) => setLanguages(e.target.value)} fullWidth required />
           <TextField label="Nationalities (comma-separated)" placeholder="British" value={nationalities} onChange={(e) => setNationalities(e.target.value)} fullWidth />
@@ -919,72 +855,7 @@ export const AdminAgents = () => {
           />
           <TextField label="Immigration Bio Description" multiline rows={3} value={bio} onChange={(e) => setBio(e.target.value)} fullWidth />
           
-          {currentUser?.customPermissions?.canManageOverrides && (
-            <>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={customPermissionsEnabled}
-                    onChange={(e) => setCustomPermissionsEnabled(e.target.checked)}
-                    color="secondary"
-                  />
-                }
-                label={<strong>Custom Permissions Override</strong>}
-              />
 
-              {customPermissionsEnabled && (
-                <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: 2, bgcolor: 'action.hover' }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Allowed Sidebar Pages (Menus)</Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
-                    {AVAILABLE_MENUS.map((menuName) => (
-                      <FormControlLabel
-                        key={menuName}
-                        control={
-                          <Checkbox
-                            size="small"
-                            checked={customMenus.includes(menuName)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setCustomMenus([...customMenus, menuName]);
-                              } else {
-                                setCustomMenus(customMenus.filter((m) => m !== menuName));
-                              }
-                            }}
-                          />
-                        }
-                        label={<Typography variant="body2">{menuName}</Typography>}
-                      />
-                    ))}
-                  </Box>
-
-                  <Divider sx={{ my: 2 }} />
-
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Allowed Dashboard KPI Cards</Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1 }}>
-                    {AVAILABLE_CARDS.map((cardName) => (
-                      <FormControlLabel
-                        key={cardName}
-                        control={
-                          <Checkbox
-                            size="small"
-                            checked={customCards.includes(cardName)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setCustomCards([...customCards, cardName]);
-                              } else {
-                                setCustomCards(customCards.filter((c) => c !== cardName));
-                              }
-                            }}
-                          />
-                        }
-                        label={<Typography variant="body2">{cardName}</Typography>}
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              )}
-            </>
-          )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button onClick={() => setOpenEditModal(false)}>Cancel</Button>

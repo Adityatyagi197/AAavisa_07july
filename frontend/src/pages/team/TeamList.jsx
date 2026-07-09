@@ -53,6 +53,13 @@ export const TeamList = () => {
     queryKey: ['consultants'],
     queryFn: dbService.getConsultants });
 
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+  const { isViewOnlyMenu } = useAuth();
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Agents');
+
   // Create Consultant Mutation
   const createConsultantMutation = useMutation({
     mutationFn: (consultantData) => dbService.createConsultant(consultantData),
@@ -146,7 +153,7 @@ export const TeamList = () => {
         title="Staff & Roles Management"
         subtitle="Manage team members, performance metrics, and assign access roles."
         action={
-          isAdmin && (
+          !isViewOnly && isAdmin && (
             <Button
               variant="contained"
               color="secondary"
@@ -270,13 +277,12 @@ export const TeamList = () => {
                     value={c.role || 'consultant'}
                     label="Role"
                     onChange={(e) => handleRoleChange(c.id, e.target.value)}
-                    disabled={!isAdmin || updateRoleMutation.isPending}
+                    disabled={isViewOnly || !isAdmin || updateRoleMutation.isPending}
                     sx={{ fontSize: '0.8rem', fontWeight: 600, textAlign: 'left' }}
                   >
-                    <MenuItem value="admin" sx={{ fontSize: '0.8rem' }}>Administrator</MenuItem>
-                    <MenuItem value="consultant" sx={{ fontSize: '0.8rem' }}>Consultant</MenuItem>
-                    <MenuItem value="operations" sx={{ fontSize: '0.8rem' }}>Operations</MenuItem>
-                    <MenuItem value="finance" sx={{ fontSize: '0.8rem' }}>Finance</MenuItem>
+                    {customizationSettings?.rolesDefinition?.map(r => (
+                      <MenuItem key={r.id} value={r.id} sx={{ fontSize: '0.8rem' }}>{r.label.split('(')[0].trim()}</MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
               </Box>
@@ -417,10 +423,9 @@ export const TeamList = () => {
               label="Access Role *"
               onChange={(e) => setRole(e.target.value)}
             >
-              <MenuItem value="admin">Administrator</MenuItem>
-              <MenuItem value="consultant">Consultant</MenuItem>
-              <MenuItem value="operations">Operations</MenuItem>
-              <MenuItem value="finance">Finance</MenuItem>
+              {customizationSettings?.rolesDefinition?.map(r => (
+                <MenuItem key={r.id} value={r.id}>{r.label.split('(')[0].trim()}</MenuItem>
+              ))}
             </Select>
           </FormControl>
           <TextField

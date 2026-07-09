@@ -130,6 +130,7 @@ const getDynamicRedirectPath = (label, role) => {
   else if (role === 'consultant') prefix = 'agent';
   else if (role === 'marketing') prefix = 'marketing-manager';
   else if (role === 'finance') prefix = 'finance';
+  else prefix = role;
 
   let path = '/dashboard';
   if (label === 'Dashboard') path = '/dashboard';
@@ -154,37 +155,27 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   const { isAuthenticated, currentUser, hasRole } = useAuth();
   const location = useLocation();
 
-  const logMsg = `[${new Date().toLocaleTimeString()}] Path: ${location.pathname}, Auth: ${isAuthenticated}, Role: ${currentUser?.role}, Allowed: ${allowedRoles?.join(',')}, hasRole: ${allowedRoles ? hasRole(allowedRoles) : 'N/A'}`;
-
-  const saved = localStorage.getItem('routing-debug-logs');
-  let logs = [];
-  try {
-    logs = saved ? JSON.parse(saved) : [];
-  } catch (e) {
-    logs = [];
-  }
-  logs.push(logMsg);
-  if (logs.length > 10) logs.shift();
-  localStorage.setItem('routing-debug-logs', JSON.stringify(logs));
+  // ✅ useQuery MUST be called before any conditional returns (Rules of Hooks)
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings,
+    enabled: !!currentUser, // only fetch when user is present
+  });
 
   if (!isAuthenticated || !currentUser) {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && !hasRole(allowedRoles)) {
-    // Redirect to role-specific dashboard, not generic /dashboard
+  const builtInRoles = ['admin', 'operations', 'finance', 'consultant', 'super_admin', 'marketing'];
+  const isCustomRole = currentUser && !builtInRoles.includes(currentUser.role);
+
+  if (allowedRoles && !hasRole(allowedRoles) && !isCustomRole) {
     const rolePrefix = currentUser.role === 'consultant' ? 'agent'
       : currentUser.role === 'super_admin' ? 'super_admin'
       : currentUser.role === 'marketing' ? 'marketing-manager'
       : currentUser.role;
     return <Navigate to={`/${rolePrefix}/dashboard`} replace />;
   }
-
-  // Dynamic Customization Check
-  const { data: customizationSettings } = useQuery({
-    queryKey: ['customization-settings'],
-    queryFn: dbService.getCustomizationSettings
-  });
 
   if (currentUser && currentUser.role !== 'super_admin') {
     try {
@@ -204,7 +195,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
         }
       } else if (customizationSettings) {
         // 2. Fall back to role-level customization settings
-        const roleSettings = customizationSettings[currentUser.role];
+        const roleSettings = (customizationSettings[currentUser.id] || customizationSettings[currentUser.role]);
         if (roleSettings && roleSettings.menus) {
           const allowedMenus = roleSettings.menus;
           if (currentMenuLabel && !allowedMenus.includes(currentMenuLabel)) {
@@ -1038,7 +1029,7 @@ export const AppRoutes = () => {
           path="/admin/marketing"
           element={
             <ProtectedRoute allowedRoles={['admin', 'super_admin', 'marketing']}>
-              <SuperAdminMarketing />
+              <AdminMarketing />
             </ProtectedRoute>
           }
         />
@@ -1046,7 +1037,7 @@ export const AppRoutes = () => {
           path="/operations/marketing"
           element={
             <ProtectedRoute allowedRoles={['operations', 'super_admin']}>
-              <SuperAdminMarketing />
+              <OperationsMarketing />
             </ProtectedRoute>
           }
         />
@@ -1054,7 +1045,7 @@ export const AppRoutes = () => {
           path="/agent/marketing"
           element={
             <ProtectedRoute allowedRoles={['consultant', 'super_admin']}>
-              <SuperAdminMarketing />
+              <AdminMarketing />
             </ProtectedRoute>
           }
         />
@@ -1062,7 +1053,7 @@ export const AppRoutes = () => {
           path="/finance/marketing"
           element={
             <ProtectedRoute allowedRoles={['finance', 'super_admin']}>
-              <SuperAdminMarketing />
+              <AdminMarketing />
             </ProtectedRoute>
           }
         />
@@ -1070,7 +1061,7 @@ export const AppRoutes = () => {
           path="/marketing"
           element={
             <ProtectedRoute allowedRoles={['marketing', 'super_admin']}>
-              <SuperAdminMarketing />
+              <AdminMarketing />
             </ProtectedRoute>
           }
         />
@@ -1078,7 +1069,7 @@ export const AppRoutes = () => {
           path="/marketing-manager/marketing"
           element={
             <ProtectedRoute allowedRoles={['marketing', 'super_admin']}>
-              <SuperAdminMarketing />
+              <AdminMarketing />
             </ProtectedRoute>
           }
         />
@@ -1202,6 +1193,24 @@ export const AppRoutes = () => {
             </ProtectedRoute>
           }
         />
+
+        {/* Dynamic / Custom Role Fallback Routes */}
+        <Route path="/:rolePrefix/dashboard" element={<ProtectedRoute><OperationsDashboard /></ProtectedRoute>} />
+        <Route path="/:rolePrefix/agents" element={<ProtectedRoute><OperationsAgents /></ProtectedRoute>} />
+        <Route path="/:rolePrefix/agents/performance" element={<ProtectedRoute><OperationsAgentsPerformance /></ProtectedRoute>} />
+        <Route path="/:rolePrefix/active-cases" element={<ProtectedRoute><OperationsActiveCases /></ProtectedRoute>} />
+        <Route path="/:rolePrefix/documents/verify" element={<ProtectedRoute><OperationsDocumentVerificationDashboard /></ProtectedRoute>} />
+        <Route path="/:rolePrefix/clients" element={<ProtectedRoute><OperationsClientList /></ProtectedRoute>} />
+        <Route path="/:rolePrefix/clients/details/:id" element={<ProtectedRoute><OperationsClientDetails /></ProtectedRoute>} />
+        <Route path="/:rolePrefix/leads" element={<ProtectedRoute><SuperAdminLeadList /></ProtectedRoute>} />
+        <Route path="/:rolePrefix/leads/details/:id" element={<ProtectedRoute><SuperAdminLeadDetails /></ProtectedRoute>} />
+        <Route path="/:rolePrefix/closed-cases" element={<ProtectedRoute><OperationsClosedCases /></ProtectedRoute>} />
+        <Route path="/:rolePrefix/consultations" element={<ProtectedRoute><OperationsConsultationList /></ProtectedRoute>} />
+        <Route path="/:rolePrefix/consultations/details/:id" element={<ProtectedRoute><OperationsConsultationDetails /></ProtectedRoute>} />
+        <Route path="/:rolePrefix/consultations/calendar" element={<ProtectedRoute><SuperAdminCalendarView /></ProtectedRoute>} />
+        <Route path="/:rolePrefix/payments" element={<ProtectedRoute><AdminPaymentDashboard /></ProtectedRoute>} />
+        <Route path="/:rolePrefix/marketing" element={<ProtectedRoute><OperationsMarketing /></ProtectedRoute>} />
+        <Route path="/:rolePrefix/social-inbox" element={<ProtectedRoute><OperationsSocialInbox /></ProtectedRoute>} />
 
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

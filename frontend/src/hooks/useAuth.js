@@ -29,6 +29,11 @@ export const useAuth = () => {
     isOperations,
     isSuperAdmin,
     isMarketing,
+    isViewOnlyMenu: (customizationSettings, menuName) => {
+      if (!customizationSettings || !currentUser) return false;
+      const roleConfig = customizationSettings[currentUser.id] || customizationSettings[currentUser.role];
+      return roleConfig?.viewOnlyMenus?.includes(menuName) || false;
+    }
   };
 };
 

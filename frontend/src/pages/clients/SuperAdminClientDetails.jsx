@@ -41,7 +41,15 @@ export const SuperAdminClientDetails = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { showAlert } = useAlert();
-  const { isAdmin, isSuperAdmin, isOperations } = useAuth();
+  const { isAdmin, isSuperAdmin, isOperations, currentUser } = useAuth();
+
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
+  const roleConfig = (customizationSettings?.[currentUser?.id] || customizationSettings?.[currentUser?.role]) || {};
+  const clientsActions = roleConfig.actions?.clients || { canChangeVisaStatus: true, canVerifyDocs: true, canDelete: true };
 
   const queryParams = new URLSearchParams(location.search);
   const tabParam = queryParams.get('tab');
@@ -207,9 +215,11 @@ export const SuperAdminClientDetails = () => {
             >
               Copy Upload Link
             </Button>
-            <Button variant="contained" onClick={handleOpenStatusModal} sx={{ textTransform: 'none' }}>
-              Update Progression Status
-            </Button>
+            {clientsActions.canChangeVisaStatus !== false && (
+              <Button variant="contained" onClick={handleOpenStatusModal} sx={{ textTransform: 'none' }}>
+                Update Progression Status
+              </Button>
+            )}
           </Stack>
         }
       />

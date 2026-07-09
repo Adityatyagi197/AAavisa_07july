@@ -156,6 +156,13 @@ export const SuperAdminLeadDetails = () => {
 
   const leadStatuses = leadStages.map(s => s.name);
 
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+  const roleConfig = (customizationSettings?.[currentUser?.id] || customizationSettings?.[currentUser?.role]) || {};
+  const leadsActions = roleConfig.actions?.leads || { canCreate: true, canAssignAgent: true, canDelete: true, canChangeVisaStatus: true };
+
   // Mutations
   const updateStatusMutation = useMutation({
     mutationFn: ({ leadId, status }) => dbService.updateLeadStatus(leadId, status),
@@ -421,7 +428,7 @@ export const SuperAdminLeadDetails = () => {
             <Button variant="outlined" onClick={handleOpenStatusModal}>
               Change Status
             </Button>
-            {lead.status !== 'Completed' && ((isAdmin || isSuperAdmin) || isOperations) && (
+            {lead.status !== 'Completed' && (isSuperAdmin || leadsActions.canCreate !== false) && (
               <Button variant="contained" color="secondary" onClick={handleConvertLead} startIcon={<CheckCircleIcon />}>
                 Convert to Client
               </Button>
@@ -455,7 +462,7 @@ export const SuperAdminLeadDetails = () => {
                 <Typography variant="caption" color="text.secondary" display="block">
                   Assigned Agent
                 </Typography>
-                {((isAdmin || isSuperAdmin) || isOperations) ? (
+                {(isSuperAdmin || leadsActions.canAssignAgent !== false) ? (
                   <FormControl fullWidth size="small" sx={{ mt: 0.5 }}>
                     <Select
                       value={lead.assignedConsultantId || ''}

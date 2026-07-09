@@ -268,6 +268,18 @@ export const SuperAdminLeadList = () => {
     queryKey: ['lead-stages'],
     queryFn: dbService.getLeadStages });
 
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
+  const roleConfig = (customizationSettings?.[currentUser?.id] || customizationSettings?.[currentUser?.role]) || {};
+  const isViewOnly = roleConfig.viewOnlyMenus?.includes('Leads') || false;
+  const baseActions = roleConfig.actions?.leads || { canCreate: true, canAssignAgent: true, canDelete: true };
+  const leadsActions = isViewOnly 
+    ? { canCreate: false, canAssignAgent: false, canDelete: false } 
+    : baseActions;
+
   const watchServiceId = watch('serviceId');
   const watchSource = watch('source');
 
@@ -409,7 +421,7 @@ export const SuperAdminLeadList = () => {
         title={(currentUser?.role === 'consultant' || currentUser?.role === 'agent') ? "Consultation Center" : "Lead Center"}
         subtitle={(currentUser?.role === 'consultant' || currentUser?.role === 'agent') ? "Manage your inbound consultation inquiries and qualification data." : "Manage inbound inquiries, lead qualification data, and consultant routing rules."}
         action={
-          ((isAdmin || isSuperAdmin) || isOperations) && (
+          (!isViewOnly && (isSuperAdmin || leadsActions.canCreate !== false)) && (
             <Button
               variant="contained"
               color="secondary"
@@ -577,6 +589,7 @@ export const SuperAdminLeadList = () => {
 
         <AppTable
           columns={columns}
+          context="leads"
           data={paginatedLeads}
           count={filteredLeads.length}
           page={page}
@@ -607,7 +620,7 @@ export const SuperAdminLeadList = () => {
                 </IconButton>
               </Tooltip>
 
-              {((isAdmin || isSuperAdmin) || isOperations) && (
+              {(!isViewOnly && (isSuperAdmin || leadsActions.canAssignAgent !== false)) && (
                 <Tooltip title="Assign Agent">
                   <IconButton size="small" onClick={() => handleOpenAssignModal(row)} color="secondary">
                     <PersonAddIcon fontSize="small" />
@@ -615,7 +628,7 @@ export const SuperAdminLeadList = () => {
                 </Tooltip>
               )}
 
-              {((isAdmin || isSuperAdmin) || isOperations) && (
+              {(!isViewOnly && (isSuperAdmin || leadsActions.canDelete !== false)) && (
                 <Tooltip title="Delete Lead">
                   <IconButton size="small" onClick={() => handleDeleteLead(row.id)} color="error">
                     <DeleteIcon fontSize="small" />

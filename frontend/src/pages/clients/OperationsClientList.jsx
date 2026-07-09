@@ -60,8 +60,14 @@ export const OperationsClientList = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const { showAlert } = useAlert();
-  const { currentUser, isAdmin } = useAuth();
+  const { currentUser, isAdmin, isOperations, isViewOnlyMenu } = useAuth();
+
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Clients');
 
   // Filters & State
   const [searchTerm, setSearchTerm] = useState('');
@@ -328,14 +334,16 @@ export const OperationsClientList = () => {
         title="Operations Client Registry"
         subtitle="Track onboarding contracts, payment schedules, and visa application submission lifecycles."
         action={
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<AddIcon />}
-            onClick={() => setAddModalOpen(true)}
-          >
-            Add New Client
-          </Button>
+          !isViewOnly && (
+            <Button
+              variant="contained"
+              color="secondary"
+              startIcon={<AddIcon />}
+              onClick={() => setAddModalOpen(true)}
+            >
+              Add New Client
+            </Button>
+          )
         }
       />
 
@@ -496,6 +504,7 @@ export const OperationsClientList = () => {
 
         <AppTable
           columns={columns}
+          context="clients"
           data={paginatedClients}
           count={filteredClients.length}
           page={page}

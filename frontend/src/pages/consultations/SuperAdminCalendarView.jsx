@@ -71,7 +71,14 @@ export const SuperAdminCalendarView = () => {
     }
   };
 
-  const { currentUser, isConsultant } = useAuth();
+  const { currentUser, isConsultant, isViewOnlyMenu } = useAuth();
+
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
+  const isViewOnly = isViewOnlyMenu(customizationSettings, 'Consultations');
 
   const getRolePrefix = () => {
     if (!currentUser) return 'super_admin';
@@ -112,6 +119,14 @@ export const SuperAdminCalendarView = () => {
   const { data: agents = [] } = useQuery({
     queryKey: ['agents'],
     queryFn: dbService.getAgents });
+
+  const { data: leadStages = [] } = useQuery({
+    queryKey: ['lead-stages'],
+    queryFn: dbService.getLeadStages
+  });
+
+  const roleConfig = (customizationSettings?.[currentUser?.id] || customizationSettings?.[currentUser?.role]) || {};
+  const calendarActions = roleConfig.actions?.calendar || { canAssignAgent: true, canCreateMeeting: true };
 
   // Mutations
   const createConsultationMutation = useMutation({
@@ -181,14 +196,16 @@ export const SuperAdminCalendarView = () => {
         title="Agent Calendar Scheduler"
         subtitle="Manage upcoming consultation meetings, time allocations, and client booking schedules."
         action={
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<AddIcon />}
-            onClick={() => setScheduleModalOpen(true)}
-          >
-            Book Appointment
-          </Button>
+          (!isViewOnly && (currentUser?.role === 'super_admin' || calendarActions.canCreateMeeting !== false)) && (
+            <Button
+              variant="contained"
+              color="secondary"
+              startIcon={<AddIcon />}
+              onClick={() => setScheduleModalOpen(true)}
+            >
+              Book Appointment
+            </Button>
+          )
         }
       />
 
@@ -533,7 +550,7 @@ export const SuperAdminCalendarView = () => {
             </Box>
           </Box>
 
-          <FormControl fullWidth size="small" disabled={isConsultant}>
+          <FormControl fullWidth size="small" disabled={isConsultant || (currentUser?.role !== 'super_admin' && calendarActions.canAssignAgent === false)}>
             <InputLabel id="agent-host-select-label">Select Agent Host</InputLabel>
             <Select
               labelId="agent-host-select-label"
