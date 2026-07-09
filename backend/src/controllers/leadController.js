@@ -92,4 +92,25 @@ const updateLeadStatus = async (req, res) => {
   }
 };
 
-module.exports = { getLeads, createLead, assignLead, updateLeadStatus };
+const deleteLead = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Delete associated consultations first to avoid foreign key constraint violations
+    await prisma.consultation.deleteMany({
+      where: { leadId: id }
+    });
+
+    // Delete the lead
+    const lead = await prisma.lead.delete({
+      where: { id }
+    });
+
+    res.json({ success: true, message: 'Lead deleted successfully', lead });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error deleting lead', error: error.message });
+  }
+};
+
+module.exports = { getLeads, createLead, assignLead, updateLeadStatus, deleteLead };
+

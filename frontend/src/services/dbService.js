@@ -33,6 +33,10 @@ export const dbService = {
     const res = await apiClient.post('/leads/assign', { leadId, agentId });
     return res.data;
   },
+  deleteLead: async (leadId) => {
+    const res = await apiClient.delete(`/leads/${leadId}`);
+    return res.data;
+  },
 
   // CLIENTS & CASES
   getClients: async () => {
