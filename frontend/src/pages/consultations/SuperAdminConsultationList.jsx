@@ -576,7 +576,7 @@ export const SuperAdminConsultationList = () => {
             >
               {consultantsList.map((a) => (
                 <MenuItem key={a.id} value={a.id}>
-                  {a.name} ({a.languages.join('/')}) | {a.casesCount || 0} active cases
+                  {a.name} ({(a.languages || []).join('/')}) | {a.casesCount || 0} active cases
                 </MenuItem>
               ))}
             </Select>
