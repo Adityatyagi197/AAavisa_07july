@@ -13,8 +13,11 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import FormHelperText from '@mui/material/FormHelperText';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
+import { NATIONALITIES } from '../../constants/nationalities';
+import { LANGUAGES } from '../../constants/languages';
+import SearchableDropdown from '../../components/SearchableDropdown';
 import * as yup from 'yup';
 import dayjs from 'dayjs';
 
@@ -214,6 +217,7 @@ export const LeadList = () => {
     handleSubmit,
     reset,
     watch,
+    control,
     formState: { errors } } = useForm({
     resolver: yupResolver(leadSchema),
     defaultValues: {
@@ -585,8 +589,36 @@ export const LeadList = () => {
               <TextField {...register('phone')} label="Phone Number" error={!!errors.phone} helperText={errors.phone?.message} fullWidth />
 
               <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
-                <TextField {...register('nationality')} label="Nationality" error={!!errors.nationality} helperText={errors.nationality?.message} sx={{ flex: 1 }} />
-                <TextField {...register('preferredLanguage')} label="Preferred Language" error={!!errors.preferredLanguage} helperText={errors.preferredLanguage?.message} sx={{ flex: 1 }} />
+                <Controller
+                  control={control}
+                  name="nationality"
+                  render={({ field: { onChange, value } }) => (
+                    <SearchableDropdown
+                      value={value}
+                      onChange={onChange}
+                      error={!!errors.nationality}
+                      helperText={errors.nationality?.message}
+                      label="Nationality"
+                      options={NATIONALITIES}
+                      sx={{ flex: 1 }}
+                    />
+                  )}
+                />
+                <Controller
+                  control={control}
+                  name="preferredLanguage"
+                  render={({ field: { onChange, value } }) => (
+                    <SearchableDropdown
+                      value={value}
+                      onChange={onChange}
+                      error={!!errors.preferredLanguage}
+                      helperText={errors.preferredLanguage?.message}
+                      label="Preferred Language"
+                      options={LANGUAGES}
+                      sx={{ flex: 1 }}
+                    />
+                  )}
+                />
               </Box>
             </Box>
 
