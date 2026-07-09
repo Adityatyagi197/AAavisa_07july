@@ -18,6 +18,7 @@ import Stack from '@mui/material/Stack';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
+import Tooltip from '@mui/material/Tooltip';
 
 // Icons
 import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
@@ -163,6 +164,8 @@ export const SuperAdminLeadDetails = () => {
   const roleConfig = (customizationSettings?.[currentUser?.id] || customizationSettings?.[currentUser?.role]) || {};
   const leadsActions = roleConfig.actions?.leads || { canCreate: true, canAssignAgent: true, canDelete: true, canChangeVisaStatus: true };
 
+  const hasCompletedConsultation = lead ? consultations.some(c => c.leadId === lead.id && c.status === 'Completed') : false;
+
   // Mutations
   const updateStatusMutation = useMutation({
     mutationFn: ({ leadId, status }) => dbService.updateLeadStatus(leadId, status),
@@ -182,11 +185,29 @@ export const SuperAdminLeadDetails = () => {
     } });
 
   const reassignConsultantMutation = useMutation({
-    mutationFn: (consultantId) => dbService.assignConsultant(lead.id, consultantId),
+    mutationFn: async (consultantId) => {
+      // 1. Assign consultant to lead
+      await dbService.assignConsultant(lead.id, consultantId);
+      // 2. Auto-create a "Pending Acceptance" consultation for this lead
+      if (consultantId) {
+        try {
+          await dbService.createConsultationForLead({
+            leadId: lead.id,
+            consultantId,
+            meetingDate: lead.meetingPreferredDate || '',
+            meetingTime: lead.meetingPreferredTime || 'TBD'
+          });
+        } catch (e) {
+          // Non-blocking — don't fail the assign if consultation creation fails
+          console.warn('Could not auto-create consultation:', e);
+        }
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lead', id] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
-      showAlert('Consultant reassigned successfully', 'success');
+      queryClient.invalidateQueries({ queryKey: ['consultations'] });
+      showAlert('Agent assigned! A Pending Acceptance meeting has been created.', 'success');
     },
     onError: () => {
       showAlert('Error reassigning consultant', 'error');
@@ -207,7 +228,7 @@ export const SuperAdminLeadDetails = () => {
         serviceId: lead.serviceId,
         packageId,
         applicantsCount: count,
-        assignedConsultantId: lead.assignedConsultantId || 'c1',
+        assignedToId: lead.assignedToId || 'c1',
         status: 'Waiting for Payment',
         profileSummary: `${lead.firstName} migrated from Lead. Wants ${lead.serviceId} processing.` });
 
@@ -428,10 +449,20 @@ export const SuperAdminLeadDetails = () => {
             <Button variant="outlined" onClick={handleOpenStatusModal}>
               Change Status
             </Button>
-            {lead.status !== 'Completed' && (isSuperAdmin || leadsActions.canCreate !== false) && (
-              <Button variant="contained" color="secondary" onClick={handleConvertLead} startIcon={<CheckCircleIcon />}>
-                Convert to Client
-              </Button>
+            {lead.status !== 'Completed' && lead.status !== 'Converted' && leadsActions.canChangeVisaStatus && (
+              <Tooltip title={!hasCompletedConsultation ? "A consultation must be 'Completed' before conversion." : ""} arrow placement="bottom">
+                <span style={{ display: 'inline-block' }}>
+                  <Button 
+                    variant="contained" 
+                    color="secondary" 
+                    onClick={handleConvertLead} 
+                    disabled={!hasCompletedConsultation}
+                    startIcon={<CheckCircleIcon />}
+                  >
+                    Convert to Client
+                  </Button>
+                </span>
+              </Tooltip>
             )}
           </Stack>
         }
@@ -571,6 +602,72 @@ export const SuperAdminLeadDetails = () => {
                     </Box>
                   </Box>
 
+                  {/* Meeting Preferences Section */}
+                  <Box className="col-span-12">
+                    <Divider sx={{ my: 2 }} />
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                      <Typography variant="h5" sx={{ fontWeight: 600 }}>
+                        📅 Meeting Preferences
+                      </Typography>
+                      {lead.formSubmittedAt ? (
+                        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.8, px: 1.5, py: 0.5, borderRadius: 2, background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)' }}>
+                          <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                          <Typography variant="caption" sx={{ color: 'success.main', fontWeight: 600 }}>Form Submitted — {dayjs(lead.formSubmittedAt).format('DD MMM YYYY')}</Typography>
+                        </Box>
+                      ) : (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.8, px: 1.5, py: 0.5, borderRadius: 2, background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)' }}>
+                            <HourglassEmptyIcon sx={{ fontSize: 16, color: 'warning.main' }} />
+                            <Typography variant="caption" sx={{ color: 'warning.main', fontWeight: 600 }}>Awaiting Form Submission</Typography>
+                          </Box>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<SendIcon />}
+                            onClick={() => {
+                              const link = `${window.location.origin}/#/public/lead-form`;
+                              navigator.clipboard.writeText(link);
+                              showAlert('Form link copied to clipboard! Send to lead via WhatsApp or Email.', 'success');
+                            }}
+                          >
+                            Copy Form Link
+                          </Button>
+                        </Box>
+                      )}
+                    </Box>
+                    {lead.meetingPreferredDate ? (
+                      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, p: 2.5, borderRadius: 2, background: 'rgba(102,126,234,0.06)', border: '1px solid rgba(102,126,234,0.2)' }}>
+                        <Box><Typography variant="caption" color="text.secondary">Preferred Date</Typography><Typography variant="body1" sx={{ fontWeight: 600 }}>📅 {lead.meetingPreferredDate}</Typography></Box>
+                        <Box><Typography variant="caption" color="text.secondary">Preferred Time Slot</Typography><Typography variant="body1" sx={{ fontWeight: 600 }}>🕐 {lead.meetingPreferredTime ? lead.meetingPreferredTime.charAt(0).toUpperCase() + lead.meetingPreferredTime.slice(1) : 'Not specified'}</Typography></Box>
+                        <Box><Typography variant="caption" color="text.secondary">Preferred Language</Typography><Typography variant="body1" sx={{ fontWeight: 600 }}>🌐 {lead.meetingPreferredLanguage || lead.preferredLanguage}</Typography></Box>
+                        {lead.meetingNotes && <Box className="col-span-2"><Typography variant="caption" color="text.secondary">Lead's Notes / Questions</Typography><Typography variant="body2" sx={{ fontWeight: 500, mt: 0.5, p: 1.5, background: 'rgba(0,0,0,0.04)', borderRadius: 1 }}>{lead.meetingNotes}</Typography></Box>}
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">Lead has not submitted meeting preferences yet. Share the form link above.</Typography>
+                    )}
+                    
+                    <Box sx={{ mt: 3 }}>
+                      {lead.status === 'Completed' || lead.status === 'Converted' ? (
+                        <Typography variant="body2" color="success.main" sx={{ fontWeight: 600 }}>Already Converted</Typography>
+                      ) : (
+                        <Tooltip title={!hasCompletedConsultation ? "A consultation must be 'Completed' before conversion." : ""} arrow placement="top">
+                          <span style={{ display: 'inline-block' }}>
+                            <Button
+                              variant="contained"
+                              color="secondary"
+                              onClick={() => setConvertModalOpen(true)}
+                              disabled={!hasCompletedConsultation}
+                              sx={{ textTransform: 'none', fontWeight: 600, boxShadow: 'none', mb: 2 }}
+                            >
+                              <CheckCircleIcon sx={{ mr: 1, fontSize: 18 }} />
+                              Convert to Client
+                            </Button>
+                          </span>
+                        </Tooltip>
+                      )}
+                    </Box>
+                  </Box>
+
                   <Box className="col-span-12">
                     <Divider sx={{ my: 2 }} />
                     <Typography variant="h5" sx={{ fontWeight: 600, mb: 2 }}>
@@ -618,9 +715,11 @@ export const SuperAdminLeadDetails = () => {
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                         No meetings scheduled for this lead.
                       </Typography>
-                      <Button variant="contained" size="small" onClick={() => navigate('/consultations/calendar')}>
-                        Schedule Meeting
-                      </Button>
+                      {currentUser?.role !== 'consultant' && currentUser?.role !== 'agent' && (
+                        <Button variant="contained" size="small" onClick={() => navigate('/consultations/calendar')}>
+                          Schedule Meeting
+                        </Button>
+                      )}
                     </Box>
                   ) : (
                     leadConsultations.map((cons) => (
@@ -628,7 +727,9 @@ export const SuperAdminLeadDetails = () => {
                         <Box className="grid grid-cols-12 gap-2" alignItems="center">
                           <Box className="col-span-12 sm:col-span-4">
                             <Typography variant="subtitle2" color="text.secondary">Meeting Date/Time</Typography>
-                            <Typography variant="body1" sx={{ fontWeight: 600 }}>{cons.meetingDate} at {cons.meetingTime}</Typography>
+                            <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                              {cons.meetingDate ? `${cons.meetingDate} at ${cons.meetingTime}` : 'Pending Lead Submission'}
+                            </Typography>
                           </Box>
                           <Box className="col-span-12 sm:col-span-4">
                             <Typography variant="subtitle2" color="text.secondary">Meeting Status</Typography>
@@ -965,7 +1066,13 @@ export const SuperAdminLeadDetails = () => {
               Cancel
             </Button>
             <Button
-              onClick={handleConvertSubmit}
+              onClick={() => {
+                convertLeadMutation.mutate({
+                  lead,
+                  packageId: selectedPackageId,
+                  count: applicantsCount
+                });
+              }}
               variant="contained"
               color="secondary"
               disabled={convertLeadMutation.isPending}

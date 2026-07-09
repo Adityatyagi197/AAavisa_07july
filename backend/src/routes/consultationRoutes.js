@@ -1,5 +1,5 @@
 const express = require('express');
-const { getConsultations, createConsultation, updateOutcome } = require('../controllers/consultationController');
+const { getConsultations, createConsultation, updateOutcome, respondToConsultation, createConsultationForLead } = require('../controllers/consultationController');
 const { authMiddleware } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
@@ -9,5 +9,8 @@ router.route('/')
   .post(createConsultation); // Public booking link
 
 router.patch('/:id/outcome', authMiddleware, updateOutcome);
+router.patch('/:id/respond', authMiddleware, respondToConsultation);
+router.post('/create-for-lead', authMiddleware, createConsultationForLead);
 
 module.exports = router;
+

@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -115,7 +116,7 @@ export const SuperAdminConsultationList = () => {
   const [endDate, setEndDate] = useState(() => {
     return location.state?.endDate || '';
   });
-  const mockToday = '2026-06-18'; // Mock current date
+  const mockToday = dayjs().format('YYYY-MM-DD'); // Mock current date
 
   const filterByDate = (dateStr, start, end) => {
     if (!start && !end) return true;

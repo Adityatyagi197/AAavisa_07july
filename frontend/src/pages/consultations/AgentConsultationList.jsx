@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -95,7 +96,7 @@ export const AgentConsultationList = () => {
   const [endDate, setEndDate] = useState(() => {
     return location.state?.endDate || '';
   });
-  const mockToday = '2026-06-18'; // Mock current date
+  const mockToday = dayjs().format('YYYY-MM-DD'); // Mock current date
 
   const filterByDate = (dateStr, start, end) => {
     if (!start && !end) return true;
@@ -203,7 +204,7 @@ export const AgentConsultationList = () => {
     { id: 'status', label: 'Status', sortable: true },
   ];
 
-  const statusOptions = ['Scheduled', 'Completed', 'No Show', 'Cancelled'];
+  const statusOptions = ['Pending Acceptance', 'Scheduled', 'Completed', 'No Show', 'Cancelled', 'Declined'];
 
   return (
     <Box>

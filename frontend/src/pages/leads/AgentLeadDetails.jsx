@@ -18,6 +18,7 @@ import Stack from '@mui/material/Stack';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
+import Tooltip from '@mui/material/Tooltip';
 
 // Icons
 import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
@@ -146,6 +147,8 @@ export const AgentLeadDetails = () => {
     queryKey: ['consultants'],
     queryFn: dbService.getConsultants });
 
+  const hasCompletedConsultation = lead ? consultations.some(c => c.leadId === lead.id && c.status === 'Completed') : false;
+
   // Mutations
   const updateStatusMutation = useMutation({
     mutationFn: ({ leadId, status }) => dbService.updateLeadStatus(leadId, status),
@@ -190,7 +193,7 @@ export const AgentLeadDetails = () => {
         serviceId: lead.serviceId,
         packageId,
         applicantsCount: count,
-        assignedConsultantId: lead.assignedConsultantId || 'c1',
+        assignedToId: lead.assignedToId || 'c1',
         status: 'Waiting for Payment',
         profileSummary: `${lead.firstName} migrated from Lead. Wants ${lead.serviceId} processing.` });
 
@@ -440,10 +443,20 @@ export const AgentLeadDetails = () => {
             <Button variant="outlined" onClick={handleOpenStatusModal}>
               Change Status
             </Button>
-            {lead.status !== 'Completed' && (isAdmin || isOperations) && (
-              <Button variant="contained" color="secondary" onClick={handleConvertLead} startIcon={<CheckCircleIcon />}>
-                Convert to Client
-              </Button>
+            {lead.status !== 'Completed' && lead.status !== 'Converted' && (isAdmin || isOperations) && (
+              <Tooltip title={!hasCompletedConsultation ? "A consultation must be 'Completed' before conversion." : ""} arrow placement="bottom">
+                <span style={{ display: 'inline-block' }}>
+                  <Button 
+                    variant="contained" 
+                    color="secondary" 
+                    onClick={handleConvertLead} 
+                    disabled={!hasCompletedConsultation}
+                    startIcon={<CheckCircleIcon />}
+                  >
+                    Convert to Client
+                  </Button>
+                </span>
+              </Tooltip>
             )}
           </Stack>
         }
@@ -633,9 +646,6 @@ export const AgentLeadDetails = () => {
                       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                         No meetings scheduled for this lead.
                       </Typography>
-                      <Button variant="contained" size="small" onClick={() => navigate('/consultations/calendar')}>
-                        Schedule Meeting
-                      </Button>
                     </Box>
                   ) : (
                     leadConsultations.map((cons) => (
@@ -643,7 +653,9 @@ export const AgentLeadDetails = () => {
                         <Box className="grid grid-cols-12 gap-2" alignItems="center">
                           <Box className="col-span-12 sm:col-span-4">
                             <Typography variant="subtitle2" color="text.secondary">Meeting Date/Time</Typography>
-                            <Typography variant="body1" sx={{ fontWeight: 600 }}>{cons.meetingDate} at {cons.meetingTime}</Typography>
+                            <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                              {cons.meetingDate ? `${cons.meetingDate} at ${cons.meetingTime}` : 'Pending Lead Submission'}
+                            </Typography>
                           </Box>
                           <Box className="col-span-12 sm:col-span-4">
                             <Typography variant="subtitle2" color="text.secondary">Meeting Status</Typography>
@@ -667,6 +679,24 @@ export const AgentLeadDetails = () => {
                   <Typography variant="h5" sx={{ fontWeight: 600, mb: 2 }}>
                     Billing & Retainers
                   </Typography>
+                  {lead.status === 'Completed' || lead.status === 'Converted' ? (
+                    <Typography variant="body2" color="success.main" sx={{ fontWeight: 600 }}>Already Converted</Typography>
+                  ) : (
+                    <Tooltip title={!hasCompletedConsultation ? "A consultation must be 'Completed' before conversion." : ""} arrow placement="top">
+                      <span style={{ display: 'inline-block' }}>
+                        <Button
+                          variant="contained"
+                          color="secondary"
+                          onClick={() => setConvertModalOpen(true)}
+                          disabled={!hasCompletedConsultation}
+                          sx={{ textTransform: 'none', fontWeight: 600, boxShadow: 'none', mb: 2 }}
+                        >
+                          <CheckCircleIcon sx={{ mr: 1, fontSize: 18 }} />
+                          Convert to Client
+                        </Button>
+                      </span>
+                    </Tooltip>
+                  )}
                   {leadPayments.length === 0 ? (
                     <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
                       No payments associated with this lead. Conversion to Client will automatically generate retainer invoices.
@@ -1054,7 +1084,13 @@ export const AgentLeadDetails = () => {
               Cancel
             </Button>
             <Button
-              onClick={handleConvertSubmit}
+              onClick={() => {
+                convertLeadMutation.mutate({
+                  lead,
+                  packageId: selectedPackageId,
+                  count: applicantsCount
+                });
+              }}
               variant="contained"
               color="secondary"
               disabled={convertLeadMutation.isPending}

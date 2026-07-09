@@ -34,6 +34,8 @@ import AppModal from '../../components/AppModal';
 import { useAlert } from '../../contexts/AlertContext';
 import { SERVICES } from '../../constants/mockData';
 
+import { useAuth } from '../../hooks/useAuth';
+
 export const SuperAdminConsultationDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -254,7 +256,9 @@ export const SuperAdminConsultationDetails = () => {
                 </Box>
                 <Box className="col-span-6">
                   <Typography variant="caption" color="text.secondary">Date & Time</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600 }}>{cons.meetingDate} at {cons.meetingTime}</Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                    {cons.meetingDate ? `${cons.meetingDate} at ${cons.meetingTime}` : 'Pending Lead Submission'}
+                  </Typography>
                 </Box>
                 <Box className="col-span-6">
                   <Typography variant="caption" color="text.secondary">Duration</Typography>
