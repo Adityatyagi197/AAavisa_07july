@@ -26,6 +26,7 @@ import AddIcon from '@mui/icons-material/Add';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import EditIcon from '@mui/icons-material/Edit';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
@@ -528,9 +529,9 @@ export const LeadList = () => {
               </Tooltip>
 
               {(isAdmin || isOperations) && (
-                <Tooltip title="Assign Agent">
+                <Tooltip title={row.assignedConsultantId ? "Re-assign Agent" : "Assign Agent"}>
                   <IconButton size="small" onClick={() => handleOpenAssignModal(row)} color="secondary">
-                    <PersonAddIcon fontSize="small" />
+                    {row.assignedConsultantId ? <SwapHorizIcon fontSize="small" /> : <PersonAddIcon fontSize="small" />}
                   </IconButton>
                 </Tooltip>
               )}
