@@ -438,11 +438,11 @@ export const AgentConsultationDetails = () => {
                 <Box sx={{ width: '100%', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                   <Box>
                     <Typography variant="caption" color="text.secondary">Language Proficiencies</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{consultant.languages.join(', ')}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{(consultant.languages || []).join(', ')}</Typography>
                   </Box>
                   <Box>
                     <Typography variant="caption" color="text.secondary">Immigration Nationalities Handled</Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{consultant.nationalities.join(', ')}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{(consultant.nationalities || []).join(', ')}</Typography>
                   </Box>
                 </Box>
               </Box>
