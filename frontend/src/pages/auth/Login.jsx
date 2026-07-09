@@ -114,7 +114,27 @@ export const Login = () => {
     }
   };
 
-  const handleQuickLogin = (role) => {
+  const handleQuickLogin = async (role) => {
+    let email = 'admin@aaaconsultancy.com';
+    if (role === 'super_admin') email = 'superadmin@aaaconsultancy.com';
+    else if (role === 'marketing') email = 'marketing@aaaconsultancy.com';
+    else if (role === 'consultant') email = 'agent@aaaconsultancy.com';
+    else if (role === 'finance') email = 'finance@aaaconsultancy.com';
+    else if (role === 'operations') email = 'operations@aaaconsultancy.com';
+
+    try {
+      const res = await dbService.authLogin(email, 'password123');
+      if (res && res.token) {
+        login(res.user, res.token);
+        showAlert(`Logged in successfully as ${res.user.role}`, 'success');
+        navigate('/dashboard');
+        return;
+      }
+    } catch (err) {
+      console.warn('Backend login failed for quick login, falling back to mock user:', err);
+    }
+
+    // Fallback to mock user if backend fails
     let mockUser = {
       id: role + '-user',
       name: role.replace('_', ' ').toUpperCase() + ' Demo',
@@ -130,7 +150,7 @@ export const Login = () => {
     }
 
     login(mockUser);
-    showAlert(`Logged in as Demo ${role.toUpperCase()}`, 'success');
+    showAlert(`Logged in as Demo ${role.toUpperCase()} (Offline Mode)`, 'warning');
     navigate('/dashboard');
   };
 
