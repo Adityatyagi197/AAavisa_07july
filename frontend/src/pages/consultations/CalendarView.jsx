@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
@@ -42,7 +43,8 @@ import { useAlert } from '../../contexts/AlertContext';
 import { SERVICES } from '../../constants/mockData';
 
 export const CalendarView = () => {
-  const navigate = useNavigate();
+    const [monthOffset, setMonthOffset] = useState(0);
+const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
   const { showAlert } = useAlert();
@@ -81,7 +83,7 @@ export const CalendarView = () => {
   const isViewOnly = isViewOnlyMenu(customizationSettings, 'Consultations');
 
   const [activeAgentId, setActiveAgentId] = useState(isConsultant ? currentUser?.id || '' : '');
-  const [selectedDate, setSelectedDate] = useState('2026-06-18');
+  const [selectedDate, setSelectedDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
 
   // New consultation fields
@@ -144,12 +146,13 @@ export const CalendarView = () => {
       notes: meetingNotes });
   };
 
-  // Mock June 2026 Calendar Grid (Starts on Monday, June 1st)
-  // June 1st 2026 is a Monday. June has 30 days.
-  const daysInJune = 30;
-  const calendarCells = Array.from({ length: daysInJune }, (_, i) => {
+  const currentMonth = dayjs().add(monthOffset, 'month').startOf('month');
+  const daysInMonth = currentMonth.daysInMonth();
+  const yearMonthPrefix = currentMonth.format('YYYY-MM');
+  
+  const calendarCells = Array.from({ length: daysInMonth }, (_, i) => {
     const dayNum = i + 1;
-    const dateStr = `2026-06-${String(dayNum).padStart(2, '0')}`;
+    const dateStr = `${yearMonthPrefix}-${String(dayNum).padStart(2, '0')}`;
     const dayMeetings = consultations.filter(
       (c) =>
         c.meetingDate === dateStr &&
@@ -361,12 +364,10 @@ export const CalendarView = () => {
           <Paper sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* Header controls */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                June 2026
-              </Typography>
+              <Typography variant="h4" sx={{ fontWeight: 700 }}>{currentMonth.format('MMMM YYYY')}</Typography>
               <Box sx={{ display: 'flex', gap: 0.5 }}>
-                <IconButton disabled size="small"><ArrowBackIosIcon fontSize="inherit" /></IconButton>
-                <IconButton disabled size="small"><ArrowForwardIosIcon fontSize="inherit" /></IconButton>
+                <IconButton onClick={() => setMonthOffset(p => p - 1)}  size="small"><ArrowBackIosIcon fontSize="inherit" /></IconButton>
+                <IconButton onClick={() => setMonthOffset(p => p + 1)}  size="small"><ArrowForwardIosIcon fontSize="inherit" /></IconButton>
               </Box>
             </Box>
 

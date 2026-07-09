@@ -32,6 +32,7 @@ import StatusBadge from '../../components/StatusBadge';
 import AppCard from '../../components/AppCard';
 import AppModal from '../../components/AppModal';
 import { useAlert } from '../../contexts/AlertContext';
+import { useAuth } from '../../hooks/useAuth';
 import { SERVICES } from '../../constants/mockData';
 
 export const AgentConsultationDetails = () => {
@@ -112,6 +113,17 @@ export const AgentConsultationDetails = () => {
       showAlert('Consultation status updated', 'success');
     } });
 
+  const respondMutation = useMutation({
+    mutationFn: ({ id, action, declineReason }) => dbService.respondToConsultation(id, action, declineReason),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['consultations'] });
+      showAlert(data.message, data.status === 'Scheduled' ? 'success' : 'info');
+      if (variables.action === 'decline') {
+        navigate('/consultations/calendar');
+      }
+    }
+  });
+
   const completeMutation = useMutation({
     mutationFn: ({ id, outcome, notes }) => dbService.completeConsultation(id, outcome, notes),
     onSuccess: () => {
@@ -140,7 +152,7 @@ export const AgentConsultationDetails = () => {
     );
   }
 
-  const consultant = consultants.find((c) => c.id === cons.assignedConsultantId);
+  const consultant = consultants.find((c) => c.id === cons.consultantId);
 
   const handleStatusChange = (status) => {
     updateStatusMutation.mutate({ id: cons.id, status });
@@ -171,9 +183,35 @@ export const AgentConsultationDetails = () => {
         title={`Meeting / Consultation Session - ${cons.clientName}`}
         subtitle={`Session ID: ${cons.id}`}
         action={
-          cons.status === 'Scheduled' && (
-            <Stack direction="row" spacing={1}>
-              {!cons.assignedConsultantId ? (
+          <>
+            {cons.status === 'Pending Acceptance' && (cons.consultantId === currentUser?.id || isConsultant || currentUser?.role === 'super_admin' || currentUser?.role === 'admin') && (
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="contained"
+                  color="success"
+                  onClick={() => respondMutation.mutate({ id: cons.id, action: 'accept' })}
+                  disabled={respondMutation.isPending}
+                >
+                  Accept Meeting
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  onClick={() => {
+                    const reason = window.prompt("Reason for declining (optional):");
+                    if (reason !== null) {
+                      respondMutation.mutate({ id: cons.id, action: 'decline', declineReason: reason });
+                    }
+                  }}
+                  disabled={respondMutation.isPending}
+                >
+                  Decline
+                </Button>
+              </Stack>
+            )}
+            {cons.status === 'Scheduled' && (
+              <Stack direction="row" spacing={1}>
+              {!cons.consultantId ? (
                 <Button
                   variant="contained"
                   color="secondary"
@@ -188,7 +226,7 @@ export const AgentConsultationDetails = () => {
                   Claim Consultation (Pick Up)
                 </Button>
               ) : (
-                (cons.assignedConsultantId === currentUser?.id || currentUser?.role === 'admin' || currentUser?.role === 'operations') && (
+                (cons.consultantId === currentUser?.id || currentUser?.role === 'admin' || currentUser?.role === 'operations') && (
                   <>
                     <Button
                       variant="contained"
@@ -217,7 +255,8 @@ export const AgentConsultationDetails = () => {
                 )
               )}
             </Stack>
-          )
+          )}
+          </>
         }
       />
 
@@ -235,14 +274,38 @@ export const AgentConsultationDetails = () => {
                 <Box className="col-span-6">
                   <Typography variant="caption" color="text.secondary">Meeting Link</Typography>
                   <Box>
-                    <Link href={cons.meetingLink} target="_blank" rel="noopener noreferrer" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontWeight: 600 }}>
-                      <VideoCallIcon fontSize="small" /> Virtual Meeting
-                    </Link>
+                    {cons.status === 'Pending Acceptance' ? (
+                      <Link 
+                        component="button"
+                        underline="none"
+                        onClick={() => showAlert('Please accept the meeting first to access the video link.', 'warning')} 
+                        sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontWeight: 600, color: 'text.secondary', cursor: 'pointer' }}
+                      >
+                        <VideoCallIcon fontSize="small" /> Virtual Meeting
+                      </Link>
+                    ) : (
+                      <Link 
+                        href={cons.meetingLink || '#'} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        onClick={(e) => { 
+                          if (!cons.meetingLink) { 
+                            e.preventDefault(); 
+                            showAlert('Meeting link has not been generated yet.', 'warning'); 
+                          } 
+                        }}
+                        sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontWeight: 600 }}
+                      >
+                        <VideoCallIcon fontSize="small" /> Virtual Meeting
+                      </Link>
+                    )}
                   </Box>
                 </Box>
                 <Box className="col-span-6">
                   <Typography variant="caption" color="text.secondary">Date & Time</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600 }}>{cons.meetingDate} at {cons.meetingTime}</Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                    {cons.meetingDate ? `${cons.meetingDate} at ${cons.meetingTime}` : 'Pending Lead Submission'}
+                  </Typography>
                 </Box>
                 <Box className="col-span-6">
                   <Typography variant="caption" color="text.secondary">Duration</Typography>

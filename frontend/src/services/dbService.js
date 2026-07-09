@@ -21,8 +21,16 @@ export const dbService = {
     const res = await apiClient.get('/leads');
     return res.data;
   },
+  getLeadById: async (id) => {
+    const res = await apiClient.get(`/leads/${id}`);
+    return res.data;
+  },
   createLead: async (lead) => {
     const res = await apiClient.post('/leads', lead);
+    return res.data;
+  },
+  updateLead: async (lead) => {
+    const res = await apiClient.put(`/leads/${lead.id}`, lead);
     return res.data;
   },
   updateLeadStatus: async (leadId, status) => {
@@ -37,6 +45,32 @@ export const dbService = {
     const res = await apiClient.delete(`/leads/${leadId}`);
     return res.data;
   },
+  assignConsultant: async (leadId, consultantId) => {
+    const res = await apiClient.post('/leads/assign', { leadId, agentId: consultantId });
+    return res.data;
+  },
+  // Public — no auth needed — find lead by email for self-fill form
+  findLeadByEmail: async (email) => {
+    const res = await axios.get(`${API_URL}/leads/find-by-email?email=${encodeURIComponent(email)}`);
+    return res.data;
+  },
+  // Public — lead submits meeting preference form
+  updateMeetingPreference: async (leadId, data) => {
+    const res = await axios.patch(`${API_URL}/leads/${leadId}/meeting-preference`, data);
+    return res.data;
+  },
+  // Agent accepts or declines a consultation
+  respondToConsultation: async (consultationId, action, declineReason = '') => {
+    const res = await apiClient.patch(`/consultations/${consultationId}/respond`, { action, declineReason });
+    return res.data;
+  },
+  // Admin auto-creates a Pending Acceptance consultation when assigning agent
+  createConsultationForLead: async (data) => {
+    const res = await apiClient.post('/consultations/create-for-lead', data);
+    return res.data;
+  },
+
+>>>>>>> db68c5eed7a9d476f9c23d61302be40e1146d10f
 
   // CLIENTS & CASES
   getClients: async () => {
@@ -101,6 +135,10 @@ export const dbService = {
   },
   generatePaymentLink: async (payment) => {
     const res = await apiClient.post('/payments/generate-link', payment);
+    return res.data;
+  },
+  createInvoice: async (invoice) => {
+    const res = await apiClient.post('/payments/generate-link', invoice);
     return res.data;
   },
   updatePaymentStatus: async (paymentId, status, paymentMethod, transactionId) => {

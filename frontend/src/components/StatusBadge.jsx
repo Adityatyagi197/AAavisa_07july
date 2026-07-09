@@ -49,6 +49,7 @@ export const StatusBadge = ({ status, size = 'small' }) => {
         return { label: statusStr, color: 'primary', icon: <AutorenewIcon size={14} />, bg: '#EEF2F6', text: '#0F172A' };
       case 'documents pending':
       case 'waiting for payment':
+      case 'pending acceptance':
         return { label: statusStr, color: 'warning', icon: <HourglassEmptyIcon size={14} />, bg: '#FEF3C7', text: '#D97706' };
       case 'under process':
       case 'submitted - pending decision':
@@ -58,6 +59,8 @@ export const StatusBadge = ({ status, size = 'small' }) => {
       case 'paid':
       case 'approved':
         return { label: statusStr, color: 'success', icon: <CheckCircleIcon size={14} />, bg: '#DCFCE7', text: '#15803D' };
+      case 'declined':
+        return { label: statusStr, color: 'error', icon: <CancelIcon size={14} />, bg: '#FEE2E2', text: '#B91C1C' };
       case 'cancelled':
       case 'no show':
       case 'failed':

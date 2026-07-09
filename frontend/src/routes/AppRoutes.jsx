@@ -70,6 +70,7 @@ import LandingPage from '../pages/public/LandingPage';
 import ClientPortalLogin from '../pages/public/ClientPortalLogin';
 import ClientPortalChangePassword from '../pages/public/ClientPortalChangePassword';
 import ClientPortalDocs from '../pages/public/ClientPortalDocs';
+import LeadSelfFillForm from '../pages/public/LeadSelfFillForm';
 import AdminDocumentVerificationDashboard from '../pages/documents/AdminDocumentVerificationDashboard';
 import OperationsDocumentVerificationDashboard from '../pages/documents/OperationsDocumentVerificationDashboard';
 
@@ -288,6 +289,8 @@ export const AppRoutes = () => {
       <Route path="/public/intake" element={<LeadIntakeForm />} />
       <Route path="/public/booking/eligibility" element={<EligibilityBookingForm />} />
       <Route path="/public/translation" element={<SwornTranslationForm />} />
+      <Route path="/public/lead-form" element={<LeadSelfFillForm />} />
+
 
       {/* Public Landing Page */}
       <Route path="/" element={<LandingPage />} />

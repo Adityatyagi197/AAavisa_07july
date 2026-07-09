@@ -22,12 +22,13 @@ const getPayments = async (req, res) => {
 
 const generatePaymentLink = async (req, res) => {
   try {
-    const { clientId, packageId, amount } = req.body;
+    const { clientId, packageId, amount, discount } = req.body;
     
     const payment = await prisma.payment.create({
       data: {
         clientId,
         amount: Number(amount) || 0,
+        discount: Number(discount) || 0,
         status: 'Pending',
         dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
       }

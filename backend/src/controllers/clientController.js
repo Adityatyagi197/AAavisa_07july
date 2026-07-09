@@ -27,23 +27,69 @@ const getClients = async (req, res) => {
 
 const createClient = async (req, res) => {
   try {
-    const { firstName, lastName, email, phone, nationality, serviceType, serviceId, assignedToId } = req.body;
+    const { 
+      firstName, lastName, email, phone, nationality, 
+      serviceType, serviceId, assignedToId, assignedConsultantId, 
+      leadId, packageId, applicantsCount, status, profileSummary 
+    } = req.body;
     
-    const client = await prisma.client.create({
-      data: {
-        firstName,
-        lastName,
-        email,
-        phone,
-        nationality,
-        serviceType: serviceType || serviceId,
-        assignedToId
-      }
-    });
+    // Frontend sometimes sends assignedConsultantId instead of assignedToId
+    const finalAssignedTo = assignedToId || assignedConsultantId;
+
+    // Check if client with this email already exists
+    let client = null;
+    if (email) {
+      client = await prisma.client.findUnique({
+        where: { email }
+      });
+    }
+
+    if (client) {
+      // If it exists, update it to associate with the converted lead's details
+      client = await prisma.client.update({
+        where: { id: client.id },
+        data: {
+          firstName: firstName || client.firstName,
+          lastName: lastName || client.lastName,
+          phone: phone || client.phone,
+          nationality: nationality || client.nationality,
+          serviceType: serviceType || serviceId || client.serviceType,
+          assignedToId: finalAssignedTo || client.assignedToId,
+          packageId: packageId || client.packageId,
+          applicantsCount: applicantsCount ? String(applicantsCount) : client.applicantsCount,
+          status: status || client.status,
+          profileSummary: profileSummary || client.profileSummary
+        }
+      });
+    } else {
+      client = await prisma.client.create({
+        data: {
+          firstName,
+          lastName,
+          email,
+          phone,
+          nationality,
+          serviceType: serviceType || serviceId,
+          assignedToId: finalAssignedTo,
+          packageId,
+          applicantsCount: String(applicantsCount),
+          status: status || 'Waiting for Payment',
+          profileSummary
+        }
+      });
+    }
+
+    if (leadId) {
+      await prisma.lead.update({
+        where: { id: leadId },
+        data: { clientId: client.id }
+      });
+    }
 
     res.status(201).json(client);
   } catch (error) {
-    res.status(500).json({ message: 'Server error creating client' });
+    console.error('Error creating client:', error);
+    res.status(500).json({ message: 'Server error creating client', error: error.message });
   }
 };
 
