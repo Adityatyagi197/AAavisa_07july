@@ -70,8 +70,6 @@ export const dbService = {
     return res.data;
   },
 
->>>>>>> db68c5eed7a9d476f9c23d61302be40e1146d10f
-
   // CLIENTS & CASES
   getClients: async () => {
     const res = await apiClient.get('/clients');
