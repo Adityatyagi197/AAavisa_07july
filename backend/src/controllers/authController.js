@@ -6,7 +6,12 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required.' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
+
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
@@ -27,6 +32,7 @@ const login = async (req, res) => {
       token,
       user: {
         id: user.id,
+        name: user.fullName,
         fullName: user.fullName,
         email: user.email,
         role: user.role,
@@ -35,7 +41,7 @@ const login = async (req, res) => {
     });
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error during login' });
+    res.status(500).json({ message: 'Server error during login', error: error.message });
   }
 };
 
@@ -61,7 +67,8 @@ const getMe = async (req, res) => {
     
     res.json(user);
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('GetMe error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
 

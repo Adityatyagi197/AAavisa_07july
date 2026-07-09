@@ -12,6 +12,7 @@ import Badge from '@mui/material/Badge';
 import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
+import Autocomplete from '@mui/material/Autocomplete';
 import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
@@ -484,14 +485,27 @@ export const AdminCalendarView = () => {
           </>
         }
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-          <TextField
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
+          <Autocomplete
+            freeSolo
+            options={leads.map(lead => `${lead.firstName} ${lead.lastName}`)}
             value={clientName}
-            onChange={(e) => setClientName(e.target.value)}
-            label="Client or Lead Name"
-            placeholder="e.g. Amelia Watson"
-            fullWidth
-            required
+            onInputChange={(event, newInputValue) => {
+              setClientName(newInputValue);
+            }}
+            onChange={(event, newValue) => {
+              if (newValue !== null) {
+                setClientName(newValue);
+              }
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Client or Lead Name"
+                placeholder="e.g. Amelia Watson"
+                required
+              />
+            )}
           />
 
           <Box className="grid grid-cols-12 gap-2">
