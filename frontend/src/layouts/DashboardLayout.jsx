@@ -208,11 +208,13 @@ export const DashboardLayout = () => {
 
   const { data: notifications = [] } = useQuery({
     queryKey: ['notifications'],
-    queryFn: dbService.getNotifications,
-    refetchInterval: 3000,
+    queryFn: dbService.getMyNotifications,
+    refetchInterval: 15000,
+    refetchOnWindowFocus: true,
+    retry: false // don't spam errors if user is not logged in
   });
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const { data: conversations = [] } = useQuery({
     queryKey: ['conversations'],
@@ -853,18 +855,43 @@ export const DashboardLayout = () => {
           {item.icon}
         </ListItemIcon>
         {sidebarOpen && (
-          <ListItemText
-            primary={t(item.label === 'Leads' && (currentUser?.role === 'consultant' || currentUser?.role === 'agent') ? 'Leads' : item.label)}
-            sx={{ m: 0 }}
-            slotProps={{
-              primary: {
-                fontSize: '0.875rem',
-                fontWeight: active ? 600 : 500,
-                color: 'inherit',
-                lineHeight: 1,
-              }
-            }}
-          />
+          <>
+            <ListItemText
+              primary={t(item.label === 'Leads' && (currentUser?.role === 'consultant' || currentUser?.role === 'agent') ? 'Leads' : item.label)}
+              sx={{ m: 0 }}
+              slotProps={{
+                primary: {
+                  fontSize: '0.875rem',
+                  fontWeight: active ? 600 : 500,
+                  color: 'inherit',
+                  lineHeight: 1,
+                }
+              }}
+            />
+            {item.label === 'Doc Verification' && unreadCount > 0 && (
+              <Box
+                sx={{
+                  bgcolor: '#C59B27',
+                  color: '#fff',
+                  fontSize: '0.6rem',
+                  fontWeight: 900,
+                  px: 0.8,
+                  py: 0.2,
+                  borderRadius: 1,
+                  lineHeight: 1.4,
+                  minWidth: 18,
+                  textAlign: 'center',
+                  animation: 'pulse 2s infinite',
+                  '@keyframes pulse': {
+                    '0%, 100%': { opacity: 1 },
+                    '50%': { opacity: 0.6 },
+                  }
+                }}
+              >
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </Box>
+            )}
+          </>
         )}
       </ListItemButton>
     );
@@ -1140,52 +1167,75 @@ export const DashboardLayout = () => {
               anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
               transformOrigin={{ vertical: 'top', horizontal: 'right' }}
               slotProps={{
-                paper: { sx: { width: 340, maxHeight: 440, borderRadius: 3, mt: 1 } },
+                paper: { sx: { width: 380, maxHeight: 480, borderRadius: 3, mt: 1, boxShadow: '0 12px 40px rgba(0,0,0,0.15)' } },
               }}
             >
-              <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                  Recent Notifications
+              <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#051A3B' }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#fff', fontFamily: 'Outfit, sans-serif' }}>
+                  🔔 Notifications {unreadCount > 0 && `(${unreadCount})`}
                 </Typography>
                 {unreadCount > 0 && (
-                  <Button size="small" onClick={handleMarkAllRead} sx={{ fontSize: '0.75rem' }}>
+                  <Button size="small" onClick={handleMarkAllRead} sx={{ fontSize: '0.7rem', color: '#C59B27', fontWeight: 700 }}>
                     Mark all read
                   </Button>
                 )}
               </Box>
               <Divider />
-              <List sx={{ p: 0 }}>
+              <List sx={{ p: 0, maxHeight: 380, overflowY: 'auto' }}>
                 {notifications.length === 0 ? (
-                  <Box sx={{ p: 3, textAlign: 'center', color: 'text.secondary' }}>
-                    <Typography variant="body2">No notifications found</Typography>
+                  <Box sx={{ p: 4, textAlign: 'center', color: 'text.secondary' }}>
+                    <NotificationsIcon sx={{ fontSize: 40, mb: 1, opacity: 0.3 }} />
+                    <Typography variant="body2">No notifications yet</Typography>
                   </Box>
                 ) : (
-                  notifications.map((notif) => (
-                    <ListItemButton
-                      key={notif.id}
-                      onClick={() => handleNotifClick(notif.id)}
-                      sx={{
-                        px: 2,
-                        py: 1.5,
-                        backgroundColor: notif.read ? 'transparent' : 'background.neutral',
-                        borderBottom: '1px solid',
-                        borderColor: 'divider',
-                        '&:last-child': { border: 0 },
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: notif.read ? 500 : 700 }}>
-                          {notif.title}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {notif.message}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
-                          {notif.time}
-                        </Typography>
-                      </Box>
-                    </ListItemButton>
-                  ))
+                  notifications.slice(0, 20).map((notif) => {
+                    const timeAgo = (() => {
+                      const diff = Date.now() - new Date(notif.createdAt).getTime();
+                      const mins = Math.floor(diff / 60000);
+                      if (mins < 1) return 'Just now';
+                      if (mins < 60) return `${mins}m ago`;
+                      const hrs = Math.floor(mins / 60);
+                      if (hrs < 24) return `${hrs}h ago`;
+                      return `${Math.floor(hrs / 24)}d ago`;
+                    })();
+
+                    return (
+                      <ListItemButton
+                        key={notif.id}
+                        onClick={() => {
+                          handleNotifClick(notif.id);
+                          navigate(`/${getRolePrefix()}/documents`);
+                        }}
+                        sx={{
+                          px: 2,
+                          py: 1.5,
+                          backgroundColor: notif.isRead ? 'transparent' : 'rgba(197, 155, 39, 0.06)',
+                          borderBottom: '1px solid',
+                          borderColor: 'divider',
+                          borderLeft: notif.isRead ? 'none' : '3px solid #C59B27',
+                          '&:last-child': { border: 0 },
+                          '&:hover': { bgcolor: 'rgba(197, 155, 39, 0.08)' }
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.3, width: '100%' }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: notif.isRead ? 500 : 800, fontSize: '0.8rem' }}>
+                              {notif.title}
+                            </Typography>
+                            {!notif.isRead && (
+                              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#C59B27', flexShrink: 0, ml: 1 }} />
+                            )}
+                          </Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.75rem', lineHeight: 1.4 }}>
+                            {notif.body}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', fontWeight: 600, mt: 0.5 }}>
+                            {timeAgo}
+                          </Typography>
+                        </Box>
+                      </ListItemButton>
+                    );
+                  })
                 )}
               </List>
             </Popover>

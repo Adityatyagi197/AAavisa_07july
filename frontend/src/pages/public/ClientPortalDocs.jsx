@@ -38,14 +38,16 @@ import FileUploader from '../../components/FileUploader';
 import StatusBadge from '../../components/StatusBadge';
 import AppModal from '../../components/AppModal';
 import { useAlert } from '../../contexts/AlertContext';
-import { SERVICES, PACKAGES } from '../../constants/mockData';
+import spainSevillePlaza from '../../assets/spain_seville_plaza.png';
+import spainRelocationLifestyle from '../../assets/spain_relocation_lifestyle.png';
+import { SERVICES } from '../../constants/mockData';
 
 const TRANSLATIONS = {
   English: {
     welcome: "Welcome",
     logout: "Log out",
     schedule_tab: "1. Schedule Consultation",
-    docs_tab: "2. Document Center",
+    docs_tab: "1. Document Center",
     booking_title: "Book Free Expert Consultation",
     booking_desc: "Please select a date and an available hour. Our system will automatically match you with a case officer.",
     policy_title: "⚠️ IMPORTANT POLICY NOTE",
@@ -337,9 +339,12 @@ export const ClientPortalDocs = () => {
     }
   }, [client]);
 
-  const { data: documents = [], isLoading: isDocsLoading } = useQuery({
+  const { data: documents = [], isLoading: isDocsLoading, refetch: refetchDocs } = useQuery({
     queryKey: ['documents'],
-    queryFn: dbService.getDocuments });
+    queryFn: dbService.getDocuments,
+    staleTime: 0,
+    refetchOnWindowFocus: true
+  });
 
   const { data: consultations = [], isLoading: isConsultationsLoading } = useQuery({
     queryKey: ['consultations'],
@@ -391,8 +396,13 @@ export const ClientPortalDocs = () => {
     mutationFn: dbService.uploadDocument,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
-      showAlert('Document uploaded successfully. It is now pending review.', 'success');
-    } });
+      refetchDocs();
+      showAlert('Document uploaded successfully! It is now pending review by your Case Manager.', 'success');
+    },
+    onError: (err) => {
+      showAlert(err?.response?.data?.message || 'Upload failed. Please try again.', 'error');
+    }
+  });
 
   const bookMeetingMutation = useMutation({
     mutationFn: dbService.bookClientConsultation,
@@ -408,23 +418,10 @@ export const ClientPortalDocs = () => {
 
   const selectAndPayPackageMutation = useMutation({
     mutationFn: async ({ packageId, amount, discount }) => {
-      // 1. Update client object in local storage
-      const clients = JSON.parse(localStorage.getItem('crm-clients') || '[]');
-      const updatedClients = clients.map(c => {
-        if (c.id === client.id) {
-          return {
-            ...c,
-            packagePaid: true,
-            packageId,
-            status: 'Payment Received',
-            visaStatus: 'Document Preparation'
-          };
-        }
-        return c;
-      });
-      localStorage.setItem('crm-clients', JSON.stringify(updatedClients));
+      // 1. Call real backend API — sets documentUploadAllowed: true in DB
+      await dbService.selectPackage(client.id, packageId);
 
-      // 2. Create invoice in payments database
+      // 2. Create invoice record in backend payments
       const payments = JSON.parse(localStorage.getItem('crm-payments') || '[]');
       const newInvoice = {
         id: 'INV-2026-' + String(payments.length + 1).padStart(3, '0'),
@@ -448,8 +445,11 @@ export const ClientPortalDocs = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
-      showAlert('Payment completed successfully! Document Center is now unlocked.', 'success');
-      setTabValue(1); // Switch directly to Document Uploads tab!
+      showAlert('Payment completed! Document Center is now unlocked. 🎉', 'success');
+      setTabValue(0); // Switch to Document Center tab
+    },
+    onError: (err) => {
+      showAlert(err?.response?.data?.message || 'Payment failed. Please try again.', 'error');
     }
   });
 
@@ -569,34 +569,54 @@ export const ClientPortalDocs = () => {
     <Box 
       dir={isRTL ? 'rtl' : 'ltr'} 
       sx={{ 
-        bgcolor: 'background.default', 
+        background: 'radial-gradient(circle at 50% 0%, #FAF6ED 0%, #F8FAFC 100%)',
         minHeight: '100vh', 
         py: 4, 
         px: { xs: 2, md: 6 },
-        textAlign: isRTL ? 'right' : 'left'
+        textAlign: isRTL ? 'right' : 'left',
+        fontFamily: 'Plus Jakarta Sans, sans-serif'
       }}
     >
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, maxWidth: 950, mx: 'auto', flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          mb: 4, 
+          maxWidth: 950, 
+          mx: 'auto', 
+          flexDirection: isRTL ? 'row-reverse' : 'row',
+          px: 3, 
+          py: 2, 
+          borderRadius: 3.5, 
+          bgcolor: 'rgba(255, 255, 255, 0.7)', 
+          backdropFilter: 'blur(12px)', 
+          border: '1px solid rgba(255, 255, 255, 0.8)', 
+          boxShadow: '0 8px 30px rgba(5, 26, 59, 0.03)'
+        }}
+      >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
           <Box
             sx={{
-              width: 40,
-              height: 40,
-              borderRadius: 1,
-              background: 'linear-gradient(135deg, #2563EB 0%, #14B8A6 100%)',
+              width: 42,
+              height: 42,
+              borderRadius: 2,
+              background: 'linear-gradient(135deg, #051A3B 0%, #C59B27 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: 'white',
-              fontWeight: 800,
-              fontSize: '1.2rem' }}
+              fontWeight: 900,
+              fontSize: '1.25rem',
+              boxShadow: '0 4px 12px rgba(197, 155, 39, 0.2)'
+            }}
           >
             A³
           </Box>
           <Box sx={{ textAlign: isRTL ? 'right' : 'left' }}>
-            <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2 }}>{t('welcome')}, {client.firstName} {client.lastName}</Typography>
-            <Typography variant="caption" color="text.secondary">Secure Relocation & Booking Portal ({client.id})</Typography>
+            <Typography variant="h6" sx={{ fontWeight: 800, lineHeight: 1.2, color: '#051A3B', fontFamily: 'Outfit, sans-serif' }}>{t('welcome')}, {client.firstName} {client.lastName}</Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>Secure Relocation & Booking Portal ({client.id})</Typography>
           </Box>
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
@@ -604,7 +624,7 @@ export const ClientPortalDocs = () => {
             <Select
               value={portalLang}
               onChange={(e) => changeLanguage(e.target.value)}
-              sx={{ borderRadius: 2, height: 36, bgcolor: 'background.paper', fontSize: '0.85rem', fontWeight: 600 }}
+              sx={{ borderRadius: 2.5, height: 36, bgcolor: 'background.paper', fontSize: '0.85rem', fontWeight: 600, border: '1px solid rgba(0,0,0,0.06)' }}
             >
               <MenuItem value="English">English 🇺🇸</MenuItem>
               <MenuItem value="Arabic">العربية 🇦🇪</MenuItem>
@@ -614,9 +634,76 @@ export const ClientPortalDocs = () => {
               <MenuItem value="Urdu">Urdu 🇵🇰</MenuItem>
             </Select>
           </FormControl>
-          <Button startIcon={<LogoutIcon />} onClick={handleLogout} color="inherit" sx={{ textTransform: 'none', fontWeight: 700 }}>
+          <Button 
+            startIcon={<LogoutIcon />} 
+            onClick={handleLogout} 
+            color="inherit" 
+            sx={{ 
+              textTransform: 'none', 
+              fontWeight: 800, 
+              color: '#051A3B',
+              borderRadius: 2.5,
+              '&:hover': { color: '#C59B27', bgcolor: 'transparent' }
+            }}
+          >
             {t('logout')}
           </Button>
+        </Box>
+      </Box>
+
+      {/* Spain Hero Banner */}
+      <Box
+        sx={{
+          maxWidth: 950,
+          mx: 'auto',
+          mb: 4,
+          borderRadius: 4,
+          overflow: 'hidden',
+          position: 'relative',
+          height: { xs: 150, sm: 190 },
+          boxShadow: '0 12px 36px rgba(5, 26, 59, 0.06)',
+          border: '1px solid rgba(197, 155, 39, 0.15)'
+        }}
+      >
+        <Box
+          component="img"
+          src={spainSevillePlaza}
+          alt="Spain Seville Plaza"
+          sx={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover'
+          }}
+        />
+        <Box
+          sx={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(to right, rgba(5, 26, 59, 0.92) 0%, rgba(5, 26, 59, 0.5) 60%, rgba(5, 26, 59, 0.1) 100%)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            px: { xs: 3, sm: 5 },
+            color: 'white',
+            textAlign: isRTL ? 'right' : 'left'
+          }}
+        >
+          <Typography
+            variant="h4"
+            sx={{
+              fontFamily: 'Outfit, sans-serif',
+              fontWeight: 900,
+              letterSpacing: '-0.03em',
+              mb: 0.5,
+              fontSize: { xs: '1.5rem', sm: '2rem' },
+              color: '#E5C058'
+            }}
+          >
+            Your Spain Immigration Journey
+          </Typography>
+          <Typography variant="body2" sx={{ opacity: 0.9, maxWidth: 500, fontWeight: 500, fontSize: { xs: '0.75rem', sm: '0.825rem' }, lineHeight: 1.5 }}>
+            Track your visa application, complete certified sworn translations, upload required compliance documents, and launch your new relocation lifestyle.
+          </Typography>
         </Box>
       </Box>
 
@@ -625,241 +712,98 @@ export const ClientPortalDocs = () => {
         <Tabs
           value={tabValue}
           onChange={(e, val) => setTabValue(val)}
-          indicatorColor="primary"
-          textColor="primary"
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
+          sx={{
+            borderBottom: 1,
+            borderColor: 'divider',
+            '& .MuiTabs-indicator': {
+              backgroundColor: '#C59B27',
+              height: 3,
+              borderRadius: '3px 3px 0 0'
+            }
+          }}
         >
-          <Tab label={t('schedule_tab')} sx={{ textTransform: 'none', fontWeight: 700 }} />
-          <Tab label={t('docs_tab')} sx={{ textTransform: 'none', fontWeight: 700 }} />
+          <Tab 
+            label={t('docs_tab')} 
+            sx={{ 
+              textTransform: 'none', 
+              fontWeight: 800, 
+              fontFamily: 'Outfit, sans-serif',
+              fontSize: '0.9rem',
+              color: tabValue === 0 ? '#C59B27' : 'text.secondary',
+              '&.Mui-selected': { color: '#C59B27' }
+            }} 
+          />
           {client && (client.serviceId === 'sworn_translation' || client.serviceId === 'translation' || client.serviceId === 'sworn') ? (
-            <Tab label={t('calculator_title')} sx={{ textTransform: 'none', fontWeight: 700 }} />
+            <Tab 
+              label={t('calculator_title')} 
+              sx={{ 
+                textTransform: 'none', 
+                fontWeight: 800, 
+                fontFamily: 'Outfit, sans-serif',
+                fontSize: '0.9rem',
+                color: tabValue === 1 ? '#C59B27' : 'text.secondary',
+                '&.Mui-selected': { color: '#C59B27' }
+              }} 
+            />
           ) : (
-            <Tab label="3. Visa Packages & Billing" sx={{ textTransform: 'none', fontWeight: 700 }} />
+            <Tab 
+              label="2. Visa Packages & Billing" 
+              sx={{ 
+                textTransform: 'none', 
+                fontWeight: 800, 
+                fontFamily: 'Outfit, sans-serif',
+                fontSize: '0.9rem',
+                color: tabValue === 1 ? '#C59B27' : 'text.secondary',
+                '&.Mui-selected': { color: '#C59B27' }
+              }} 
+            />
           )}
         </Tabs>
       </Box>
 
       <Box sx={{ maxWidth: 950, mx: 'auto' }}>
-        {/* Tab 0: Schedule Consultation */}
+
+
+        {/* Tab 0: Document Center */}
         {tabValue === 0 && (
-          <Box className="grid grid-cols-12 gap-2">
-            {/* If consultation is already scheduled */}
-            {activeConsultation ? (
-              <Box className="col-span-12">
-                <Paper sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'success.main', bgcolor: '#F0FDF4', boxShadow: 'none' }}>
-                  <Typography variant="h5" sx={{ fontWeight: 800, mb: 1, display: 'flex', alignItems: 'center', gap: 1, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
-                    <CheckCircleIcon color="success" /> Consultation Confirmed!
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    Your free expert visa consultation has been successfully registered. Please find the details below:
-                  </Typography>
-
-                  <Box className="grid grid-cols-12 gap-2" sx={{ mb: 3 }}>
-                    <Box className="col-span-12 sm:col-span-4">
-                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>DATE & TIME</Typography>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{activeConsultation.meetingDate} at {activeConsultation.meetingTime}</Typography>
-                    </Box>
-                    <Box className="col-span-12 sm:col-span-4">
-                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>ASSIGNED CASE MANAGER</Typography>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{assignedAgent ? assignedAgent.name : 'Awaiting manual/workload assignment'}</Typography>
-                    </Box>
-                    <Box className="col-span-12 sm:col-span-4">
-                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>STATUS</Typography>
-                      <Box sx={{ mt: 0.5 }}>
-                        <Chip
-                          label={activeConsultation.status === 'Scheduled' ? 'Confirmed & Scheduled' : 'Awaiting Assignment'}
-                          color={activeConsultation.status === 'Scheduled' ? 'success' : 'warning'}
-                          size="small"
-                          sx={{ fontWeight: 700 }}
-                        />
-                      </Box>
-                    </Box>
-                  </Box>
-
-                  {activeConsultation.status === 'Scheduled' && activeConsultation.meetingLink && (
-                    <Box sx={{ p: 2, bgcolor: '#DCFCE7', borderRadius: 2, border: '1px dashed', borderColor: 'success.main', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 2, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
-                        <VideoCameraFrontIcon color="success" />
-                        <Box>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Your Video Consultation Link is Ready</Typography>
-                          <Typography variant="caption" color="text.secondary">Use this to join the expert call at the scheduled time.</Typography>
-                        </Box>
-                      </Box>
-                      <Button variant="contained" color="success" href={activeConsultation.meetingLink} target="_blank">
-                        Join Zoom Call
-                      </Button>
-                    </Box>
-                  )}
-                </Paper>
-              </Box>
-            ) : (
-              // If NO consultation is booked yet
-              <Box className="col-span-12">
-                <Paper sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
-                  <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>{t('booking_title')}</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                    {t('booking_desc')}
-                  </Typography>
-
-                  <Box
-                    sx={{
-                      p: 2,
-                      mb: 3,
-                      bgcolor: '#FEF3C7',
-                      border: '1px solid #F59E0B',
-                      borderRadius: 2.5,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 0.5
-                    }}
-                  >
-                    <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#92400E', display: 'flex', alignItems: 'center', gap: 0.5, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
-                      {t('policy_title')}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: '#B45309', fontWeight: 500, lineHeight: 1.5 }}>
-                      {t('policy_desc')}
-                    </Typography>
-                  </Box>
-
-                  {/* 1. Date selector */}
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>{t('step1')}</Typography>
-                  <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 4, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
-                    {bookingDates.map((date) => (
-                      <Button
-                        key={date.val}
-                        variant={selectedDate === date.val ? 'contained' : 'outlined'}
-                        color={selectedDate === date.val ? 'secondary' : 'inherit'}
-                        onClick={() => { setSelectedDate(date.val); setSelectedTime(''); }}
-                        sx={{ p: 2, borderRadius: 2, textTransform: 'none', display: 'flex', flexDirection: 'column', gap: 0.5, minWidth: 100 }}
-                      >
-                        <CalendarMonthIcon size="small" />
-                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{date.label}</Typography>
-                      </Button>
-                    ))}
-                  </Box>
-
-                  {/* 2. Time selector */}
-                  {selectedDate && (
-                    <Box sx={{ mb: 4 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>{t('step2')}</Typography>
-                      <Box className="grid grid-cols-12 gap-5" sx={{ maxWidth: 500 }}>
-                        {TIME_SLOTS.map((slot) => {
-                          const isBooked = bookedSlots.includes(slot);
-                          return (
-                            <Box className="col-span-4" key={slot}>
-                              <Button
-                                fullWidth
-                                disabled={isBooked}
-                                variant={selectedTime === slot ? 'contained' : 'outlined'}
-                                color={selectedTime === slot ? 'primary' : 'inherit'}
-                                onClick={() => setSelectedTime(slot)}
-                                sx={{ py: 1.5, borderRadius: 2, fontWeight: 700 }}
-                              >
-                                {slot} {isBooked ? '(Booked)' : ''}
-                              </Button>
-                            </Box>
-                          );
-                        })}
-                      </Box>
-                    </Box>
-                  )}
-
-                  {/* 3. Notes */}
-                  {selectedDate && selectedTime && (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, maxWidth: 500 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{t('step3')}</Typography>
-                      
-                      <FormControl fullWidth size="small">
-                        <InputLabel id="preferred-lang-label">{t('lang_label')}</InputLabel>
-                        <Select
-                          labelId="preferred-lang-label"
-                          value={preferredLang}
-                          onChange={(e) => setPreferredLang(e.target.value)}
-                          label={t('lang_label')}
-                        >
-                          <MenuItem value="English">English</MenuItem>
-                          <MenuItem value="Arabic">Arabic</MenuItem>
-                          <MenuItem value="Spanish">Spanish</MenuItem>
-                          <MenuItem value="French">French</MenuItem>
-                          <MenuItem value="Urdu">Urdu</MenuItem>
-                          <MenuItem value="German">German</MenuItem>
-                        </Select>
-                      </FormControl>
-
-                      <TextField
-                        label={t('nationality')}
-                        placeholder="e.g. British, Indian, Emirati"
-                        fullWidth
-                        size="small"
-                        value={nationality}
-                        onChange={(e) => setNationality(e.target.value)}
-                      />
-
-                      <TextField
-                        label={t('residence')}
-                        placeholder="e.g. United Arab Emirates, UK"
-                        fullWidth
-                        size="small"
-                        value={countryOfResidence}
-                        onChange={(e) => setCountryOfResidence(e.target.value)}
-                      />
-
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mt: 1 }}>{t('step4')}</Typography>
-                      <TextField
-                        label={t('notes_label')}
-                        multiline
-                        rows={2}
-                        fullWidth
-                        size="small"
-                        value={meetingNotes}
-                        onChange={(e) => setMeetingNotes(e.target.value)}
-                      />
-                      <Button variant="contained" color="secondary" size="large" onClick={handleBookConsultation} sx={{ textTransform: 'none', fontWeight: 700 }}>
-                        {t('confirm_booking')}
-                      </Button>
-                    </Box>
-                  )}
-                </Paper>
-              </Box>
-            )}
-
-            {/* Past Booked consultations */}
-            <Box className="col-span-12" sx={{ mt: 2 }}>
-              <Paper sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
-                <Typography variant="h6" sx={{ fontWeight: 800, mb: 2 }}>{t('booked_consultations')}</Typography>
-                {clientConsultations.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary">{t('no_consultations')}</Typography>
-                ) : (
-                  <List>
-                    {clientConsultations.map((c) => (
-                      <Paper key={c.id} sx={{ p: 2, mb: 1.5, bgcolor: 'background.neutral', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid', borderColor: 'divider', boxShadow: 'none', flexDirection: isRTL ? 'row-reverse' : 'row' }}>
-                        <Box sx={{ textAlign: isRTL ? 'right' : 'left' }}>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{c.meetingDate} at {c.meetingTime} (45 mins)</Typography>
-                          <Typography variant="caption" color="text.secondary">Notes: {c.notes}</Typography>
-                        </Box>
-                        <Chip label={c.status} color={c.status === 'Completed' ? 'default' : 'success'} size="small" sx={{ fontWeight: 700 }} />
-                      </Paper>
-                    ))}
-                  </List>
-                )}
-              </Paper>
-            </Box>
-          </Box>
-        )}
-
-        {/* Tab 1: Document Center */}
-        {tabValue === 1 && (
           <Box className="grid grid-cols-12 gap-4">
             {/* If package is not paid, show shield lock */}
-            {!client.packagePaid ? (
+            {!client.documentUploadAllowed ? (
               <Box className="col-span-12">
-                <Paper sx={{ p: 6, borderRadius: 4, border: '1px solid', borderColor: 'divider', textAlign: 'center', bgcolor: 'rgba(11, 27, 61, 0.01)', boxShadow: 'none' }}>
-                  <LockIcon sx={{ fontSize: 56, color: 'text.secondary', mb: 2, opacity: 0.8 }} />
-                  <Typography variant="h5" sx={{ fontWeight: 800, color: 'primary.main', mb: 1.5 }}>Document Center is Locked</Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 500, mx: 'auto', mb: 3, lineHeight: 1.6 }}>
-                    Please complete your visa package payment or wait for administrative approval to unlock the document uploader panel.
+                <Paper 
+                  sx={{ 
+                    p: 6, 
+                    borderRadius: 4.5, 
+                    border: '1px solid rgba(197, 155, 39, 0.25)', 
+                    textAlign: 'center', 
+                    bgcolor: 'rgba(250, 246, 237, 0.75)', 
+                    backdropFilter: 'blur(8px)',
+                    boxShadow: '0 12px 40px rgba(5, 26, 59, 0.04)' 
+                  }}
+                >
+                  <Box sx={{ display: 'inline-flex', p: 2, bgcolor: 'rgba(197, 155, 39, 0.1)', borderRadius: '50%', mb: 2 }}>
+                    <LockIcon sx={{ fontSize: 50, color: '#C59B27' }} />
+                  </Box>
+                  <Typography variant="h5" sx={{ fontWeight: 900, color: '#051A3B', mb: 1.5, fontFamily: 'Outfit, sans-serif' }}>Document Center is Locked</Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 500, mx: 'auto', mb: 4, lineHeight: 1.7, fontWeight: 500 }}>
+                    Please complete your visa package payment or wait for administrative approval to unlock your compliance document uploader panel.
                   </Typography>
-                  <Button variant="contained" color="secondary" onClick={() => setTabValue(2)} sx={{ px: 4, py: 1.25, borderRadius: 2.5, fontWeight: 700, textTransform: 'none' }}>
+                  <Button 
+                    variant="contained" 
+                    onClick={() => setTabValue(1)} 
+                    sx={{ 
+                      px: 5, 
+                      py: 1.5, 
+                      borderRadius: 2.5, 
+                      fontWeight: 800, 
+                      textTransform: 'none',
+                      bgcolor: '#051A3B',
+                      color: 'white',
+                      fontFamily: 'Outfit, sans-serif',
+                      boxShadow: '0 4px 14px rgba(5, 26, 59, 0.2)',
+                      '&:hover': { bgcolor: '#C59B27', boxShadow: '0 4px 14px rgba(197, 155, 39, 0.3)' }
+                    }}
+                  >
                     Go to Billing & Payments
                   </Button>
                 </Paper>
@@ -868,46 +812,77 @@ export const ClientPortalDocs = () => {
               <Box className="grid grid-cols-12 gap-4 col-span-12">
                 {/* Checklist guide */}
                 <Box className="col-span-12 lg:col-span-4">
-                  <Paper sx={{ p: 3.5, borderRadius: 3.5, border: '1px solid', borderColor: 'divider', boxShadow: 'none', height: '100%' }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 800, mb: 1 }}>{t('checklist_title')}</Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                  <Paper 
+                    sx={{ 
+                      p: 3.5, 
+                      borderRadius: 4, 
+                      border: '1px solid rgba(197, 155, 39, 0.2)', 
+                      boxShadow: '0 6px 20px rgba(5, 26, 59, 0.02)', 
+                      height: '100%',
+                      bgcolor: '#FAF6ED'
+                    }}
+                  >
+                    <Typography variant="subtitle1" sx={{ fontWeight: 900, mb: 1, color: '#051A3B', fontFamily: 'Outfit, sans-serif' }}>{t('checklist_title')}</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2, fontWeight: 500 }}>
                       {t('checklist_desc')}
                     </Typography>
-                    <Divider sx={{ my: 2 }} />
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3, lineHeight: 1.6 }}>
+                    <Divider sx={{ my: 2, borderColor: 'rgba(197, 155, 39, 0.15)' }} />
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3, lineHeight: 1.6, fontWeight: 500 }}>
                       {t('upload_required')}
                     </Typography>
 
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                      {requiredCategories.map((cat, idx) => (
-                        <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
-                          <CheckCircleIcon sx={{ fontSize: 18, color: clientDocuments.some(d => d.category === cat) ? 'success.main' : 'text.disabled' }} />
-                          <Typography variant="body2" sx={{ fontWeight: 600, color: clientDocuments.some(d => d.category === cat) ? 'text.primary' : 'text.secondary', fontSize: '0.88rem' }}>{cat}</Typography>
-                        </Box>
-                      ))}
+                      {requiredCategories.map((cat, idx) => {
+                        const isUploaded = clientDocuments.some(d => d.category === cat);
+                        return (
+                          <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                            <CheckCircleIcon sx={{ fontSize: 20, color: isUploaded ? '#10B981' : '#CBD5E1' }} />
+                            <Typography variant="body2" sx={{ fontWeight: 700, color: isUploaded ? '#051A3B' : 'text.secondary', fontSize: '0.85rem' }}>{cat}</Typography>
+                          </Box>
+                        );
+                      })}
                     </Box>
                   </Paper>
                 </Box>
 
                 {/* Uploaders */}
                 <Box className="col-span-12 lg:col-span-8">
-                  <Paper sx={{ p: 4, borderRadius: 3.5, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
-                    <Typography variant="h6" sx={{ fontWeight: 800, mb: 3 }}>Category Document Uploaders</Typography>
+                  <Paper 
+                    sx={{ 
+                      p: 4, 
+                      borderRadius: 4, 
+                      border: '1px solid rgba(5, 26, 59, 0.08)', 
+                      boxShadow: '0 6px 20px rgba(5, 26, 59, 0.02)',
+                      bgcolor: 'background.paper'
+                    }}
+                  >
+                    <Typography variant="h6" sx={{ fontWeight: 900, mb: 3, color: '#051A3B', fontFamily: 'Outfit, sans-serif' }}>Category Document Uploaders</Typography>
 
                     {/* Dependent wise accordions */}
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                       {applicantsList.map((person, index) => {
                         const personDocs = clientDocuments.filter(d => d.belongsTo === person || (!d.belongsTo && person === 'Main Applicant'));
                         return (
-                          <Accordion key={person} defaultExpanded={index === 0} sx={{ border: '1px solid', borderColor: 'divider', borderRadius: '12px !important', boxShadow: 'none', '&:before': { display: 'none' } }}>
-                            <AccordionSummary expandMoreIcon={<ExpandMoreIcon />}>
-                              <Typography variant="subtitle1" sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1.5, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                          <Accordion 
+                            key={person} 
+                            defaultExpanded={index === 0} 
+                            sx={{ 
+                              border: '1px solid rgba(5, 26, 59, 0.08)', 
+                              borderRadius: '16px !important', 
+                              boxShadow: 'none', 
+                              overflow: 'hidden',
+                              '&:before': { display: 'none' },
+                              '&.Mui-expanded': { border: '1px solid rgba(197, 155, 39, 0.25)' }
+                            }}
+                          >
+                            <AccordionSummary expandMoreIcon={<ExpandMoreIcon sx={{ color: '#051A3B' }} />}>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 900, display: 'flex', alignItems: 'center', gap: 1.5, color: '#051A3B', fontFamily: 'Outfit, sans-serif', flexDirection: isRTL ? 'row-reverse' : 'row' }}>
                                 📁 {person === 'Main Applicant' ? `${person} (${client.firstName} ${client.lastName})` : person}
-                                <Chip label={`${personDocs.length} files`} size="small" color="primary" sx={{ height: 18, fontSize: '0.65rem', fontWeight: 800 }} />
+                                <Chip label={`${personDocs.length} files`} size="small" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 800, bgcolor: 'rgba(197, 155, 39, 0.1)', color: '#A37E1C', border: '1px solid rgba(197, 155, 39, 0.2)' }} />
                               </Typography>
                             </AccordionSummary>
-                            <AccordionDetails sx={{ px: 3, pb: 3, textAlign: isRTL ? 'right' : 'left' }}>
-                              <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+                            <AccordionDetails sx={{ px: 3, pb: 3, textAlign: isRTL ? 'right' : 'left', bgcolor: 'rgba(250, 246, 237, 0.2)' }}>
+                              <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5, fontWeight: 500 }}>
                                 Upload files specifically belonging to **{person}**. Required files include: {requiredCategories.join(', ')}.
                               </Typography>
 
@@ -917,45 +892,49 @@ export const ClientPortalDocs = () => {
                                 clientName={`${client.firstName} ${client.lastName}`}
                               />
 
-                              <Divider sx={{ my: 3 }} />
+                              <Divider sx={{ my: 3, borderColor: 'rgba(0,0,0,0.06)' }} />
 
-                              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 2 }}>Files uploaded for {person}:</Typography>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 2, color: '#051A3B', fontFamily: 'Outfit, sans-serif' }}>Files uploaded for {person}:</Typography>
                               {personDocs.length === 0 ? (
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', py: 2 }}>No files uploaded yet for this applicant.</Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', py: 2, fontStyle: 'italic' }}>No files uploaded yet for this applicant.</Typography>
                               ) : (
                                 <List disablePadding>
-                                  {personDocs.map((doc) => (
-                                    <Paper
-                                      key={doc.id}
-                                      sx={{
-                                        p: 2,
-                                        mb: 1.5,
-                                        border: '1px solid',
-                                        borderColor: 'divider',
-                                        boxShadow: 'none',
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        alignItems: 'center',
-                                        bgcolor: doc.status === 'Approved' ? '#F0FDF4' : 'background.paper',
-                                        flexDirection: isRTL ? 'row-reverse' : 'row'
-                                      }}
-                                    >
-                                      <Box sx={{ textAlign: isRTL ? 'right' : 'left' }}>
-                                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{doc.name || doc.fileName}</Typography>
-                                        <Typography variant="caption" color="text.secondary" display="block">
-                                          Category: {doc.category} | Uploaded on: {doc.uploadedDate ? new Date(doc.uploadedDate).toLocaleDateString() : 'Recently'}
-                                        </Typography>
-                                        {doc.comment && (
-                                          <Typography variant="body2" sx={{ mt: 0.5, color: doc.status === 'Approved' ? 'success.main' : 'error.main', fontStyle: 'italic', fontSize: '0.75rem' }}>
-                                            Note: {doc.comment}
+                                  {personDocs.map((doc) => {
+                                    const isApproved = doc.status === 'Approved';
+                                    return (
+                                      <Paper
+                                        key={doc.id}
+                                        sx={{
+                                          p: 2,
+                                          mb: 1.5,
+                                          border: '1px solid',
+                                          borderColor: isApproved ? '#A7F3D0' : 'rgba(0,0,0,0.06)',
+                                          borderRadius: 3,
+                                          boxShadow: 'none',
+                                          display: 'flex',
+                                          justifyContent: 'space-between',
+                                          alignItems: 'center',
+                                          bgcolor: isApproved ? '#ECFDF5' : 'background.paper',
+                                          flexDirection: isRTL ? 'row-reverse' : 'row'
+                                        }}
+                                      >
+                                        <Box sx={{ textAlign: isRTL ? 'right' : 'left' }}>
+                                          <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#051A3B' }}>{doc.name || doc.fileName}</Typography>
+                                          <Typography variant="caption" color="text.secondary" display="block" sx={{ fontWeight: 500 }}>
+                                            Category: {doc.category} | Uploaded on: {doc.uploadedDate ? new Date(doc.uploadedDate).toLocaleDateString() : 'Recently'}
                                           </Typography>
-                                        )}
-                                      </Box>
-                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                        <StatusBadge status={doc.status} />
-                                      </Box>
-                                    </Paper>
-                                  ))}
+                                          {doc.comment && (
+                                            <Typography variant="body2" sx={{ mt: 0.5, color: isApproved ? '#047857' : '#B91C1C', fontStyle: 'italic', fontSize: '0.75rem', fontWeight: 500 }}>
+                                              Note: {doc.comment}
+                                            </Typography>
+                                          )}
+                                        </Box>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                          <StatusBadge status={doc.status} />
+                                        </Box>
+                                      </Paper>
+                                    );
+                                  })}
                                 </List>
                               )}
                             </AccordionDetails>
@@ -970,12 +949,20 @@ export const ClientPortalDocs = () => {
           </Box>
         )}
 
-        {/* Tab 2: Sworn Translation Calculator */}
-        {tabValue === 2 && (client.serviceId === 'sworn_translation' || client.serviceId === 'translation' || client.serviceId === 'sworn') && (
+        {/* Tab 1: Sworn Translation Calculator */}
+        {tabValue === 1 && (client.serviceId === 'sworn_translation' || client.serviceId === 'translation' || client.serviceId === 'sworn') && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <Paper sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
-              <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>{t('calculator_title')}</Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+            <Paper 
+              sx={{ 
+                p: 4, 
+                borderRadius: 4, 
+                border: '1px solid rgba(5, 26, 59, 0.08)', 
+                boxShadow: '0 6px 20px rgba(5, 26, 59, 0.02)',
+                bgcolor: 'background.paper'
+              }}
+            >
+              <Typography variant="h5" sx={{ fontWeight: 900, mb: 1, color: '#051A3B', fontFamily: 'Outfit, sans-serif' }}>{t('calculator_title')}</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 4, fontWeight: 500 }}>
                 {t('calculator_desc')}
               </Typography>
 
@@ -990,6 +977,7 @@ export const ClientPortalDocs = () => {
                         value={sourceLang}
                         onChange={(e) => setSourceLang(e.target.value)}
                         label={t('select_source_lang')}
+                        sx={{ borderRadius: 2.5 }}
                       >
                         {generalSettings && Array.isArray(generalSettings.swornTranslationRates) && generalSettings.swornTranslationRates.length > 0 ? (
                           generalSettings.swornTranslationRates.map((langPair) => (
@@ -1014,6 +1002,7 @@ export const ClientPortalDocs = () => {
                         value={targetLang}
                         onChange={(e) => setTargetLang(e.target.value)}
                         label={t('select_target_lang')}
+                        sx={{ borderRadius: 2.5 }}
                       >
                         <MenuItem value="Spanish">Spanish (Español) 🇪🇸</MenuItem>
                         <MenuItem value="English">English 🇺🇸</MenuItem>
@@ -1040,10 +1029,19 @@ export const ClientPortalDocs = () => {
                       fullWidth
                       error={wordCount !== '' && wordCount <= 0}
                       helperText={wordCount !== '' && wordCount <= 0 ? "Word count must be greater than 0" : "Please count the words in your target documents manually or upload a PDF for automatic word analysis."}
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2.5 } }}
                     />
 
-                    <Box sx={{ p: 2, bgcolor: 'background.neutral', borderRadius: 2, border: '1px solid', borderColor: 'divider', textAlign: isRTL ? 'right' : 'left' }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1 }}>{t('upload_targets')}</Typography>
+                    <Box 
+                      sx={{ 
+                        p: 2.5, 
+                        bgcolor: '#FAF6ED', 
+                        borderRadius: 3.5, 
+                        border: '1px dashed rgba(197, 155, 39, 0.3)', 
+                        textAlign: isRTL ? 'right' : 'left' 
+                      }}
+                    >
+                      <Typography variant="subtitle2" sx={{ fontWeight: 900, mb: 1, color: '#051A3B', fontFamily: 'Outfit, sans-serif' }}>{t('upload_targets')}</Typography>
                       <FileUploader 
                         onUpload={(file) => {
                           setTranslationFiles(prev => [...prev, file]);
@@ -1057,9 +1055,9 @@ export const ClientPortalDocs = () => {
                           <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>UPLOADED FILES:</Typography>
                           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mt: 0.5 }}>
                             {translationFiles.map((file, idx) => (
-                              <Paper key={idx} sx={{ p: 1, px: 2, bgcolor: '#F9FAFB', border: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexDirection: isRTL ? 'row-reverse' : 'row' }}>
-                                <Typography variant="body2" sx={{ fontWeight: 500 }}>{file.name || `document_${idx + 1}.pdf`}</Typography>
-                                <Typography variant="caption" color="text.secondary">{file.size ? `${(file.size / 1024).toFixed(1)} KB` : '182 KB'}</Typography>
+                              <Paper key={idx} sx={{ p: 1, px: 2, bgcolor: 'background.paper', border: '1px solid rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexDirection: isRTL ? 'row-reverse' : 'row', borderRadius: 2 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 700, color: '#051A3B' }}>{file.name || `document_${idx + 1}.pdf`}</Typography>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>{file.size ? `${(file.size / 1024).toFixed(1)} KB` : '182 KB'}</Typography>
                               </Paper>
                             ))}
                           </Box>
@@ -1069,7 +1067,6 @@ export const ClientPortalDocs = () => {
 
                     <Button
                       variant="contained"
-                      color="secondary"
                       size="large"
                       onClick={() => {
                         const total = wordCount * wordRate;
@@ -1079,7 +1076,17 @@ export const ClientPortalDocs = () => {
                         showAlert('Price calculated successfully!', 'success');
                       }}
                       disabled={!wordCount || wordCount <= 0}
-                      sx={{ py: 1.5, fontWeight: 700, textTransform: 'none' }}
+                      sx={{ 
+                        py: 1.5, 
+                        borderRadius: 2.5,
+                        fontWeight: 800, 
+                        textTransform: 'none',
+                        bgcolor: '#051A3B',
+                        color: 'white',
+                        fontFamily: 'Outfit, sans-serif',
+                        boxShadow: '0 4px 14px rgba(5, 26, 59, 0.2)',
+                        '&:hover': { bgcolor: '#C59B27', boxShadow: '0 4px 14px rgba(197, 155, 39, 0.3)' }
+                      }}
                     >
                       {t('calculate_price')}
                     </Button>
@@ -1088,28 +1095,41 @@ export const ClientPortalDocs = () => {
 
                 {/* Pricing Box & Progress */}
                 <Grid item xs={12} md={5}>
-                  <Paper sx={{ p: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', bgcolor: '#F9FAFB', textAlign: isRTL ? 'right' : 'left' }}>
+                  <Paper 
+                    sx={{ 
+                      p: 3.5, 
+                      border: '1px solid rgba(197, 155, 39, 0.2)', 
+                      boxShadow: '0 6px 20px rgba(5, 26, 59, 0.02)', 
+                      height: '100%', 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      justifyContent: 'space-between', 
+                      bgcolor: '#FAF6ED', 
+                      borderRadius: 4,
+                      textAlign: isRTL ? 'right' : 'left' 
+                    }}
+                  >
                     <Box>
                       <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Translation Summary</Typography>
-                      <Divider sx={{ my: 1.5 }} />
+                      <Divider sx={{ my: 1.5, borderColor: 'rgba(197, 155, 39, 0.15)' }} />
                       
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
-                        <Typography variant="body2" color="text.secondary">Translation Route:</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{sourceLang} to {targetLang}</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>Translation Route:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 800, color: '#051A3B' }}>{sourceLang} to {targetLang}</Typography>
                       </Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
-                        <Typography variant="body2" color="text.secondary">Word Rate:</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 700 }}>€{wordRate.toFixed(2)} / word</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>Word Rate:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 800, color: '#051A3B' }}>€{wordRate.toFixed(2)} / word</Typography>
                       </Box>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
-                        <Typography variant="body2" color="text.secondary">Total Words:</Typography>
-                        <Typography variant="body2" sx={{ fontWeight: 700 }}>{wordCount} Words</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>Total Words:</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 800, color: '#051A3B' }}>{wordCount} Words</Typography>
                       </Box>
 
-                      <Divider sx={{ my: 1.5 }} />
+                      <Divider sx={{ my: 1.5, borderColor: 'rgba(197, 155, 39, 0.15)' }} />
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>Total Final Price:</Typography>
-                        <Typography variant="h4" color="secondary.main" sx={{ fontWeight: 900 }}>€{calcPrice.toFixed(2)}</Typography>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 900, color: '#051A3B', fontFamily: 'Outfit, sans-serif' }}>Total Final Price:</Typography>
+                        <Typography variant="h4" sx={{ fontWeight: 900, color: '#C59B27', fontFamily: 'Outfit, sans-serif' }}>€{calcPrice.toFixed(2)}</Typography>
                       </Box>
 
                       {/* Timeline status track */}
@@ -1137,19 +1157,41 @@ export const ClientPortalDocs = () => {
                     <Box sx={{ mt: 3 }}>
                       {translationPaid ? (
                         <Box>
-                          <Chip label="Payment Verified" color="success" sx={{ py: 1, fontSize: '0.975rem', fontWeight: 800, mb: 1.5, width: '100%' }} />
+                          <Chip label="Payment Verified" color="success" sx={{ py: 1.25, fontSize: '0.975rem', fontWeight: 800, mb: 1.5, width: '100%', borderRadius: 2.5 }} />
                           {translationStatus === 'delivered' ? (
-                            <Button variant="contained" color="secondary" fullWidth href="#" onClick={(e) => { e.preventDefault(); showAlert('Downloading certified Spanish sworn translation PDF...', 'info'); }}>
+                            <Button 
+                              variant="contained" 
+                              fullWidth 
+                              href="#" 
+                              onClick={(e) => { e.preventDefault(); showAlert('Downloading certified Spanish sworn translation PDF...', 'info'); }}
+                              sx={{
+                                py: 1.5,
+                                borderRadius: 2.5,
+                                fontWeight: 800,
+                                textTransform: 'none',
+                                bgcolor: '#10B981',
+                                fontFamily: 'Outfit, sans-serif'
+                              }}
+                            >
                               Download Sworn Translation PDF
                             </Button>
                           ) : (
                             <Button 
                               variant="outlined" 
-                              color="secondary" 
                               fullWidth
                               onClick={() => {
                                 setTranslationStatus('delivered');
                                 showAlert('Demo translation file completed & delivered!', 'success');
+                              }}
+                              sx={{
+                                py: 1.5,
+                                borderRadius: 2.5,
+                                fontWeight: 800,
+                                textTransform: 'none',
+                                borderColor: '#051A3B',
+                                color: '#051A3B',
+                                fontFamily: 'Outfit, sans-serif',
+                                '&:hover': { borderColor: '#C59B27', color: '#C59B27' }
                               }}
                             >
                               Simulate Translators Completion
@@ -1159,12 +1201,21 @@ export const ClientPortalDocs = () => {
                       ) : (
                         <Button
                           variant="contained"
-                          color="primary"
                           fullWidth
                           size="large"
                           disabled={!isCalculated}
                           onClick={() => setPaymentModalOpen(true)}
-                          sx={{ py: 1.2, fontWeight: 700, textTransform: 'none' }}
+                          sx={{ 
+                            py: 1.5, 
+                            borderRadius: 2.5,
+                            fontWeight: 800, 
+                            textTransform: 'none',
+                            bgcolor: '#051A3B',
+                            color: 'white',
+                            fontFamily: 'Outfit, sans-serif',
+                            boxShadow: '0 4px 14px rgba(5, 26, 59, 0.2)',
+                            '&:hover': { bgcolor: '#C59B27', boxShadow: '0 4px 14px rgba(197, 155, 39, 0.3)' }
+                          }}
                         >
                           {t('proceed_payment')}
                         </Button>
@@ -1177,7 +1228,7 @@ export const ClientPortalDocs = () => {
           </Box>
         )}
 
-        {tabValue === 2 && client && client.serviceId !== 'sworn_translation' && client.serviceId !== 'translation' && client.serviceId !== 'sworn' && (() => {
+        {tabValue === 1 && client && client.serviceId !== 'sworn_translation' && client.serviceId !== 'translation' && client.serviceId !== 'sworn' && (() => {
           const baseServicePrice = SERVICES.find(s => s.id === client.serviceId)?.basePrice || 1500;
           const numApplicants = client.applicantsCount || 1;
 
@@ -1193,14 +1244,14 @@ export const ClientPortalDocs = () => {
 
           return (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {client.packagePaid ? (
+              {client.documentUploadAllowed ? (
                 <Paper sx={{ p: 4, borderRadius: 3, border: '1px solid', borderColor: 'success.main', bgcolor: '#F0FDF4', boxShadow: 'none', textAlign: 'center' }}>
                   <CheckCircleIcon color="success" sx={{ fontSize: 56, mb: 2 }} />
                   <Typography variant="h5" sx={{ fontWeight: 800, mb: 1.5 }}>Visa Relocation Package Active & Paid</Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 500, mx: 'auto', mb: 3 }}>
                     Your visa relocation package payment has been verified. You can now access your document checklist and upload your files under the <strong>Document Center</strong> tab.
                   </Typography>
-                  <Button variant="contained" color="success" onClick={() => setTabValue(1)} sx={{ px: 4, py: 1.25, borderRadius: 2.5, fontWeight: 700, textTransform: 'none' }}>
+                  <Button variant="contained" onClick={() => setTabValue(0)} sx={{ px: 4, py: 1.25, borderRadius: 2.5, fontWeight: 700, textTransform: 'none', bgcolor: '#051A3B', color: 'white', '&:hover': { bgcolor: '#C59B27' } }}>
                     Go to Document Center
                   </Button>
                 </Paper>
@@ -1384,14 +1435,13 @@ export const ClientPortalDocs = () => {
                             onChange={(e) => setBillingTermsChecked(e.target.checked)}
                             style={{ marginTop: 3, transform: 'scale(1.1)', cursor: 'pointer' }}
                           />
-                          <label htmlFor="billing-tc-checkbox" style={{ fontSize: '0.75rem', color: '#6B7280', cursor: 'pointer', lineHeight: 1.3 }}>
+                          <label htmlFor="billing-tc-checkbox" style={{ fontSize: '0.75rem', color: '#6B7280', cursor: 'pointer', lineHeight: 1.3, fontWeight: 500 }}>
                             I agree to Spain Visa Terms of Service, <strong>50% Refund Guarantee</strong> policies if refused, and relocation conditions.
                           </label>
                         </Box>
 
                         <Button
                           variant="contained"
-                          color="secondary"
                           fullWidth
                           disabled={selectAndPayPackageMutation.isPending}
                           onClick={() => {
@@ -1407,14 +1457,24 @@ export const ClientPortalDocs = () => {
                               discount: finalDiscount
                             });
                           }}
-                          sx={{ py: 1.25, fontWeight: 700, textTransform: 'none' }}
+                          sx={{ 
+                            py: 1.5, 
+                            borderRadius: 2.5,
+                            fontWeight: 800, 
+                            textTransform: 'none',
+                            bgcolor: '#051A3B',
+                            color: 'white',
+                            fontFamily: 'Outfit, sans-serif',
+                            boxShadow: '0 4px 14px rgba(5, 26, 59, 0.2)',
+                            '&:hover': { bgcolor: '#C59B27', boxShadow: '0 4px 14px rgba(197, 155, 39, 0.3)' }
+                          }}
                         >
                           Authorize Secure Checkout
                         </Button>
 
-                        <Box sx={{ mt: 2, p: 1.5, border: '1px solid', borderColor: 'error.main', bgcolor: '#FEF2F2', borderRadius: 2 }}>
-                          <Typography variant="caption" sx={{ fontWeight: 800, color: 'error.main', display: 'block', mb: 0.5 }}>⚠️ REFUND GUARANTEE TERMS</Typography>
-                          <Typography variant="caption" sx={{ color: '#991B1B', display: 'block', fontSize: '0.68rem', lineHeight: 1.3 }}>
+                        <Box sx={{ mt: 2, p: 1.5, border: '1px solid rgba(197,155,39,0.3)', bgcolor: '#FAF6ED', borderRadius: 2.5 }}>
+                          <Typography variant="caption" sx={{ fontWeight: 800, color: '#A37E1C', display: 'block', mb: 0.5 }}>⚠️ REFUND GUARANTEE TERMS</Typography>
+                          <Typography variant="caption" sx={{ color: '#A37E1C', display: 'block', fontSize: '0.68rem', lineHeight: 1.3, fontWeight: 500 }}>
                             If your visa application gets refused by the consulate, you are entitled to a 50% refund under company refund rules.
                           </Typography>
                         </Box>

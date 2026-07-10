@@ -14,8 +14,11 @@ import Chip from '@mui/material/Chip';
 import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import PublicIcon from '@mui/icons-material/Public';
 import { useAlert } from '../../contexts/AlertContext';
 import { dbService } from '../../services/dbService';
+import spainSevillePlaza from '../../assets/spain_seville_plaza.png';
 
 const LOGIN_TRANSLATIONS = {
   English: {
@@ -92,8 +95,8 @@ export const ClientPortalLogin = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Initialize lang from localStorage if set, default to English
   const [loginLang, setLoginLang] = useState(() => {
     return localStorage.getItem('client-portal-lang') || 'English';
   });
@@ -116,13 +119,13 @@ export const ClientPortalLogin = () => {
       showAlert('Please enter both username and password.', 'error');
       return;
     }
+    setIsLoading(true);
     const clientId = username.trim();
     try {
       const res = await dbService.clientLogin(clientId, password);
       localStorage.setItem('clientToken', res.token);
       localStorage.setItem('clientData', JSON.stringify(res.client));
       showAlert('Login successful! Welcome to the Client Portal.', 'success');
-      
       if (res.client.isTemporaryPassword) {
         navigate('/portal/change-password');
       } else {
@@ -130,18 +133,20 @@ export const ClientPortalLogin = () => {
       }
     } catch (err) {
       showAlert(err.response?.data?.message || 'Login failed. Invalid credentials.', 'error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleQuickLogin = async (clientId) => {
     setUsername(clientId);
     setPassword('password123');
+    setIsLoading(true);
     try {
       const res = await dbService.clientLogin(clientId, 'password123');
       localStorage.setItem('clientToken', res.token);
       localStorage.setItem('clientData', JSON.stringify(res.client));
       showAlert('Login successful! Welcome to the Client Portal.', 'success');
-      
       if (res.client.isTemporaryPassword) {
         navigate('/portal/change-password');
       } else {
@@ -149,36 +154,90 @@ export const ClientPortalLogin = () => {
       }
     } catch (err) {
       showAlert(err.response?.data?.message || 'Quick login failed.', 'error');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const isRTL = loginLang === 'Arabic' || loginLang === 'Urdu';
 
   return (
-    <Box 
+    <Box
       dir={isRTL ? 'rtl' : 'ltr'}
-      sx={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '100vh', 
-        bgcolor: 'background.default', 
-        p: 3, 
-        flexDirection: 'column', 
-        gap: 2,
-        position: 'relative'
+      sx={{
+        minHeight: '100vh',
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        fontFamily: 'Outfit, sans-serif'
       }}
     >
-      {/* Top right language switcher on login page */}
+      {/* Full-screen Spain background */}
+      <Box
+        component="img"
+        src={spainSevillePlaza}
+        alt="Spain"
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          objectPosition: 'center',
+          zIndex: 0
+        }}
+      />
+
+      {/* Dark navy gradient overlay */}
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          background: 'linear-gradient(135deg, rgba(5,26,59,0.92) 0%, rgba(5,26,59,0.75) 50%, rgba(197,155,39,0.25) 100%)',
+          zIndex: 1
+        }}
+      />
+
+      {/* Decorative gold orbs */}
+      <Box sx={{
+        position: 'absolute', top: '10%', right: '8%',
+        width: 220, height: 220,
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(197,155,39,0.18) 0%, transparent 70%)',
+        zIndex: 1, filter: 'blur(10px)'
+      }} />
+      <Box sx={{
+        position: 'absolute', bottom: '15%', left: '6%',
+        width: 280, height: 280,
+        borderRadius: '50%',
+        background: 'radial-gradient(circle, rgba(197,155,39,0.12) 0%, transparent 70%)',
+        zIndex: 1, filter: 'blur(16px)'
+      }} />
+
+      {/* Language Switcher — top right */}
       <Box sx={{ position: 'absolute', top: 24, right: 24, zIndex: 10 }}>
-        <FormControl size="small" sx={{ minWidth: 120 }}>
+        <FormControl size="small">
           <Select
             value={loginLang}
             onChange={(e) => changeLanguage(e.target.value)}
-            sx={{ borderRadius: 2, height: 36, bgcolor: 'background.paper', fontSize: '0.85rem', fontWeight: 600 }}
+            startAdornment={<PublicIcon sx={{ fontSize: 16, color: 'rgba(255,255,255,0.7)', mr: 0.5 }} />}
+            sx={{
+              borderRadius: 2.5,
+              height: 38,
+              bgcolor: 'rgba(255,255,255,0.1)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              fontSize: '0.82rem',
+              fontWeight: 700,
+              color: 'white',
+              '& .MuiSvgIcon-root': { color: 'rgba(255,255,255,0.7)' },
+              '& .MuiOutlinedInput-notchedOutline': { border: 'none' }
+            }}
           >
             <MenuItem value="English">English 🇺🇸</MenuItem>
-            <MenuItem value="Arabic">العربية 🇦ئه</MenuItem>
+            <MenuItem value="Arabic">العربية 🇦🇪</MenuItem>
             <MenuItem value="Spanish">Español 🇪🇸</MenuItem>
             <MenuItem value="French">Français 🇫🇷</MenuItem>
             <MenuItem value="German">Deutsch 🇩🇪</MenuItem>
@@ -187,82 +246,320 @@ export const ClientPortalLogin = () => {
         </FormControl>
       </Box>
 
-      <Paper sx={{ p: 5, borderRadius: 3, maxWidth: 400, width: '100%', boxShadow: '0 8px 32px rgba(0,0,0,0.08)', textAlign: isRTL ? 'right' : 'left' }}>
-        <Box sx={{ textAlign: 'center', mb: 4 }}>
-          <Box
-            sx={{
-              width: 48,
-              height: 48,
-              mx: 'auto',
-              borderRadius: 1.5,
-              background: 'linear-gradient(135deg, #2563EB 0%, #14B8A6 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-              fontWeight: 800,
-              fontSize: '1.5rem',
-              mb: 2
-            }}
-          >
+      {/* Left branding panel (hidden on small screens) */}
+      <Box
+        sx={{
+          display: { xs: 'none', lg: 'flex' },
+          flexDirection: 'column',
+          justifyContent: 'center',
+          flex: 1,
+          maxWidth: 520,
+          px: 8,
+          position: 'relative',
+          zIndex: 2,
+          color: 'white',
+          mr: 4
+        }}
+      >
+        {/* Logo */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 5 }}>
+          <Box sx={{
+            width: 48, height: 48, borderRadius: 2,
+            background: 'linear-gradient(135deg, #051A3B 0%, #C59B27 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'white', fontWeight: 900, fontSize: '1.3rem',
+            boxShadow: '0 4px 16px rgba(197,155,39,0.35)',
+            fontFamily: 'Outfit, sans-serif'
+          }}>
             A³
           </Box>
-          <Typography variant="h5" sx={{ fontWeight: 800 }}>{t('title')}</Typography>
-          <Typography variant="body2" color="text.secondary">{t('subtitle')}</Typography>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 900, fontFamily: 'Outfit, sans-serif', color: 'white', lineHeight: 1.1 }}>
+              AA Visa Consultancy
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>
+              Spain Relocation Specialists
+            </Typography>
+          </Box>
         </Box>
 
-        <form onSubmit={handleLogin}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <TextField
-              label={t('username_label')}
-              fullWidth
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="e.g. client_123"
-              inputProps={{ dir: 'ltr', style: { textAlign: isRTL ? 'right' : 'left' } }}
-            />
-            <TextField
-              label={t('password_label')}
-              type={showPassword ? 'text' : 'password'}
-              fullWidth
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              inputProps={{ dir: 'ltr', style: { textAlign: isRTL ? 'right' : 'left' } }}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                )
+        <Typography
+          variant="h2"
+          sx={{
+            fontFamily: 'Outfit, sans-serif',
+            fontWeight: 900,
+            fontSize: { lg: '2.8rem', xl: '3.2rem' },
+            lineHeight: 1.15,
+            letterSpacing: '-0.03em',
+            mb: 2.5,
+            color: 'white'
+          }}
+        >
+          Your Spain Dream
+          <Box component="span" sx={{ display: 'block', color: '#E5C058' }}>
+            Starts Here. 🇪🇸
+          </Box>
+        </Typography>
+
+        <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.75)', lineHeight: 1.7, fontWeight: 400, maxWidth: 400, mb: 5 }}>
+          Manage your visa documents, track your application status, and communicate with your dedicated case manager — all in one secure portal.
+        </Typography>
+
+        {/* Feature bullets */}
+        {[
+          { icon: '🔐', text: 'Secure encrypted document storage' },
+          { icon: '📊', text: 'Real-time application tracking' },
+          { icon: '🌍', text: 'Available in 6 languages' },
+          { icon: '⚡', text: 'Instant case manager notifications' }
+        ].map((item, idx) => (
+          <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+            <Box sx={{
+              width: 36, height: 36,
+              borderRadius: 2,
+              bgcolor: 'rgba(197,155,39,0.15)',
+              border: '1px solid rgba(197,155,39,0.3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '1rem', flexShrink: 0
+            }}>
+              {item.icon}
+            </Box>
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', fontWeight: 500 }}>
+              {item.text}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+
+      {/* Login Card */}
+      <Box
+        sx={{
+          position: 'relative',
+          zIndex: 2,
+          width: '100%',
+          maxWidth: 440,
+          mx: { xs: 2, lg: 0 },
+          mr: { lg: 8 }
+        }}
+      >
+        <Paper
+          sx={{
+            p: { xs: 4, sm: 5 },
+            borderRadius: 5,
+            background: 'rgba(255, 255, 255, 0.08)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            border: '1px solid rgba(255,255,255,0.18)',
+            boxShadow: '0 32px 80px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)',
+            textAlign: isRTL ? 'right' : 'left'
+          }}
+        >
+          {/* Card Header */}
+          <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <Box sx={{
+              width: 64, height: 64,
+              mx: 'auto',
+              mb: 2.5,
+              borderRadius: 3,
+              background: 'linear-gradient(135deg, #051A3B 0%, #1a3a6e 50%, #C59B27 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 8px 24px rgba(197,155,39,0.4)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <Box sx={{
+                position: 'absolute', inset: 0,
+                background: 'linear-gradient(135deg, transparent 40%, rgba(197,155,39,0.3) 100%)'
+              }} />
+              <Typography sx={{ fontWeight: 900, fontSize: '1.6rem', color: 'white', fontFamily: 'Outfit, sans-serif', position: 'relative' }}>
+                A³
+              </Typography>
+            </Box>
+
+            <Typography
+              variant="h5"
+              sx={{ fontWeight: 900, color: 'white', fontFamily: 'Outfit, sans-serif', mb: 0.5 }}
+            >
+              {t('title')}
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', fontWeight: 400 }}>
+              {t('subtitle')}
+            </Typography>
+          </Box>
+
+          {/* Form */}
+          <form onSubmit={handleLogin}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+              <TextField
+                label={t('username_label')}
+                fullWidth
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="e.g. CL2001"
+                inputProps={{ dir: 'ltr', style: { textAlign: isRTL ? 'right' : 'left' } }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 3,
+                    bgcolor: 'rgba(255,255,255,0.07)',
+                    color: 'white',
+                    '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
+                    '&:hover fieldset': { borderColor: 'rgba(197,155,39,0.5)' },
+                    '&.Mui-focused fieldset': { borderColor: '#C59B27', borderWidth: 2 }
+                  },
+                  '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.6)' },
+                  '& .MuiInputLabel-root.Mui-focused': { color: '#C59B27' },
+                  '& input::placeholder': { color: 'rgba(255,255,255,0.3)' }
+                }}
+              />
+
+              <TextField
+                label={t('password_label')}
+                type={showPassword ? 'text' : 'password'}
+                fullWidth
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                inputProps={{ dir: 'ltr', style: { textAlign: isRTL ? 'right' : 'left' } }}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  )
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 3,
+                    bgcolor: 'rgba(255,255,255,0.07)',
+                    color: 'white',
+                    '& fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
+                    '&:hover fieldset': { borderColor: 'rgba(197,155,39,0.5)' },
+                    '&.Mui-focused fieldset': { borderColor: '#C59B27', borderWidth: 2 }
+                  },
+                  '& .MuiInputLabel-root': { color: 'rgba(255,255,255,0.6)' },
+                  '& .MuiInputLabel-root.Mui-focused': { color: '#C59B27' }
+                }}
+              />
+
+              <Button
+                type="submit"
+                variant="contained"
+                size="large"
+                fullWidth
+                disabled={isLoading}
+                startIcon={<LockOutlinedIcon />}
+                sx={{
+                  mt: 0.5,
+                  py: 1.6,
+                  borderRadius: 3,
+                  fontWeight: 900,
+                  textTransform: 'none',
+                  fontSize: '1rem',
+                  fontFamily: 'Outfit, sans-serif',
+                  background: 'linear-gradient(135deg, #C59B27 0%, #E5C058 50%, #C59B27 100%)',
+                  backgroundSize: '200% 200%',
+                  color: '#051A3B',
+                  boxShadow: '0 6px 24px rgba(197,155,39,0.45)',
+                  letterSpacing: '0.01em',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #E5C058 0%, #C59B27 50%, #E5C058 100%)',
+                    boxShadow: '0 8px 30px rgba(197,155,39,0.6)',
+                    transform: 'translateY(-1px)'
+                  },
+                  '&:active': { transform: 'translateY(0)' }
+                }}
+              >
+                {isLoading ? 'Signing in...' : t('login_btn')}
+              </Button>
+            </Box>
+          </form>
+
+          {/* Divider */}
+          <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.12)' }}>
+            <Chip
+              label={t('quick_login')}
+              size="small"
+              sx={{
+                fontSize: '0.6rem',
+                fontWeight: 800,
+                bgcolor: 'rgba(255,255,255,0.08)',
+                color: 'rgba(255,255,255,0.5)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                letterSpacing: '0.05em'
               }}
             />
-            <Button type="submit" variant="contained" color="secondary" size="large" fullWidth sx={{ textTransform: 'none', fontWeight: 700 }}>
-              {t('login_btn')}
+          </Divider>
+
+          {/* Quick Login Buttons */}
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.5 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              fullWidth
+              onClick={() => handleQuickLogin('CL2001')}
+              disabled={isLoading}
+              sx={{
+                textTransform: 'none',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                borderRadius: 2.5,
+                py: 1.1,
+                color: 'rgba(255,255,255,0.8)',
+                borderColor: 'rgba(255,255,255,0.2)',
+                bgcolor: 'rgba(255,255,255,0.05)',
+                '&:hover': {
+                  borderColor: '#C59B27',
+                  color: '#E5C058',
+                  bgcolor: 'rgba(197,155,39,0.08)'
+                }
+              }}
+            >
+              {t('elena_btn')}
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              fullWidth
+              onClick={() => handleQuickLogin('CL2002')}
+              disabled={isLoading}
+              sx={{
+                textTransform: 'none',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                borderRadius: 2.5,
+                py: 1.1,
+                color: 'rgba(255,255,255,0.8)',
+                borderColor: 'rgba(255,255,255,0.2)',
+                bgcolor: 'rgba(255,255,255,0.05)',
+                '&:hover': {
+                  borderColor: '#C59B27',
+                  color: '#E5C058',
+                  bgcolor: 'rgba(197,155,39,0.08)'
+                }
+              }}
+            >
+              {t('chloe_btn')}
             </Button>
           </Box>
-        </form>
 
-        <Divider sx={{ my: 3 }}>
-          <Chip label={t('quick_login')} size="small" sx={{ fontSize: '0.65rem', fontWeight: 700 }} />
-        </Divider>
+          {/* Support Text */}
+          <Box sx={{ mt: 3.5, textAlign: 'center' }}>
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', lineHeight: 1.5, fontWeight: 400 }}>
+              {t('support_text')}
+            </Typography>
+          </Box>
+        </Paper>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.5 }}>
-          <Button variant="outlined" size="small" fullWidth onClick={() => handleQuickLogin('CL2001')} sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 700 }}>
-            {t('elena_btn')}
-          </Button>
-          <Button variant="outlined" size="small" fullWidth onClick={() => handleQuickLogin('CL2002')} sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 700 }}>
-            {t('chloe_btn')}
-          </Button>
+        {/* Below card trust badge */}
+        <Box sx={{ textAlign: 'center', mt: 2.5, display: 'flex', justifyContent: 'center', gap: 3 }}>
+          {['🔒 SSL Encrypted', '🇪🇸 Spain Licensed', '⭐ ISO Certified'].map((badge, idx) => (
+            <Typography key={idx} variant="caption" sx={{ color: 'rgba(255,255,255,0.4)', fontWeight: 600, fontSize: '0.65rem' }}>
+              {badge}
+            </Typography>
+          ))}
         </Box>
-        
-        <Box sx={{ mt: 4, textAlign: 'center' }}>
-          <Typography variant="caption" color="text.secondary">
-            {t('support_text')}
-          </Typography>
-        </Box>
-      </Paper>
+      </Box>
     </Box>
   );
 };

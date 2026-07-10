@@ -220,7 +220,10 @@ export const AdminDocumentVerificationDashboard = () => {
 
   const { data: documents = [] } = useQuery({
     queryKey: ['documents'],
-    queryFn: dbService.getDocuments
+    queryFn: dbService.getDocuments,
+    staleTime: 0,
+    refetchInterval: 10000, // auto-refresh every 10s to pick up new client uploads
+    refetchOnWindowFocus: true
   });
 
   const reviewDocumentMutation = useMutation({

@@ -23,6 +23,7 @@ import IconButton from '@mui/material/IconButton';
 import PageHeader from '../../components/PageHeader';
 import FilterPanel from '../../components/FilterPanel';
 import { useAlert } from '../../contexts/AlertContext';
+import { useAuthContext } from '../../contexts/AuthContext';
 import { SERVICES } from '../../constants/mockData';
 
 // Icons
@@ -220,7 +221,10 @@ export const OperationsDocumentVerificationDashboard = () => {
 
   const { data: documents = [] } = useQuery({
     queryKey: ['documents'],
-    queryFn: dbService.getDocuments
+    queryFn: dbService.getDocuments,
+    staleTime: 0,
+    refetchInterval: 10000,
+    refetchOnWindowFocus: true
   });
 
   const reviewDocumentMutation = useMutation({
@@ -233,8 +237,13 @@ export const OperationsDocumentVerificationDashboard = () => {
     }
   });
 
-  // Filter clients to show all so portal credentials can be generated
-  const intakeClients = clients;
+  const { currentUser } = useAuthContext();
+
+  // Operations: only show clients assigned to this operator
+  // Admin/SuperAdmin see all
+  const intakeClients = currentUser?.role === 'operations'
+    ? clients.filter(c => c.assignedToId === currentUser?.id)
+    : clients;
 
   // Auto-select first client if none selected
   useEffect(() => {

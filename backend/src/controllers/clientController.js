@@ -113,6 +113,28 @@ const updateClientStatus = async (req, res) => {
   }
 };
 
+const selectPackage = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { packageId, status, visaStatus } = req.body;
+
+    const client = await prisma.client.update({
+      where: { id },
+      data: {
+        packageId: packageId || undefined,
+        documentUploadAllowed: true,
+        status: status || 'Payment Received',
+        visaStatus: visaStatus || 'Document Preparation'
+      }
+    });
+
+    res.json({ success: true, client });
+  } catch (error) {
+    console.error('Error selecting package:', error);
+    res.status(500).json({ message: 'Server error selecting package' });
+  }
+};
+
 const generateCredentials = async (req, res) => {
   try {
     const { id } = req.params;
@@ -198,4 +220,4 @@ const changeClientPassword = async (req, res) => {
   }
 };
 
-module.exports = { getClients, createClient, updateClientStatus, generateCredentials, clientLogin, changeClientPassword };
+module.exports = { getClients, createClient, updateClientStatus, selectPackage, generateCredentials, clientLogin, changeClientPassword };

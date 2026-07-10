@@ -61,6 +61,46 @@ async function main() {
     }
   }
 
+  console.log('Seeding mock clients...');
+  const clientsToCreate = [
+    {
+      id: 'CL2001',
+      firstName: 'Elena',
+      lastName: 'Petrova',
+      email: 'elena@aaaconsultancy.com',
+      phone: '+971500000001',
+      password: defaultPassword,
+      isTemporaryPassword: false,
+      status: 'Under Process',
+      visaStatus: 'Under Process'
+    },
+    {
+      id: 'CL2002',
+      firstName: 'Chloe',
+      lastName: 'Dupont',
+      email: 'chloe@aaaconsultancy.com',
+      phone: '+971500000002',
+      password: defaultPassword,
+      isTemporaryPassword: false,
+      status: 'Under Process',
+      visaStatus: 'Under Process'
+    }
+  ];
+
+  for (const client of clientsToCreate) {
+    const exists = await prisma.client.findUnique({ where: { id: client.id } });
+    if (!exists) {
+      await prisma.client.create({ data: client });
+      console.log(`Created client: ${client.firstName} with ID: ${client.id}`);
+    } else {
+      await prisma.client.update({
+        where: { id: client.id },
+        data: { password: client.password, status: client.status, visaStatus: client.visaStatus }
+      });
+      console.log(`Updated client: ${client.id}`);
+    }
+  }
+
   console.log('Seeding finished.');
 }
 
