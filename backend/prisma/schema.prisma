@@ -91,6 +91,7 @@ model Client {
   visaStatus       String   @default("Not Started")
   documentUploadAllowed Boolean @default(false)
   profileSummary   String?  @db.Text
+  dependentsDetails Json?
   
   deviceFingerprint String?
   isBlocked         Boolean  @default(false)

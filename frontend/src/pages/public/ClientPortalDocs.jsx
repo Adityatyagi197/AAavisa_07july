@@ -320,6 +320,25 @@ export const ClientPortalDocs = () => {
   const [billingTermsChecked, setBillingTermsChecked] = useState(false);
   const [billingPaymentMethod, setBillingPaymentMethod] = useState('card');
 
+  // Helper to extract numeric count of applicants
+  const getApplicantsCount = (countStr) => {
+    if (!countStr || countStr === 'Main Only') return 1;
+    
+    // Check if it's a raw number string like "2", "3", etc.
+    const numericVal = parseInt(countStr, 10);
+    if (!isNaN(numericVal) && String(numericVal) === countStr.trim()) {
+      return numericVal;
+    }
+
+    const match = countStr.match(/Main\s*\+\s*(\d+)/i);
+    if (match) {
+      return 1 + parseInt(match[1], 10);
+    }
+    return 1;
+  };
+
+  const [wizardDeps, setWizardDeps] = useState([]);
+
   // Fetch client details
   const { data: clients = [], isLoading: isClientsLoading } = useQuery({
     queryKey: ['clients'],
@@ -335,6 +354,23 @@ export const ClientPortalDocs = () => {
       if (client.preferredLanguage) {
         setPortalLang(client.preferredLanguage);
         localStorage.setItem('client-portal-lang', client.preferredLanguage);
+      }
+
+      if (client.applicantsCount) {
+        const count = getApplicantsCount(client.applicantsCount);
+        const totalDeps = count - 1;
+        const initialDeps = [];
+        const saved = client.dependentsDetails || [];
+        for (let i = 0; i < totalDeps; i++) {
+          initialDeps.push({
+            firstName: saved[i]?.firstName || '',
+            lastName: saved[i]?.lastName || '',
+            relation: saved[i]?.relation || 'Spouse',
+            passportNumber: saved[i]?.passportNumber || '',
+            nationality: saved[i]?.nationality || ''
+          });
+        }
+        setWizardDeps(initialDeps);
       }
     }
   }, [client]);
@@ -403,6 +439,28 @@ export const ClientPortalDocs = () => {
       showAlert(err?.response?.data?.message || 'Upload failed. Please try again.', 'error');
     }
   });
+
+  const saveDependentsMutation = useMutation({
+    mutationFn: (deps) => dbService.updateClientDependents(client.id, deps),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      showAlert('Family member profiles saved successfully!', 'success');
+    },
+    onError: (err) => {
+      showAlert(err?.message || 'Failed to save family profiles', 'error');
+    }
+  });
+
+  const handleSaveWizardDeps = () => {
+    for (let i = 0; i < wizardDeps.length; i++) {
+      const dep = wizardDeps[i];
+      if (!dep.firstName.trim() || !dep.lastName.trim() || !dep.passportNumber.trim() || !dep.nationality.trim()) {
+        showAlert(`Please fill in all details for Co-Applicant ${i + 1}`, 'warning');
+        return;
+      }
+    }
+    saveDependentsMutation.mutate(wizardDeps);
+  };
 
   const bookMeetingMutation = useMutation({
     mutationFn: dbService.bookClientConsultation,
@@ -559,8 +617,17 @@ export const ClientPortalDocs = () => {
   // Generate dependent sections
   const applicantsList = [];
   applicantsList.push('Main Applicant');
-  for (let i = 1; i < (client.applicantsCount || 1); i++) {
-    applicantsList.push(`Dependent ${i}`);
+  const totalCount = getApplicantsCount(client.applicantsCount);
+  const totalDependents = totalCount - 1;
+  const savedDeps = client.dependentsDetails || [];
+
+  for (let i = 1; i < totalCount; i++) {
+    const depData = savedDeps[i - 1];
+    if (depData && depData.firstName) {
+      applicantsList.push(`${depData.firstName} ${depData.lastName} (${depData.relation})`);
+    } else {
+      applicantsList.push(`Dependent ${i}`);
+    }
   }
 
   const isRTL = portalLang === 'Arabic' || portalLang === 'Urdu';
@@ -810,6 +877,134 @@ export const ClientPortalDocs = () => {
               </Box>
             ) : (
               <Box className="grid grid-cols-12 gap-4 col-span-12">
+                {/* Dependents Setup Wizard */}
+                {totalDependents > 0 && savedDeps.length < totalDependents && (
+                  <Box className="col-span-12" sx={{ mb: 2 }}>
+                    <Paper 
+                      sx={{ 
+                        p: 4, 
+                        borderRadius: 4.5, 
+                        border: '1px solid rgba(197, 155, 39, 0.25)', 
+                        bgcolor: 'rgba(250, 246, 237, 0.65)', 
+                        backdropFilter: 'blur(8px)',
+                        boxShadow: '0 8px 30px rgba(5, 26, 59, 0.03)' 
+                      }}
+                    >
+                      <Typography variant="h6" sx={{ fontWeight: 900, color: '#051A3B', mb: 1, fontFamily: 'Outfit, sans-serif' }}>
+                        👨‍👩‍👧‍👦 Complete Your Family Profiles
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontWeight: 500 }}>
+                        You have registered <strong>{totalDependents} co-applicant(s)</strong>. Please fill out their profiles to generate their checklists and unlock their document upload folders.
+                      </Typography>
+
+                      <Grid container spacing={3}>
+                        {wizardDeps.map((dep, idx) => (
+                          <Grid item xs={12} key={idx}>
+                            <Paper sx={{ p: 3, borderRadius: 3, border: '1px solid rgba(0,0,0,0.05)', bgcolor: 'background.paper' }}>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 800, color: '#051A3B', mb: 2, fontFamily: 'Outfit, sans-serif' }}>
+                                Co-Applicant {idx + 1} Details
+                              </Typography>
+                              <Grid container spacing={2}>
+                                <Grid item xs={12} sm={6} md={3}>
+                                  <TextField
+                                    label="First Name"
+                                    size="small"
+                                    fullWidth
+                                    value={dep.firstName}
+                                    onChange={(e) => {
+                                      const newDeps = [...wizardDeps];
+                                      newDeps[idx].firstName = e.target.value;
+                                      setWizardDeps(newDeps);
+                                    }}
+                                  />
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={3}>
+                                  <TextField
+                                    label="Last Name"
+                                    size="small"
+                                    fullWidth
+                                    value={dep.lastName}
+                                    onChange={(e) => {
+                                      const newDeps = [...wizardDeps];
+                                      newDeps[idx].lastName = e.target.value;
+                                      setWizardDeps(newDeps);
+                                    }}
+                                  />
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={2}>
+                                  <FormControl size="small" fullWidth>
+                                    <InputLabel>Relationship</InputLabel>
+                                    <Select
+                                      value={dep.relation}
+                                      label="Relationship"
+                                      onChange={(e) => {
+                                        const newDeps = [...wizardDeps];
+                                        newDeps[idx].relation = e.target.value;
+                                        setWizardDeps(newDeps);
+                                      }}
+                                    >
+                                      <MenuItem value="Spouse">Spouse</MenuItem>
+                                      <MenuItem value="Child">Child</MenuItem>
+                                      <MenuItem value="Parent">Parent</MenuItem>
+                                      <MenuItem value="Other">Other</MenuItem>
+                                    </Select>
+                                  </FormControl>
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={2}>
+                                  <TextField
+                                    label="Passport Number"
+                                    size="small"
+                                    fullWidth
+                                    value={dep.passportNumber}
+                                    onChange={(e) => {
+                                      const newDeps = [...wizardDeps];
+                                      newDeps[idx].passportNumber = e.target.value;
+                                      setWizardDeps(newDeps);
+                                    }}
+                                  />
+                                </Grid>
+                                <Grid item xs={12} sm={6} md={2}>
+                                  <TextField
+                                    label="Nationality"
+                                    size="small"
+                                    fullWidth
+                                    value={dep.nationality}
+                                    onChange={(e) => {
+                                      const newDeps = [...wizardDeps];
+                                      newDeps[idx].nationality = e.target.value;
+                                      setWizardDeps(newDeps);
+                                    }}
+                                  />
+                                </Grid>
+                              </Grid>
+                            </Paper>
+                          </Grid>
+                        ))}
+
+                        <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <Button
+                            variant="contained"
+                            onClick={handleSaveWizardDeps}
+                            disabled={saveDependentsMutation.isPending}
+                            sx={{
+                              px: 4,
+                              py: 1.2,
+                              borderRadius: 2,
+                              fontWeight: 800,
+                              bgcolor: '#051A3B',
+                              color: 'white',
+                              fontFamily: 'Outfit, sans-serif',
+                              textTransform: 'none',
+                              '&:hover': { bgcolor: '#C59B27' }
+                            }}
+                          >
+                            {saveDependentsMutation.isPending ? 'Saving Profiles...' : 'Save Family Profiles'}
+                          </Button>
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                  </Box>
+                )}
                 {/* Checklist guide */}
                 <Box className="col-span-12 lg:col-span-4">
                   <Paper 

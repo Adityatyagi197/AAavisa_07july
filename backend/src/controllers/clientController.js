@@ -220,4 +220,32 @@ const changeClientPassword = async (req, res) => {
   }
 };
 
-module.exports = { getClients, createClient, updateClientStatus, selectPackage, generateCredentials, clientLogin, changeClientPassword };
+const updateClientDependents = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { dependents } = req.body;
+
+    const client = await prisma.client.update({
+      where: { id },
+      data: {
+        dependentsDetails: dependents
+      }
+    });
+
+    res.json({ success: true, client });
+  } catch (error) {
+    console.error('Error updating client dependents:', error);
+    res.status(500).json({ message: 'Server error updating family profiles' });
+  }
+};
+
+module.exports = { 
+  getClients, 
+  createClient, 
+  updateClientStatus, 
+  selectPackage, 
+  generateCredentials, 
+  clientLogin, 
+  changeClientPassword,
+  updateClientDependents
+};

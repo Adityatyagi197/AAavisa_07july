@@ -262,6 +262,23 @@ export const OperationsClientDetails = () => {
                 <Typography variant="caption" color="text.secondary" display="block">Number of Applicants</Typography>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{client.applicantsCount || 1}</Typography>
               </Box>
+              {client.dependentsDetails && Array.isArray(client.dependentsDetails) && client.dependentsDetails.length > 0 && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary" display="block">Co-Applicants / Family Members</Typography>
+                  <Stack spacing={1} sx={{ mt: 1 }}>
+                    {client.dependentsDetails.map((dep, idx) => (
+                      <Paper key={idx} sx={{ p: 1.5, border: '1px solid', borderColor: 'divider', bgcolor: 'rgba(250, 246, 237, 0.4)' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 800, color: '#051A3B', display: 'block' }}>
+                          👤 {dep.firstName} {dep.lastName} ({dep.relation})
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.65rem', mt: 0.5, fontWeight: 500 }}>
+                          Passport: {dep.passportNumber} | Nationality: {dep.nationality}
+                        </Typography>
+                      </Paper>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
               <Box>
                 <Typography variant="caption" color="text.secondary" display="block">Total Payment Paid</Typography>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
@@ -429,8 +446,8 @@ export const OperationsClientDetails = () => {
                             <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
                               {doc.name || doc.fileName}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary" display="block">
-                              Category: {doc.category} | Size: {doc.fileSize || '1.5 MB'}
+                             <Typography variant="caption" color="text.secondary" display="block">
+                              Category: {doc.category} | Size: {doc.size || doc.fileSize || '1.5 MB'} | Owner: {doc.belongsTo || 'Main Applicant'}
                             </Typography>
                             {doc.comment && (
                               <Box sx={{ mt: 1, p: 1, borderRadius: 1.5, bgcolor: doc.status === 'Approved' ? '#ECFDF5' : '#FEF2F2', borderLeft: '3px solid', borderColor: doc.status === 'Approved' ? '#10B981' : '#EF4444' }}>
