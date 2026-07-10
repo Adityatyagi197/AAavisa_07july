@@ -57,7 +57,11 @@ export const ActiveCases = () => {
 
   const { data: allDocuments = [] } = useQuery({
     queryKey: ['documents'],
-    queryFn: dbService.getDocuments });
+    queryFn: dbService.getDocuments,
+    staleTime: 0,
+    refetchInterval: 10000,
+    refetchOnWindowFocus: true
+  });
 
   const { data: customizationSettings } = useQuery({
     queryKey: ['customization-settings'],

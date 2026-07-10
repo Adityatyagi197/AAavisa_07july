@@ -8,7 +8,7 @@ const apiClient = axios.create({
 });
 
 apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('token') || localStorage.getItem('clientToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -88,6 +88,14 @@ export const dbService = {
     const res = await apiClient.post('/clients/login', { clientId, password });
     return res.data;
   },
+  selectPackage: async (clientId, packageId) => {
+    const res = await apiClient.post(`/clients/${clientId}/select-package`, {
+      packageId,
+      status: 'Payment Received',
+      visaStatus: 'Document Preparation'
+    });
+    return res.data;
+  },
   getActiveCases: async () => {
     const res = await apiClient.get('/cases/active');
     return res.data;
@@ -151,6 +159,7 @@ export const dbService = {
     formData.append('file', doc.file);
     formData.append('clientId', doc.clientId);
     formData.append('category', doc.category);
+    if (doc.belongsTo) formData.append('belongsTo', doc.belongsTo);
 
     const res = await apiClient.post('/documents/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
@@ -348,5 +357,23 @@ export const dbService = {
     const res = await apiClient.patch(`/payments/refunds/${refundId}/status`, { status });
     return res.data;
   },
-  getBackupLogs: async () => []
+  getBackupLogs: async () => [],
+
+  // ─── Notifications ───────────────────────────────────────────────────────
+  getMyNotifications: async () => {
+    const res = await apiClient.get('/notifications/my');
+    return res.data;
+  },
+  getUnreadNotificationCount: async () => {
+    const res = await apiClient.get('/notifications/unread-count');
+    return res.data; // { count: N }
+  },
+  markNotificationRead: async (id) => {
+    const res = await apiClient.patch(`/notifications/${id}/read`);
+    return res.data;
+  },
+  markAllNotificationsRead: async () => {
+    const res = await apiClient.patch('/notifications/read-all');
+    return res.data;
+  },
 };

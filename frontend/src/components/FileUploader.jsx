@@ -46,7 +46,7 @@ export const FileUploader = ({ onUpload, clientId, clientName }) => {
       setFile(selectedFile);
       const detected = autoDetectCategory(selectedFile.name);
       setCategory(detected);
-      showAlert(`Auto-selected category "${detected}" based on filename`, 'info');
+      showAlert(`File "${selectedFile.name}" selected. Category auto-set to "${detected}". Click Upload to submit.`, 'info');
     }
   }, [showAlert]);
 
@@ -69,21 +69,17 @@ export const FileUploader = ({ onUpload, clientId, clientName }) => {
       return;
     }
 
-    // Simulate uploading details
     const docData = {
+      file,          // actual File object for FormData upload
       clientId,
       clientName,
       category,
       fileName: file.name,
       fileSize: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-      fileUrl: file.type.startsWith('image/')
-        ? URL.createObjectURL(file) // Create object URL for local image preview
-        : 'https://images.unsplash.com/photo-1544725176-7c40e5a71c5e?w=800', // standard preview for PDF
     };
 
     onUpload(docData);
     setFile(null);
-    showAlert(`Document "${file.name}" uploaded successfully!`, 'success');
   };
 
   return (

@@ -64,6 +64,7 @@ app.use('/api/v1/marketing', require('./routes/marketingRoutes'));
 app.use('/api/v1/webhooks', require('./routes/webhookRoutes'));
 app.use('/api/v1/booking', require('./routes/bookingRoutes'));
 app.use('/api/v1/ai', require('./routes/aiRoutes'));
+app.use('/api/v1/notifications', require('./routes/notificationRoutes'));
 
 // Start Server
 const PORT = process.env.PORT || 5000;
