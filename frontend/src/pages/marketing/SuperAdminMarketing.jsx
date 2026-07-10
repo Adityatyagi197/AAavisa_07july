@@ -82,19 +82,29 @@ export const SuperAdminMarketing = () => {
   const { data: allLeads = [] } = useQuery({ queryKey: ['leads'], queryFn: dbService.getLeads });
   const { data: allClients = [] } = useQuery({ queryKey: ['clients'], queryFn: dbService.getClients });
   const { data: allPayments = [] } = useQuery({ queryKey: ['payments'], queryFn: dbService.getPayments });
-  const { data: fetchedSpend = {} } = useQuery({ queryKey: ['marketingSpend'], queryFn: dbService.getMarketingSpend });
+  const { data: fetchedSpend } = useQuery({ queryKey: ['marketingSpend'], queryFn: dbService.getMarketingSpend });
 
   // Ad Spend per source — manually editable by Super Admin
   const [adSpend, setAdSpend] = useState({});
   const [showAdSpendEditor, setShowAdSpendEditor] = useState(false);
 
   useEffect(() => {
-    // Populate default values
-    const newSpend = { ...fetchedSpend };
+    // Populate default values safely without causing infinite render loops
+    const resolvedSpend = fetchedSpend || {};
+    let needsUpdate = false;
+    const newSpend = { ...adSpend };
+
     ALL_SOURCES.forEach(src => {
-      if (newSpend[src] === undefined) newSpend[src] = 0;
+      const targetVal = resolvedSpend[src] !== undefined ? Number(resolvedSpend[src]) : 0;
+      if (adSpend[src] !== targetVal) {
+        newSpend[src] = targetVal;
+        needsUpdate = true;
+      }
     });
-    setAdSpend(newSpend);
+
+    if (needsUpdate || Object.keys(adSpend).length === 0) {
+      setAdSpend(newSpend);
+    }
   }, [fetchedSpend]);
 
   const updateSpendMutation = useMutation({

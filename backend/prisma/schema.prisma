@@ -300,3 +300,13 @@ model AuditLog {
 
   @@map("audit_logs")
 }
+
+model MarketingSpend {
+  id        String   @id @default(uuid())
+  channel   String   @unique
+  amount    Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("marketing_spend")
+}
