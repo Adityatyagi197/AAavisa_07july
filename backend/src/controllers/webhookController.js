@@ -73,3 +73,22 @@ exports.handleTikTokWebhook = async (req, res) => {
     jobId: payload.lead_id || Date.now().toString(),
   });
 };
+
+exports.verifyMetaWebhook = (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  const verifyToken = process.env.META_VERIFY_TOKEN || 'aaa_consultancy_secret_token';
+
+  if (mode && token) {
+    if (mode === 'subscribe' && token === verifyToken) {
+      console.log('Meta Webhook Verified Successfully!');
+      return res.status(200).send(challenge);
+    } else {
+      console.warn('Meta Webhook Verification Failed: Token Mismatch');
+      return res.status(403).send('Forbidden');
+    }
+  }
+  return res.status(400).send('Bad Request');
+};

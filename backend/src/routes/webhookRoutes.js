@@ -3,6 +3,7 @@ const router = express.Router();
 const webhookController = require('../controllers/webhookController');
 
 // Meta / WhatsApp / Instagram
+router.get('/meta', webhookController.verifyMetaWebhook);
 router.post('/meta', webhookController.verifyMetaSignature, webhookController.handleMetaWebhook);
 
 // Stripe (Needs raw body for signature validation)
