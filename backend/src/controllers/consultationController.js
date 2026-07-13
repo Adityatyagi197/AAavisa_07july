@@ -1,4 +1,5 @@
 const prisma = require('../config/db');
+const zoomService = require('../services/zoomService');
 
 const getConsultations = async (req, res) => {
   try {
@@ -38,6 +39,33 @@ const createConsultation = async (req, res) => {
   try {
     const { leadId, meetingDate, meetingTime, durationMinutes, assignedConsultantId, notes } = req.body;
     
+    let meetingLink = 'https://zoom.us/j/' + Math.floor(100000000 + Math.random() * 900000000);
+    
+    if (zoomService.isConfigured) {
+      try {
+        let startTimeISO = new Date().toISOString();
+        if (meetingDate) {
+          const timeStr = meetingTime && meetingTime.includes(':') ? meetingTime : '10:00';
+          const dateObj = new Date(`${meetingDate}T${timeStr}`);
+          if (!isNaN(dateObj.getTime())) {
+            startTimeISO = dateObj.toISOString();
+          }
+        }
+        
+        const zoomMeeting = await zoomService.createZoomMeeting({
+          topic: `Eligibility Assessment for Lead ${leadId || ''}`,
+          startTime: startTimeISO,
+          durationMinutes: durationMinutes || 30
+        });
+        
+        if (zoomMeeting) {
+          meetingLink = zoomMeeting.joinUrl;
+        }
+      } catch (zoomErr) {
+        console.error('Failed to create Zoom meeting, falling back to mock link:', zoomErr.message);
+      }
+    }
+    
     const consultation = await prisma.consultation.create({
       data: {
         leadId,
@@ -46,7 +74,7 @@ const createConsultation = async (req, res) => {
         durationMinutes: durationMinutes || 30,
         consultantId: assignedConsultantId,
         internalNotes: notes,
-        meetingLink: 'https://zoom.us/j/' + Math.floor(100000000 + Math.random() * 900000000)
+        meetingLink
       }
     });
 
@@ -148,6 +176,33 @@ const createConsultationForLead = async (req, res) => {
       return res.json({ success: true, consultation: updated, reassigned: true });
     }
 
+    let meetingLink = 'https://zoom.us/j/' + Math.floor(100000000 + Math.random() * 900000000);
+    
+    if (zoomService.isConfigured) {
+      try {
+        let startTimeISO = new Date().toISOString();
+        if (meetingDate) {
+          const timeStr = meetingTime && meetingTime.includes(':') ? meetingTime : '10:00';
+          const dateObj = new Date(`${meetingDate}T${timeStr}`);
+          if (!isNaN(dateObj.getTime())) {
+            startTimeISO = dateObj.toISOString();
+          }
+        }
+        
+        const zoomMeeting = await zoomService.createZoomMeeting({
+          topic: `Eligibility Assessment for Lead ${leadId || ''}`,
+          startTime: startTimeISO,
+          durationMinutes: durationMinutes || 30
+        });
+        
+        if (zoomMeeting) {
+          meetingLink = zoomMeeting.joinUrl;
+        }
+      } catch (zoomErr) {
+        console.error('Failed to create Zoom meeting, falling back to mock link:', zoomErr.message);
+      }
+    }
+
     const consultation = await prisma.consultation.create({
       data: {
         leadId,
@@ -156,7 +211,7 @@ const createConsultationForLead = async (req, res) => {
         timeSlot: meetingTime || 'TBD',
         durationMinutes: durationMinutes || 30,
         status: 'Pending Acceptance',
-        meetingLink: 'https://zoom.us/j/' + Math.floor(100000000 + Math.random() * 900000000)
+        meetingLink
       }
     });
 

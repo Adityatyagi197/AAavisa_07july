@@ -783,15 +783,21 @@ export const DashboardLayout = () => {
 
   // Render navigation item
   const renderNavItem = (item) => {
-    // 1. If user has custom permissions enabled, check against their custom list
-    if (currentUser?.customPermissions?.enabled) {
+    // 1. Check individual user customization override in customizationSettings (highest priority)
+    if (customizationSettings && currentUser?.id && customizationSettings[currentUser.id]?.menus) {
+      const allowedMenus = customizationSettings[currentUser.id].menus || [];
+      if (!allowedMenus.includes(item.label)) return null;
+    }
+    // 2. Legacy custom permissions override check
+    else if (currentUser?.customPermissions?.enabled) {
       const allowedMenus = currentUser.customPermissions.menus || [];
       if (!allowedMenus.includes(item.label)) return null;
-    } else {
-      // 2. Otherwise fall back to role-based settings (or static fallback)
+    }
+    // 3. Fall back to role-based settings (or static fallback)
+    else {
       if (currentUser?.role !== 'super_admin') {
-        if (customizationSettings && (customizationSettings[currentUser?.id] || customizationSettings[currentUser?.role])) {
-          const allowedMenus = (customizationSettings[currentUser?.id] || customizationSettings[currentUser?.role]).menus || [];
+        if (customizationSettings && customizationSettings[currentUser?.role]) {
+          const allowedMenus = customizationSettings[currentUser.role].menus || [];
           if (!allowedMenus.includes(item.label)) return null;
         } else {
           // Fallback to static check if settings are not loaded yet

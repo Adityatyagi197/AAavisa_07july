@@ -1,5 +1,6 @@
 const { S3Client, PutObjectCommand, GetObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
+const fs = require('fs');
 
 // Initialize S3 Client
 const s3Client = new S3Client({
@@ -11,6 +12,25 @@ const s3Client = new S3Client({
 });
 
 const BUCKET_NAME = process.env.AWS_BUCKET_NAME;
+
+/**
+ * Uploads a local file to the AWS S3 bucket.
+ * @param {string} localFilePath - Path to the local file
+ * @param {string} objectKey - Key/path inside S3 bucket
+ * @param {string} contentType - MIME type of the file
+ * @returns {Promise<Object>} - S3 PutObject response
+ */
+exports.uploadLocalFileToS3 = async (localFilePath, objectKey, contentType) => {
+  const fileContent = fs.readFileSync(localFilePath);
+  const command = new PutObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: objectKey,
+    Body: fileContent,
+    ContentType: contentType,
+  });
+
+  return await s3Client.send(command);
+};
 
 /**
  * Generate a Presigned URL for Upload (Write-Once / Immutable)
@@ -39,3 +59,4 @@ exports.generateDownloadUrl = async (objectKey) => {
   // URL expires in 15 minutes (900 seconds)
   return await getSignedUrl(s3Client, command, { expiresIn: 900 });
 };
+

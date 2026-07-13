@@ -66,6 +66,10 @@ app.use('/api/v1/booking', require('./routes/bookingRoutes'));
 app.use('/api/v1/ai', require('./routes/aiRoutes'));
 app.use('/api/v1/notifications', require('./routes/notificationRoutes'));
 
+// Initialize BullMQ Workers
+const { setupWorkers } = require('./queues/workers');
+setupWorkers();
+
 // Start Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

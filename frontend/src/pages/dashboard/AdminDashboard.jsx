@@ -274,20 +274,26 @@ export const AdminDashboard = () => {
             // Use title directly — titles now exactly match AVAILABLE_CARDS keys
             const cardTitle = stat.title;
 
-            // 1. Individual custom permissions override (highest priority)
+            // 1. Individual user customization override (highest priority)
+            if (customizationSettings && currentUser?.id && customizationSettings[currentUser.id]?.cards) {
+              const allowedCards = customizationSettings[currentUser.id].cards || [];
+              return allowedCards.includes(cardTitle);
+            }
+
+            // 2. Individual custom permissions override (legacy fallback)
             if (currentUser?.customPermissions?.enabled) {
               const allowedCards = currentUser.customPermissions.cards || [];
               return allowedCards.includes(cardTitle);
             }
 
-            // 2. Role-level customization settings
+            // 3. Role-level customization settings
             const roleKey = currentUser?.role;
             if (customizationSettings && roleKey && customizationSettings[roleKey]) {
               const allowedCards = customizationSettings[roleKey].cards || [];
               return allowedCards.includes(cardTitle);
             }
 
-            // 3. Fallback: show all
+            // 4. Fallback: show all
             return true;
           })
           .map((stat, idx) => (

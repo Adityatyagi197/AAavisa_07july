@@ -1,12 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1";
 
 const TIME_SLOTS = [
-  { value: "morning", label: "🌅 Morning (9:00 AM – 12:00 PM)" },
-  { value: "afternoon", label: "☀️ Afternoon (12:00 PM – 5:00 PM)" },
-  { value: "evening", label: "🌙 Evening (5:00 PM – 8:00 PM)" },
+  { value: "9-10", label: "🌅 09:00 AM – 10:00 AM" },
+  { value: "10-11", label: "🌅 10:00 AM – 11:00 AM" },
+  { value: "11-12", label: "🌅 11:00 AM – 12:00 PM" },
+  { value: "12-13", label: "☀️ 12:00 PM – 01:00 PM" },
+  { value: "13-14", label: "☀️ 01:00 PM – 02:00 PM" },
+  { value: "14-15", label: "☀️ 02:00 PM – 03:00 PM" },
+  { value: "15-16", label: "☀️ 03:00 PM – 04:00 PM" },
+  { value: "16-17", label: "☀️ 04:00 PM – 05:00 PM" },
+  { value: "17-18", label: "🌙 05:00 PM – 06:00 PM" },
+  { value: "18-19", label: "🌙 06:00 PM – 07:00 PM" },
+  { value: "19-20", label: "🌙 07:00 PM – 08:00 PM" }
 ];
 
 const LANGUAGES = ["English", "Arabic", "Urdu", "Spanish", "French", "German"];
@@ -34,52 +42,91 @@ const NATIONALITIES = [
 ];
 
 export const LeadSelfFillForm = () => {
-  const [step, setStep] = useState(1); // 1: email lookup, 2: fill form, 3: success
-  const [email, setEmail] = useState("");
-  const [lead, setLead] = useState(null);
+  const [step, setStep] = useState(1); // 1: unified form, 2: success
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  
+  // Optional lookup state
+  const [lookupOpen, setLookupOpen] = useState(false);
+  const [lookupEmail, setLookupEmail] = useState("");
 
   // Form fields
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
+    email: "",
     phone: "",
     nationality: "",
     preferredLanguage: "English",
+    serviceId: "dnv",
+    applicantsCount: "Main Only",
     meetingPreferredDate: "",
     meetingPreferredTime: "",
     meetingPreferredLanguage: "English",
     meetingNotes: "",
   });
 
-  const handleEmailLookup = async (e) => {
+  const [nationalitySearch, setNationalitySearch] = useState("");
+  const [showNationalityDropdown, setShowNationalityDropdown] = useState(false);
+
+  // Parse URL query parameters on mount to auto-populate fields
+  useEffect(() => {
+    const searchString = window.location.search || (window.location.hash.includes("?") ? window.location.hash.split("?")[1] : "");
+    const params = new URLSearchParams(searchString);
+    
+    const phoneParam = params.get("phone") || params.get("whatsapp") || "";
+    const emailParam = params.get("email") || "";
+    const serviceParam = params.get("service") || params.get("program") || "";
+    const applicantsParam = params.get("applicants") || "";
+    const nationalityParam = params.get("nationality") || "";
+
+    setForm((prev) => ({
+      ...prev,
+      phone: phoneParam ? decodeURIComponent(phoneParam).trim() : prev.phone,
+      email: emailParam ? decodeURIComponent(emailParam).trim() : prev.email,
+      serviceId: serviceParam ? decodeURIComponent(serviceParam).trim() : prev.serviceId,
+      applicantsCount: applicantsParam ? decodeURIComponent(applicantsParam).trim() : prev.applicantsCount,
+      nationality: nationalityParam ? decodeURIComponent(nationalityParam).trim() : prev.nationality,
+    }));
+    if (nationalityParam) {
+      setNationalitySearch(decodeURIComponent(nationalityParam).trim());
+    }
+  }, []);
+
+  const handleLookup = async (e) => {
     e.preventDefault();
+    if (!lookupEmail) return;
     setLoading(true);
     setError("");
     try {
       const res = await axios.get(
-        `${API_URL}/leads/find-by-email?email=${encodeURIComponent(email)}`,
+        `${API_URL}/leads/find-by-email?email=${encodeURIComponent(lookupEmail.trim())}`,
       );
       const data = res.data;
-      setLead(data);
-      setForm({
-        firstName: data.firstName || "",
-        lastName: data.lastName || "",
-        phone: data.phone || "",
-        nationality: data.nationality || "",
-        preferredLanguage: data.preferredLanguage || "English",
-        meetingPreferredDate: data.meetingPreferredDate || "",
-        meetingPreferredTime: data.meetingPreferredTime || "",
+      setForm((prev) => ({
+        ...prev,
+        firstName: data.firstName || prev.firstName,
+        lastName: data.lastName || prev.lastName,
+        phone: data.phone || prev.phone,
+        email: data.email || prev.email,
+        nationality: data.nationality || prev.nationality,
+        preferredLanguage: data.preferredLanguage || prev.preferredLanguage,
+        serviceId: data.serviceType || prev.serviceId,
+        meetingPreferredDate: data.meetingPreferredDate || prev.meetingPreferredDate,
+        meetingPreferredTime: data.meetingPreferredTime || prev.meetingPreferredTime,
         meetingPreferredLanguage:
-          data.meetingPreferredLanguage || data.preferredLanguage || "English",
-        meetingNotes: data.meetingNotes || "",
-      });
-      setStep(2);
+          data.meetingPreferredLanguage || data.preferredLanguage || prev.meetingPreferredLanguage,
+        meetingNotes: data.meetingNotes || prev.meetingNotes,
+      }));
+      if (data.nationality) {
+        setNationalitySearch(data.nationality);
+      }
+      setLookupOpen(false);
+      setError("");
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Email not found. Please check and try again.",
+          "Profile not found with this email. Please fill in details manually.",
       );
     } finally {
       setLoading(false);
@@ -88,6 +135,10 @@ export const LeadSelfFillForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.firstName || !form.lastName || !form.email || !form.phone) {
+      setError("Please fill in all required personal details (Name, Email, Phone).");
+      return;
+    }
     if (!form.meetingPreferredDate || !form.meetingPreferredTime) {
       setError("Please select your preferred meeting date and time.");
       return;
@@ -95,8 +146,9 @@ export const LeadSelfFillForm = () => {
     setLoading(true);
     setError("");
     try {
-      await axios.patch(`${API_URL}/leads/${lead.id}/meeting-preference`, form);
-      setStep(3);
+      // POST /leads handles both creating new leads and updating existing leads by phone
+      await axios.post(`${API_URL}/leads`, form);
+      setStep(2);
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -113,6 +165,28 @@ export const LeadSelfFillForm = () => {
 
   // Get minimum date (today)
   const today = new Date().toISOString().split("T")[0];
+
+  const filteredNationalities = NATIONALITIES.filter((n) =>
+    n.toLowerCase().includes(nationalitySearch.toLowerCase())
+  );
+
+  const SERVICES = [
+    { id: "dnv", name: "Digital Nomad Visa (DNV)" },
+    { id: "nlv", name: "Non-Lucrative Visa (NLV)" },
+    { id: "business", name: "Self-Employed / Business Residency" },
+    { id: "study", name: "Study Visa" },
+    { id: "tourist", name: "Tourist Visa (Schengen – Spain)" },
+    { id: "sworn_translation", name: "Spanish Sworn Translation" }
+  ];
+
+  const APPLICANTS = [
+    { value: "Main Only", label: "Main Applicant Only" },
+    { value: "Main + 1", label: "Main + 1 Dependent" },
+    { value: "Main + 2", label: "Main + 2 Dependents" },
+    { value: "Main + 3", label: "Main + 3 Dependents" },
+    { value: "Main + 4", label: "Main + 4 Dependents" },
+    { value: "Main + 5", label: "Main + 5 Dependents" }
+  ];
 
   return (
     <div
@@ -189,89 +263,70 @@ export const LeadSelfFillForm = () => {
             boxShadow: "0 25px 50px rgba(0,0,0,0.4)",
           }}
         >
-          {/* Progress indicator */}
-          {step < 3 && (
-            <div style={{ display: "flex", gap: "8px", marginBottom: "28px" }}>
-              {[1, 2].map((s) => (
-                <div
-                  key={s}
-                  style={{
-                    flex: 1,
-                    height: 4,
-                    borderRadius: 2,
-                    background:
-                      step >= s
-                        ? "linear-gradient(90deg, #667eea, #764ba2)"
-                        : "rgba(255,255,255,0.15)",
-                    transition: "all 0.3s ease",
-                  }}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* ─── STEP 1: Email Lookup ─── */}
+          {/* ─── STEP 1: Unified Booking & Intake Form ─── */}
           {step === 1 && (
             <>
-              <h2
-                style={{
-                  color: "#fff",
-                  fontSize: "22px",
-                  fontWeight: 700,
-                  margin: "0 0 8px",
-                }}
-              >
-                Verify Your Email
-              </h2>
-              <p
-                style={{
-                  color: "rgba(255,255,255,0.55)",
-                  fontSize: "14px",
-                  margin: "0 0 28px",
-                  lineHeight: 1.6,
-                }}
-              >
-                Enter the email address you provided when you first contacted
-                us. We'll load your profile automatically.
-              </p>
-
-              <form onSubmit={handleEmailLookup}>
-                <div style={{ marginBottom: "20px" }}>
-                  <label style={labelStyle}>Email Address *</label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    style={inputStyle}
-                  />
-                </div>
-                {error && <div style={errorStyle}>{error}</div>}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  style={btnPrimaryStyle}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
+                <h2
+                  style={{
+                    color: "#fff",
+                    fontSize: "22px",
+                    fontWeight: 700,
+                    margin: 0,
+                  }}
                 >
-                  {loading ? "Looking up..." : "Find My Profile →"}
+                  Book Assessment 📅
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setLookupOpen(!lookupOpen)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "#667eea",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {lookupOpen ? "Cancel Autofill" : "Load My Details"}
                 </button>
-              </form>
-            </>
-          )}
+              </div>
 
-          {/* ─── STEP 2: Fill Form ─── */}
-          {step === 2 && lead && (
-            <>
-              <h2
-                style={{
-                  color: "#fff",
-                  fontSize: "22px",
-                  fontWeight: 700,
-                  margin: "0 0 4px",
-                }}
-              >
-                Welcome, {lead.firstName}! 👋
-              </h2>
+              {lookupOpen && (
+                <div
+                  style={{
+                    background: "rgba(102,126,234,0.1)",
+                    border: "1px solid rgba(102,126,234,0.25)",
+                    borderRadius: "12px",
+                    padding: "16px",
+                    marginBottom: "20px",
+                  }}
+                >
+                  <p style={{ margin: "0 0 10px", color: "rgba(255,255,255,0.7)", fontSize: "13px" }}>
+                    Enter email to retrieve previously saved details:
+                  </p>
+                  <form onSubmit={handleLookup} style={{ display: "flex", gap: "8px" }}>
+                    <input
+                      type="email"
+                      required
+                      placeholder="you@example.com"
+                      value={lookupEmail}
+                      onChange={(e) => setLookupEmail(e.target.value)}
+                      style={{ ...inputStyle, flex: 1 }}
+                    />
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      style={{ ...btnPrimaryStyle, width: "auto", padding: "10px 16px" }}
+                    >
+                      {loading ? "Loading..." : "Autofill"}
+                    </button>
+                  </form>
+                </div>
+              )}
+
               <p
                 style={{
                   color: "rgba(255,255,255,0.55)",
@@ -280,8 +335,7 @@ export const LeadSelfFillForm = () => {
                   lineHeight: 1.6,
                 }}
               >
-                Please verify your details and tell us when you'd like to meet
-                with our visa expert.
+                Please provide your details and choose a convenient date/time for your Free 20-Minute Eligibility Assessment.
               </p>
 
               <form onSubmit={handleSubmit}>
@@ -304,6 +358,7 @@ export const LeadSelfFillForm = () => {
                       onChange={(e) =>
                         handleChange("firstName", e.target.value)
                       }
+                      placeholder="John"
                       style={inputStyle}
                     />
                   </div>
@@ -313,20 +368,41 @@ export const LeadSelfFillForm = () => {
                       required
                       value={form.lastName}
                       onChange={(e) => handleChange("lastName", e.target.value)}
+                      placeholder="Doe"
                       style={inputStyle}
                     />
                   </div>
                 </div>
 
-                <div style={{ marginBottom: "14px" }}>
-                  <label style={labelStyle}>Phone Number *</label>
-                  <input
-                    required
-                    value={form.phone}
-                    onChange={(e) => handleChange("phone", e.target.value)}
-                    placeholder="+1 234 567 8900"
-                    style={inputStyle}
-                  />
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "14px",
+                    marginBottom: "14px",
+                  }}
+                >
+                  <div>
+                    <label style={labelStyle}>Email Address *</label>
+                    <input
+                      type="email"
+                      required
+                      value={form.email}
+                      onChange={(e) => handleChange("email", e.target.value)}
+                      placeholder="you@example.com"
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Phone Number *</label>
+                    <input
+                      required
+                      value={form.phone}
+                      onChange={(e) => handleChange("phone", e.target.value)}
+                      placeholder="+971 50 123 4567"
+                      style={inputStyle}
+                    />
+                  </div>
                 </div>
 
                 <div
@@ -337,22 +413,72 @@ export const LeadSelfFillForm = () => {
                     marginBottom: "28px",
                   }}
                 >
-                  <div>
-                    <label style={labelStyle}>Nationality</label>
-                    <select
+                  <div style={{ position: "relative" }}>
+                    <label style={labelStyle}>Nationality *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Search nationality..."
                       value={form.nationality}
-                      onChange={(e) =>
-                        handleChange("nationality", e.target.value)
-                      }
+                      onChange={(e) => {
+                        handleChange("nationality", e.target.value);
+                        setNationalitySearch(e.target.value);
+                        setShowNationalityDropdown(true);
+                      }}
+                      onFocus={() => setShowNationalityDropdown(true)}
+                      onBlur={() => {
+                        // Delay to allow onClick selection
+                        setTimeout(() => setShowNationalityDropdown(false), 250);
+                      }}
                       style={inputStyle}
-                    >
-                      <option value="">Select...</option>
-                      {NATIONALITIES.map((n) => (
-                        <option key={n} value={n}>
-                          {n}
-                        </option>
-                      ))}
-                    </select>
+                    />
+                    {showNationalityDropdown && filteredNationalities.length > 0 && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "100%",
+                          left: 0,
+                          right: 0,
+                          background: "#24243e",
+                          border: "1px solid rgba(255,255,255,0.15)",
+                          borderRadius: "10px",
+                          maxHeight: "200px",
+                          overflowY: "auto",
+                          zIndex: 1000,
+                          marginTop: "4px",
+                          boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+                        }}
+                      >
+                        {filteredNationalities.map((n) => (
+                          <div
+                            key={n}
+                            onClick={() => {
+                              handleChange("nationality", n);
+                              setNationalitySearch(n);
+                              setShowNationalityDropdown(false);
+                            }}
+                            style={{
+                              padding: "10px 14px",
+                              color: "#fff",
+                              cursor: "pointer",
+                              fontSize: "14px",
+                              borderBottom: "1px solid rgba(255,255,255,0.05)",
+                              textAlign: "left",
+                              transition: "background 0.2s ease"
+                            }}
+                            onMouseDown={() => {
+                              handleChange("nationality", n);
+                              setNationalitySearch(n);
+                              setShowNationalityDropdown(false);
+                            }}
+                            onMouseEnter={(e) => e.target.style.background = "rgba(255,255,255,0.08)"}
+                            onMouseLeave={(e) => e.target.style.background = "transparent"}
+                          >
+                            {n}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label style={labelStyle}>Your Language</label>
@@ -361,11 +487,56 @@ export const LeadSelfFillForm = () => {
                       onChange={(e) =>
                         handleChange("preferredLanguage", e.target.value)
                       }
-                      style={inputStyle}
+                      style={{ ...inputStyle, color: "#fff" }}
                     >
                       {LANGUAGES.map((l) => (
-                        <option key={l} value={l}>
+                        <option key={l} value={l} style={{ background: "#24243e", color: "#fff" }}>
                           {l}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Section: Visa Program */}
+                <div style={sectionHeaderStyle}>✈️ Relocation Details</div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "14px",
+                    marginBottom: "28px",
+                  }}
+                >
+                  <div>
+                    <label style={labelStyle}>Visa Program of Interest</label>
+                    <select
+                      value={form.serviceId}
+                      onChange={(e) =>
+                        handleChange("serviceId", e.target.value)
+                      }
+                      style={{ ...inputStyle, color: "#fff" }}
+                    >
+                      {SERVICES.map((s) => (
+                        <option key={s.id} value={s.id} style={{ background: "#24243e", color: "#fff" }}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Total Applicants</label>
+                    <select
+                      value={form.applicantsCount}
+                      onChange={(e) =>
+                        handleChange("applicantsCount", e.target.value)
+                      }
+                      style={{ ...inputStyle, color: "#fff" }}
+                    >
+                      {APPLICANTS.map((a) => (
+                        <option key={a.value} value={a.value} style={{ background: "#24243e", color: "#fff" }}>
+                          {a.label}
                         </option>
                       ))}
                     </select>
@@ -441,10 +612,10 @@ export const LeadSelfFillForm = () => {
                     onChange={(e) =>
                       handleChange("meetingPreferredLanguage", e.target.value)
                     }
-                    style={inputStyle}
+                    style={{ ...inputStyle, color: "#fff" }}
                   >
                     {LANGUAGES.map((l) => (
-                      <option key={l} value={l}>
+                      <option key={l} value={l} style={{ background: "#24243e", color: "#fff" }}>
                         {l}
                       </option>
                     ))}
@@ -461,7 +632,7 @@ export const LeadSelfFillForm = () => {
                       handleChange("meetingNotes", e.target.value)
                     }
                     rows={3}
-                    placeholder="What would you like to discuss? E.g. 'I want to know about DNV visa requirements for my family of 4...'"
+                    placeholder="What would you like to discuss? E.g. 'I want to know about DNV visa requirements for my family...'"
                     style={{
                       ...inputStyle,
                       resize: "vertical",
@@ -485,8 +656,8 @@ export const LeadSelfFillForm = () => {
             </>
           )}
 
-          {/* ─── STEP 3: Success ─── */}
-          {step === 3 && (
+          {/* ─── STEP 2: Success ─── */}
+          {step === 2 && (
             <div style={{ textAlign: "center", padding: "20px 0" }}>
               <div style={{ fontSize: "64px", marginBottom: "20px" }}>🎉</div>
               <h2

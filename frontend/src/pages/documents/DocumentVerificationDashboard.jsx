@@ -211,6 +211,8 @@ export const DocumentVerificationDashboard = () => {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [clientSearch, setClientSearch] = useState('');
   const [tableFilters, setTableFilters] = useState({ serviceId: '', status: '', assignedConsultantId: '' });
+  const [credentialsModalOpen, setCredentialsModalOpen] = useState(false);
+  const [credentialsData, setCredentialsData] = useState(null);
 
   // Fetch Collections
   const { data: clients = [], isLoading: isClientsLoading } = useQuery({
@@ -590,8 +592,15 @@ export const DocumentVerificationDashboard = () => {
                   variant="contained"
                   color="secondary"
                   size="small"
-                  onClick={() => {
-                    window.alert(`Portal Credentials Generated:\n\nPortal URL: /portal/login\nUsername: ${selectedClient.id}\nPassword: password123\n\nPlease share these with the client securely.`);
+                  onClick={async () => {
+                    try {
+                      const res = await dbService.generateClientCredentials(selectedClient.id);
+                      setCredentialsData(res);
+                      setCredentialsModalOpen(true);
+                    } catch (error) {
+                      console.error('Error generating credentials', error);
+                      showAlert('Failed to generate credentials. Ensure backend is running.', 'error');
+                    }
                   }}
                   sx={{ textTransform: 'none', fontWeight: 'bold', whiteSpace: 'nowrap', flexShrink: 0 }}
                 >
@@ -1046,6 +1055,98 @@ export const DocumentVerificationDashboard = () => {
           </Box>
         </Box>
       )}
+
+      {/* Credentials Dialog */}
+      <Dialog
+        open={credentialsModalOpen}
+        onClose={() => setCredentialsModalOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800, pb: 1 }}>
+          🔑 Portal Credentials
+        </DialogTitle>
+        <DialogContent sx={{ pt: 1 }}>
+          {credentialsData?.alreadyExists ? (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Credentials have already been generated for this client. You can share their registered email as username. If you want to reset their password, click <strong>Reset Password</strong> below.
+            </Typography>
+          ) : (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Portal credentials generated successfully. Please share these with the client securely.
+            </Typography>
+          )}
+
+          <Box sx={{ bgcolor: 'action.hover', p: 2, borderRadius: 2, border: '1px dashed', borderColor: 'divider', mb: 2 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 600 }}>
+              PORTAL URL
+            </Typography>
+            <Typography variant="body2" sx={{ fontFamily: 'monospace', mb: 1.5, wordBreak: 'break-all' }}>
+              {window.location.origin}/#/portal/login
+            </Typography>
+
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 600 }}>
+              USERNAME (CLIENT EMAIL)
+            </Typography>
+            <Typography variant="body2" sx={{ fontFamily: 'monospace', mb: 1.5, wordBreak: 'break-all' }}>
+              {credentialsData?.username || ''}
+            </Typography>
+
+            {credentialsData?.password && (
+              <>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 600 }}>
+                  PASSWORD
+                </Typography>
+                <Typography variant="body2" sx={{ fontFamily: 'monospace', wordBreak: 'break-all', fontWeight: 'bold', color: 'secondary.main' }}>
+                  {credentialsData.password}
+                </Typography>
+              </>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          {credentialsData?.alreadyExists && (
+            <Button
+              color="error"
+              variant="outlined"
+              onClick={async () => {
+                const confirmed = window.confirm('Are you sure you want to reset the client password? This will overwrite their existing password.');
+                if (!confirmed) return;
+                try {
+                  const res = await dbService.generateClientCredentials(selectedClient.id, true);
+                  setCredentialsData(res);
+                  showAlert('Credentials reset successfully!', 'success');
+                } catch (error) {
+                  showAlert('Failed to reset credentials', 'error');
+                }
+              }}
+              sx={{ textTransform: 'none', fontWeight: 'bold' }}
+            >
+              Reset Password
+            </Button>
+          )}
+          <Button
+            onClick={() => {
+              const textToCopy = `Portal URL: ${window.location.origin}/#/portal/login\nUsername: ${credentialsData?.username}\n${credentialsData?.password ? `Password: ${credentialsData.password}\n` : ''}Please keep these credentials secure.`;
+              navigator.clipboard.writeText(textToCopy);
+              showAlert('Credentials copied to clipboard!', 'success');
+            }}
+            variant="contained"
+            color="primary"
+            sx={{ textTransform: 'none', fontWeight: 'bold' }}
+          >
+            Copy Info
+          </Button>
+          <Button
+            onClick={() => setCredentialsModalOpen(false)}
+            variant="outlined"
+            sx={{ textTransform: 'none', fontWeight: 'bold' }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Dialog Preview removed - files now open directly in new tabs */}
     </Box>

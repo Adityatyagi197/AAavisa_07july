@@ -12,4 +12,7 @@ router.post('/stripe', express.raw({ type: 'application/json' }), webhookControl
 // TikTok etc.
 router.post('/tiktok', webhookController.handleTikTokWebhook);
 
+// Zoom (URL validation and Recording Completed events)
+router.post('/zoom', webhookController.handleZoomWebhook);
+
 module.exports = router;

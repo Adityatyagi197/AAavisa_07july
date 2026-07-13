@@ -150,11 +150,19 @@ export const AgentDashboard = () => {
               return true;
             }
 
+            // 1. Individual user customization override (highest priority)
+            if (customizationSettings && currentUser?.id && customizationSettings[currentUser.id]?.cards) {
+              const allowedCards = customizationSettings[currentUser.id].cards || [];
+              return allowedCards.includes(cardTitle);
+            }
+
+            // 2. Individual custom permissions override (legacy fallback)
             if (currentUser?.customPermissions?.enabled) {
               const allowedCards = currentUser.customPermissions.cards || [];
               return allowedCards.includes(cardTitle);
             }
 
+            // 3. Role-level customization settings
             if (customizationSettings && customizationSettings.consultant) {
               const allowedCards = customizationSettings.consultant.cards || [];
               return allowedCards.includes(cardTitle);
