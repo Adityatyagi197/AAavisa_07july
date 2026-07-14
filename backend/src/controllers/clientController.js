@@ -139,7 +139,25 @@ const selectPackage = async (req, res) => {
 const generateCredentials = async (req, res) => {
   try {
     const { id } = req.params;
-    
+    const { forceReset } = req.query;
+
+    const client = await prisma.client.findUnique({
+      where: { id }
+    });
+
+    if (!client) {
+      return res.status(404).json({ message: 'Client not found' });
+    }
+
+    if (client.password && forceReset !== 'true') {
+      return res.json({ 
+        success: true, 
+        alreadyExists: true, 
+        username: client.email,
+        message: 'Credentials already generated' 
+      });
+    }
+
     // Generate a secure random 8-character password
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%';
     let plainPassword = '';
@@ -154,8 +172,9 @@ const generateCredentials = async (req, res) => {
     });
 
     // Return the plaintext password so it can be securely displayed/emailed ONCE
-    res.json({ success: true, password: plainPassword });
+    res.json({ success: true, password: plainPassword, username: client.email });
   } catch (error) {
+    console.error('Error in generateCredentials:', error);
     res.status(500).json({ message: 'Server error generating credentials' });
   }
 };
@@ -163,9 +182,15 @@ const generateCredentials = async (req, res) => {
 const clientLogin = async (req, res) => {
   try {
     const { clientId, password } = req.body;
+    const loginIdentifier = clientId ? clientId.trim() : '';
 
-    const client = await prisma.client.findUnique({
-      where: { id: clientId }
+    const client = await prisma.client.findFirst({
+      where: {
+        OR: [
+          { email: loginIdentifier.toLowerCase() },
+          { id: loginIdentifier }
+        ]
+      }
     });
 
     if (!client || !client.password) {

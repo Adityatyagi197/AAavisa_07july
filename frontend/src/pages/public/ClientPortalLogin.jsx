@@ -129,7 +129,7 @@ export const ClientPortalLogin = () => {
       if (res.client.isTemporaryPassword) {
         navigate('/portal/change-password');
       } else {
-        navigate(`/portal/documents/${clientId}`);
+        navigate(`/portal/documents/${res.client.id}`);
       }
     } catch (err) {
       showAlert(err.response?.data?.message || 'Login failed. Invalid credentials.', 'error');
@@ -150,7 +150,7 @@ export const ClientPortalLogin = () => {
       if (res.client.isTemporaryPassword) {
         navigate('/portal/change-password');
       } else {
-        navigate(`/portal/documents/${clientId}`);
+        navigate(`/portal/documents/${res.client.id}`);
       }
     } catch (err) {
       showAlert(err.response?.data?.message || 'Quick login failed.', 'error');

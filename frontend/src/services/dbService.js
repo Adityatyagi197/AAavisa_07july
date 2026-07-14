@@ -87,8 +87,8 @@ export const dbService = {
     const res = await apiClient.patch(`/clients/${clientId}/dependents`, { dependents });
     return res.data;
   },
-  generateClientCredentials: async (clientId) => {
-    const res = await apiClient.post(`/clients/${clientId}/credentials`);
+  generateClientCredentials: async (clientId, forceReset = false) => {
+    const res = await apiClient.post(`/clients/${clientId}/credentials${forceReset ? '?forceReset=true' : ''}`);
     return res.data;
   },
   clientLogin: async (clientId, password) => {

@@ -62,7 +62,10 @@ const leadSchema = yup.object().shape({
   serviceId: yup.string().required('Visa service is required'),
   applicantsCount: yup.number().typeError('Must be a number').min(1, 'At least 1 applicant').required(),
   source: yup.string().required('Lead source is required'),
-  notes: yup.string() });
+  notes: yup.string(),
+  meetingPreferredDate: yup.string().nullable().notRequired(),
+  meetingPreferredTime: yup.string().nullable().notRequired()
+});
 
 export const AdminLeadList = () => {
   const navigate = useNavigate();
@@ -99,51 +102,21 @@ export const AdminLeadList = () => {
 
     const serviceId = isFromDashboard ? '' : (savedFilters?.serviceId || '');
 
-    return {
-      serviceId,
-      status,
-      assignedConsultantId,
-      todayOnly
-    };
+    const nextFilters = { status, assignedConsultantId, todayOnly, serviceId };
+    sessionStorage.setItem('leadList_filters', JSON.stringify(nextFilters));
+    return nextFilters;
   });
+
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
   const [cardInfo, setCardInfo] = useState(() => {
     const savedCardInfoStr = sessionStorage.getItem('leadList_cardInfo');
-    const savedCardInfo = savedCardInfoStr ? JSON.parse(savedCardInfoStr) : null;
-    return location.state?.cardInfo || savedCardInfo || null;
+    return savedCardInfoStr ? JSON.parse(savedCardInfoStr) : null;
   });
-
-  const [startDate, setStartDate] = useState(() => {
-    return location.state?.startDate || '';
-  });
-  const [endDate, setEndDate] = useState(() => {
-    return location.state?.endDate || '';
-  });
-  const mockToday = '2026-06-18'; // Mock current date
-
-  const filterByDate = (dateStr, start, end) => {
-    if (!start && !end) return true;
-    if (!dateStr) return false;
-    const formatted = dateStr.substring(0, 10);
-    if (start && !end) return formatted === start;
-    return formatted >= start && formatted <= end;
-  };
 
   useEffect(() => {
     if (location.state) {
-      if (location.state.resetFilters) {
-        setFilters({
-          serviceId: '',
-          status: '',
-          assignedConsultantId: '',
-          todayOnly: false
-        });
-        setStartDate('');
-        setEndDate('');
-        setCardInfo(null);
-        sessionStorage.removeItem('leadList_filters');
-        sessionStorage.removeItem('leadList_cardInfo');
-        navigate(location.pathname, { replace: true, state: {} });
-      } else if (
+      if (
         location.state.filterStatus !== undefined ||
         location.state.filterConsultantId !== undefined ||
         location.state.filterToday !== undefined ||
@@ -268,7 +241,9 @@ export const AdminLeadList = () => {
       serviceId: 'dnv',
       applicantsCount: 1,
       source: 'Google Ads',
-      notes: '' } });
+      notes: '',
+      meetingPreferredDate: '',
+      meetingPreferredTime: '' } });
 
   const { data: leadStages = [] } = useQuery({
     queryKey: ['lead-stages'],
@@ -276,10 +251,11 @@ export const AdminLeadList = () => {
 
   const watchServiceId = watch('serviceId');
   const watchSource = watch('source');
+  const watchMeetingPreferredTime = watch('meetingPreferredTime');
 
   // Handle forms
   const handleCreateLead = (data) => {
-    const defaultStatus = leadStages[0]?.name || 'New Lead';
+    const defaultStatus = data.meetingPreferredDate ? 'Form Submitted' : (leadStages[0]?.name || 'New Lead');
     createLeadMutation.mutate({
       ...data,
       status: defaultStatus,
@@ -770,11 +746,44 @@ export const AdminLeadList = () => {
                 </FormControl>
               </Box>
 
+              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
+                <TextField
+                  {...register('meetingPreferredDate')}
+                  type="date"
+                  label="Meeting Date (Optional)"
+                  InputLabelProps={{ shrink: true }}
+                  fullWidth
+                  size="small"
+                />
+                <FormControl fullWidth size="small">
+                  <InputLabel id="meeting-time-label">Meeting Time Slot (Optional)</InputLabel>
+                  <Select
+                    labelId="meeting-time-label"
+                    {...register('meetingPreferredTime')}
+                    value={watchMeetingPreferredTime || ''}
+                    label="Meeting Time Slot (Optional)"
+                  >
+                    <MenuItem value="">None</MenuItem>
+                    <MenuItem value="9-10">🌅 09:00 AM – 10:00 AM</MenuItem>
+                    <MenuItem value="10-11">🌅 10:00 AM – 11:00 AM</MenuItem>
+                    <MenuItem value="11-12">🌅 11:00 AM – 12:00 PM</MenuItem>
+                    <MenuItem value="12-13">☀️ 12:00 PM – 01:00 PM</MenuItem>
+                    <MenuItem value="13-14">☀️ 01:00 PM – 02:00 PM</MenuItem>
+                    <MenuItem value="14-15">☀️ 02:00 PM – 03:00 PM</MenuItem>
+                    <MenuItem value="15-16">☀️ 03:00 PM – 04:00 PM</MenuItem>
+                    <MenuItem value="16-17">☀️ 04:00 PM – 05:00 PM</MenuItem>
+                    <MenuItem value="17-18">🌙 05:00 PM – 06:00 PM</MenuItem>
+                    <MenuItem value="18-19">🌙 06:00 PM – 07:00 PM</MenuItem>
+                    <MenuItem value="19-20">🌙 07:00 PM – 08:00 PM</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+
               <TextField
                 {...register('notes')}
                 label="Consultant Notes / Qualification Details"
                 multiline
-                rows={4}
+                rows={3}
                 fullWidth
                 placeholder="Enter initial client background details, passive income records, or relocation timeline notes..."
               />
