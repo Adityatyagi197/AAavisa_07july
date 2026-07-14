@@ -16,7 +16,8 @@ const getClients = async (req, res) => {
       name: `${c.firstName} ${c.lastName}`,
       serviceId: c.serviceType,
       assignedConsultantName: c.assignedTo?.fullName,
-      assignedConsultantId: c.assignedToId
+      assignedConsultantId: c.assignedToId,
+      hasCredentials: !!c.password
     }));
     
     res.json(mapped);

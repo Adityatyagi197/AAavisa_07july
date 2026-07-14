@@ -25,6 +25,7 @@ import FilterPanel from '../../components/FilterPanel';
 import { useAlert } from '../../contexts/AlertContext';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { SERVICES } from '../../constants/mockData';
+import CredentialsModal from '../../components/CredentialsModal';
 
 // Icons
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
@@ -213,6 +214,10 @@ export const OperationsDocumentVerificationDashboard = () => {
   const [clientSearch, setClientSearch] = useState('');
   const [tableFilters, setTableFilters] = useState({ serviceId: '', status: '', assignedConsultantId: '' });
 
+  const [credentialsOpen, setCredentialsOpen] = useState(false);
+  const [generatedPassword, setGeneratedPassword] = useState('');
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+
   // Fetch Collections
   const { data: clients = [], isLoading: isClientsLoading } = useQuery({
     queryKey: ['clients'],
@@ -254,6 +259,19 @@ export const OperationsDocumentVerificationDashboard = () => {
 
   const selectedClient = clients.find(c => c && c.id === selectedClientId);
   const clientDocs = documents.filter(d => d && d.clientId === selectedClientId);
+
+  const generateCredentialsAction = async () => {
+    if (!selectedClient) return;
+    try {
+      const res = await dbService.generateClientCredentials(selectedClient.id);
+      setGeneratedPassword(res.password);
+      setCredentialsOpen(true);
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+    } catch (error) {
+      console.error('Error generating credentials', error);
+      showAlert('Failed to generate credentials. Ensure backend is running.', 'error');
+    }
+  };
 
   const handlePrintPDF = () => {
     if (!selectedClient) return;
@@ -593,21 +611,19 @@ export const OperationsDocumentVerificationDashboard = () => {
               {/* Generate button */}
               <Button
                 variant="contained"
-                color="secondary"
+                color={selectedClient?.hasCredentials ? 'warning' : 'secondary'}
                 size="small"
                 disabled={!selectedClient}
-                onClick={async () => {
-                  try {
-                    const res = await dbService.generateClientCredentials(selectedClient.id);
-                    window.alert(`Portal Credentials Generated:\n\nPortal URL: /portal/login\nUsername: ${selectedClient?.id}\nPassword: ${res.password}\n\nPlease share these with the client securely.`);
-                  } catch (error) {
-                    console.error('Error generating credentials', error);
-                    window.alert('Failed to generate credentials. Ensure backend is running.');
+                onClick={() => {
+                  if (selectedClient?.hasCredentials) {
+                    setResetConfirmOpen(true);
+                  } else {
+                    generateCredentialsAction();
                   }
                 }}
                 sx={{ textTransform: 'none', fontWeight: 'bold', whiteSpace: 'nowrap', flexShrink: 0 }}
               >
-                Generate Portal Credentials
+                {selectedClient?.hasCredentials ? 'Reset Portal Credentials' : 'Generate Portal Credentials'}
               </Button>
             </Box>
           </Box>
@@ -1059,6 +1075,45 @@ export const OperationsDocumentVerificationDashboard = () => {
       )}
 
       {/* Dialog Preview removed - files now open directly in new tabs */}
+      {/* Reset Confirmation Dialog */}
+      <Dialog
+        open={resetConfirmOpen}
+        onClose={() => setResetConfirmOpen(false)}
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>Reset Portal Credentials?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            This client already has portal access. Generating new credentials will overwrite their current password and they will be locked out of their account until you provide them with the new temporary password.
+            <br /><br />
+            Are you sure you want to proceed?
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3.5 }}>
+          <Button onClick={() => setResetConfirmOpen(false)} variant="outlined" sx={{ textTransform: 'none', fontWeight: 600 }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              setResetConfirmOpen(false);
+              generateCredentialsAction();
+            }}
+            variant="contained"
+            color="error"
+            sx={{ textTransform: 'none', fontWeight: 700 }}
+          >
+            Yes, Reset Credentials
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Credentials Presentation Modal */}
+      <CredentialsModal
+        open={credentialsOpen}
+        onClose={() => setCredentialsOpen(false)}
+        client={selectedClient}
+        password={generatedPassword}
+      />
     </Box>
   );
 };
