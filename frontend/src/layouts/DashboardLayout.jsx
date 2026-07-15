@@ -246,10 +246,10 @@ export const DashboardLayout = () => {
   // WebSockets Real-Time Sync
   useEffect(() => {
     if (!currentUser?.id) return;
-    
+
     // Connect to backend Socket.io
-    const socket = io('http://localhost:5000');
-    
+    const socket = io('https://aaa-consultancy-production.up.railway.app');
+
     // Join the specific role room
     socket.emit('join-role', currentUser.role);
     // Join the specific user room
@@ -260,7 +260,7 @@ export const DashboardLayout = () => {
       console.log('Real-time permissions updated via WebSocket:', newPermissions);
       // Invalidate the cache so React Query fetches the new settings immediately
       queryClient.invalidateQueries({ queryKey: ['customization-settings'] });
-      
+
       // Show an alert to the user (optional)
       showAlert('Your permissions have been updated by an administrator.', 'info');
     });
@@ -1120,11 +1120,11 @@ export const DashboardLayout = () => {
               <Select
                 value={currentUser?.role || 'super_admin'}
                 onChange={handleRoleChange}
-                sx={{ 
-                  borderRadius: 2, 
-                  height: 32, 
-                  bgcolor: 'background.paper', 
-                  fontSize: '0.78rem', 
+                sx={{
+                  borderRadius: 2,
+                  height: 32,
+                  bgcolor: 'background.paper',
+                  fontSize: '0.78rem',
                   fontWeight: 800,
                   border: '1px solid',
                   borderColor: 'secondary.main',
@@ -1136,14 +1136,14 @@ export const DashboardLayout = () => {
                 {customizationSettings?.rolesDefinition?.map(role => (
                   <MenuItem key={role.id} value={role.id}>{role.label.split('(')[0].trim()}</MenuItem>
                 )) || (
-                  <>
-                    <MenuItem value="admin">Manager 💼</MenuItem>
-                    <MenuItem value="operations">Ops ⚙️</MenuItem>
-                    <MenuItem value="consultant">Agent 🧑‍💼</MenuItem>
-                    <MenuItem value="finance">Finance 💵</MenuItem>
-                    <MenuItem value="marketing">Marketing 📣</MenuItem>
-                  </>
-                )}
+                    <>
+                      <MenuItem value="admin">Manager 💼</MenuItem>
+                      <MenuItem value="operations">Ops ⚙️</MenuItem>
+                      <MenuItem value="consultant">Agent 🧑‍💼</MenuItem>
+                      <MenuItem value="finance">Finance 💵</MenuItem>
+                      <MenuItem value="marketing">Marketing 📣</MenuItem>
+                    </>
+                  )}
               </Select>
             </FormControl>
 

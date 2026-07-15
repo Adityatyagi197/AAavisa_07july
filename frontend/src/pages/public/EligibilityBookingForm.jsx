@@ -29,8 +29,8 @@ const EligibilityBookingForm = () => {
     try {
       setStatus('loading');
       const payload = { ...formData, deviceFingerprint: fingerprint };
-      const res = await axios.post('http://localhost:5000/api/v1/booking/eligibility', payload);
-      
+      const res = await axios.post('https://aaa-consultancy-production.up.railway.app/api/v1/booking/eligibility', payload);
+
       if (res.data.success) {
         setStatus('success');
       }

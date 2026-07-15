@@ -52,3 +52,17 @@ This document outlines the list of third-party APIs needed to implement the CRM 
 | API / Provider | Type | Purpose / Workflow Phase | Description |
 | :--- | :--- | :--- | :--- |
 | **Fingerprint Pro API (FingerprintJS)** | Device Fingerprinting | Phase 2 (Booking Link) | Captures unique device identifiers to enforce booking lock-outs, preventing blacklisted users (No-Shows) from rebooking using fake numbers or emails. |
+
+
+
+
+
+
+
+
+
+
+
+
+
+

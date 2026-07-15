@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1";
+const API_URL = import.meta.env.VITE_API_URL || "https://aaa-consultancy-production.up.railway.app/api/v1";
 
 const TIME_SLOTS = [
   { value: "9-10", label: "🌅 09:00 AM – 10:00 AM" },
@@ -45,7 +45,7 @@ export const LeadSelfFillForm = () => {
   const [step, setStep] = useState(1); // 1: unified form, 2: success
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  
+
   // Optional lookup state
   const [lookupOpen, setLookupOpen] = useState(false);
   const [lookupEmail, setLookupEmail] = useState("");
@@ -73,7 +73,7 @@ export const LeadSelfFillForm = () => {
   useEffect(() => {
     const searchString = window.location.search || (window.location.hash.includes("?") ? window.location.hash.split("?")[1] : "");
     const params = new URLSearchParams(searchString);
-    
+
     const phoneParam = params.get("phone") || params.get("whatsapp") || "";
     const emailParam = params.get("email") || "";
     const serviceParam = params.get("service") || params.get("program") || "";
@@ -126,7 +126,7 @@ export const LeadSelfFillForm = () => {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Profile not found with this email. Please fill in details manually.",
+        "Profile not found with this email. Please fill in details manually.",
       );
     } finally {
       setLoading(false);
@@ -152,7 +152,7 @@ export const LeadSelfFillForm = () => {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Something went wrong. Please try again.",
+        "Something went wrong. Please try again.",
       );
     } finally {
       setLoading(false);

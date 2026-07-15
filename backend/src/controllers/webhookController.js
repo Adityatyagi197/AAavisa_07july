@@ -245,3 +245,53 @@ exports.handleZoomWebhook = async (req, res) => {
     return res.status(500).send('Internal Server Error');
   }
 };
+
+/**
+ * Twilio Webhook Handler (Inbound WhatsApp messages)
+ * Twilio sends URL-encoded POST payloads when a user replies to your WhatsApp number.
+ */
+exports.handleTwilioWebhook = async (req, res) => {
+  try {
+    const payload = req.body;
+    console.log('Received Twilio Webhook Payload:', payload);
+
+    // Twilio webhooks must return TwiML (XML) response, even an empty one is fine
+    res.type('text/xml');
+    res.send('<Response></Response>');
+
+    // Extract message fields
+    const rawFrom = payload.From || ''; // Format: "whatsapp:+1234567890" or "+1234567890"
+    const phone = rawFrom.replace('whatsapp:', '');
+    const message = payload.Body || '';
+    const name = payload.ProfileName || ''; // Twilio ProfileName if available
+
+    if (phone) {
+      if (process.env.DISABLE_REDIS === 'true') {
+        console.log(`[LOCAL DEV] Redis disabled. Processing chatbot message synchronously.`);
+        const chatbotService = require('../services/chatbotService');
+        chatbotService.handleChatbotMessage(phone, name || 'Applicant', message || '').catch(err => {
+          console.error('[LOCAL DEV] Chatbot processing error:', err.message);
+        });
+      } else {
+        // Add incoming message to communications queue
+        await communicationsQueue.add('process-twilio-message', {
+          phone,
+          name,
+          message,
+          rawPayload: payload
+        }, {
+          jobId: payload.MessageSid || `twilio-msg-${Date.now()}`
+        });
+        console.log(`Enqueued incoming Twilio WhatsApp message job from ${phone}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error handling Twilio webhook:', error.message);
+    // Don't crash, respond with empty TwiML
+    if (!res.headersSent) {
+      res.type('text/xml');
+      res.send('<Response></Response>');
+    }
+  }
+};
+
