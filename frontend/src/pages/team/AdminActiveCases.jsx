@@ -115,7 +115,7 @@ export const AdminActiveCases = () => {
   });
 
   // Operations & Admin handlers
-  const handlers = agentsList.filter((a) => a && (a.role === 'admin' || a.role === 'operations'));
+  const handlers = agentsList.filter((a) => a && a.role === 'operations');
   // Consultant agents
   const consultants = agentsList.filter((a) => a && (a.role === 'consultant' || a.role === 'agent'));
 

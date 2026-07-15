@@ -38,6 +38,7 @@ const createLead = async (req, res) => {
       nationality, 
       preferredLanguage, 
       applicantsCount,
+      dependentsDetails,
       meetingPreferredDate,
       meetingPreferredTime,
       meetingPreferredLanguage,
@@ -64,32 +65,11 @@ const createLead = async (req, res) => {
     const assignedToId = consultants.length > 0 ? consultants[0].id : null;
 
     if (lead) {
-      // Update existing lead
-      lead = await prisma.lead.update({
-        where: { id: lead.id },
-        data: {
-          firstName: firstName || lead.firstName,
-          lastName: lastName || lead.lastName,
-          email: email || lead.email,
-          phone: phone || lead.phone,
-          nationality: nationality || lead.nationality,
-          preferredLanguage: preferredLanguage || lead.preferredLanguage,
-          serviceType: serviceType || serviceId || lead.serviceType,
-          applicantsCount: applicantsCount ? String(applicantsCount) : lead.applicantsCount,
-          source: source || lead.source,
-          campaignId: campaignId || lead.campaignId,
-          meetingPreferredDate: meetingPreferredDate || lead.meetingPreferredDate,
-          meetingPreferredTime: meetingPreferredTime || lead.meetingPreferredTime,
-          meetingPreferredLanguage: meetingPreferredLanguage || lead.meetingPreferredLanguage,
-          meetingNotes: meetingNotes || lead.meetingNotes,
-          formSubmittedAt: meetingPreferredDate ? new Date() : lead.formSubmittedAt,
-          status: meetingPreferredDate ? 'Form Submitted' : lead.status
-        }
-      });
-      console.log(`Lead updated via upsert (ID: ${lead.id}, Phone: ${lead.phone})`);
-    } else {
-      // Create new lead
-      lead = await prisma.lead.create({
+      return res.status(400).json({ message: 'Number already exists' });
+    }
+
+    // Create new lead
+    lead = await prisma.lead.create({
         data: {
           firstName,
           lastName,
@@ -101,6 +81,7 @@ const createLead = async (req, res) => {
           nationality,
           preferredLanguage,
           applicantsCount: applicantsCount ? String(applicantsCount) : undefined,
+          dependentsDetails: dependentsDetails || undefined,
           meetingPreferredDate,
           meetingPreferredTime,
           meetingPreferredLanguage,
@@ -111,63 +92,9 @@ const createLead = async (req, res) => {
         }
       });
       console.log(`New Lead created (ID: ${lead.id}, Phone: ${lead.phone})`);
-    }
 
     // Auto-create consultation if assigned and meeting details are provided
-    if (lead.assignedToId && lead.meetingPreferredDate) {
-      const existingCons = await prisma.consultation.findFirst({
-        where: { leadId: lead.id }
-      });
-      if (!existingCons) {
-        const meetingLink = 'https://zoom.us/j/' + Math.floor(100000000 + Math.random() * 900000000);
-        const consultation = await prisma.consultation.create({
-          data: {
-            date: lead.meetingPreferredDate,
-            timeSlot: lead.meetingPreferredTime || 'TBD',
-            durationMinutes: 30,
-            status: 'Pending Acceptance',
-            leadId: lead.id,
-            consultantId: lead.assignedToId,
-            internalNotes: lead.meetingNotes || '',
-            meetingLink: meetingLink
-          }
-        });
-        console.log(`Auto-created consultation (ID: ${consultation.id}) for Lead: ${lead.id}`);
-
-        // Send instant booking confirmation email to the lead
-        const { sendEmail } = require('../services/emailService');
-        if (lead.email) {
-          sendEmail({
-            to: lead.email,
-            subject: 'Spain Visa Eligibility Assessment Scheduled - AAA Visa',
-            html: `
-              <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; color: #2d3748;">
-                <div style="text-align: center; margin-bottom: 24px;">
-                  <h2 style="color: #4f46e5; margin: 0;">AAA Business Consultancy</h2>
-                  <p style="color: #718096; font-size: 14px; margin: 4px 0 0;">Relocation & Spain Visa Services</p>
-                </div>
-                <h3 style="color: #1a202c; border-bottom: 1px solid #edf2f7; padding-bottom: 10px;">Booking Confirmation 🎉</h3>
-                <p>Hello <strong>${lead.firstName} ${lead.lastName}</strong>,</p>
-                <p>Thank you for submitting your booking preferences. We have scheduled your Free 20-Minute Eligibility Assessment consultation.</p>
-                
-                <div style="background-color: #f7fafc; border-left: 4px solid #4f46e5; padding: 16px; margin: 20px 0; border-radius: 4px;">
-                  <h4 style="margin: 0 0 8px; color: #4f46e5;">Appointment Details</h4>
-                  <p style="margin: 4px 0;"><strong>Date:</strong> ${lead.meetingPreferredDate}</p>
-                  <p style="margin: 4px 0;"><strong>Preferred Time Slot:</strong> ${lead.meetingPreferredTime}</p>
-                  <p style="margin: 4px 0;"><strong>Language:</strong> ${lead.meetingPreferredLanguage || 'English'}</p>
-                  <p style="margin: 4px 0;"><strong>Meeting Link:</strong> <a href="${meetingLink}" style="color: #4f46e5; text-decoration: underline;">Join Zoom Call</a></p>
-                </div>
-                
-                <p>A Spain Visa expert has been assigned to your case and will meet you online at the scheduled time.</p>
-                <p style="font-size: 13px; color: #718096; margin-top: 30px; border-top: 1px solid #edf2f7; padding-top: 10px;">
-                  This is an automated notification from AAA Visa CRM. Please do not reply directly to this email.
-                </p>
-              </div>
-            `
-          }).catch(err => console.error('Failed to send instant confirmation email:', err));
-        }
-      }
-    }
+    await syncLeadConsultation(lead.id);
 
     res.status(201).json(lead);
   } catch (error) {
@@ -183,6 +110,7 @@ const assignLead = async (req, res) => {
       where: { id: leadId },
       data: { assignedToId: agentId }
     });
+    await syncLeadConsultation(lead.id);
     res.json(lead);
   } catch (error) {
     res.status(500).json({ message: 'Server error assigning lead' });
@@ -291,6 +219,8 @@ const updateLead = async (req, res) => {
       }
     });
 
+    await syncLeadConsultation(lead.id);
+
     const mapped = {
       ...lead,
       name: `${lead.firstName} ${lead.lastName}`,
@@ -303,18 +233,18 @@ const updateLead = async (req, res) => {
   }
 };
 
-// Find lead by email — used by public self-fill form
-async function findLeadByEmail(req, res) {
+// Find lead by ID — used by public self-fill form to securely retrieve details
+async function getPublicLeadDetails(req, res) {
   try {
-    const { email } = req.query;
-    if (!email) {
-      return res.status(400).json({ message: 'Email is required' });
+    const { id } = req.params;
+    if (!id) {
+      return res.status(400).json({ message: 'Lead ID is required' });
     }
-    const lead = await prisma.lead.findFirst({
-      where: { email: email.toLowerCase().trim() }
+    const lead = await prisma.lead.findUnique({
+      where: { id }
     });
     if (!lead) {
-      return res.status(404).json({ message: 'No lead found with this email. Please contact us.' });
+      return res.status(404).json({ message: 'No lead found with this ID' });
     }
     // Return only safe fields to the public form
     res.json({
@@ -333,7 +263,7 @@ async function findLeadByEmail(req, res) {
       formSubmittedAt: lead.formSubmittedAt
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    res.status(500).json({ message: 'Server error fetching lead details', error: error.message });
   }
 }
 
@@ -370,25 +300,8 @@ async function updateMeetingPreference(req, res) {
       }
     });
 
-    // Auto-create consultation if assigned
-    if (lead.assignedToId) {
-      const existingCons = await prisma.consultation.findFirst({
-        where: { leadId: lead.id }
-      });
-      if (!existingCons) {
-        await prisma.consultation.create({
-          data: {
-            date: meetingPreferredDate,
-            timeSlot: meetingPreferredTime || 'TBD',
-            durationMinutes: 30,
-            status: 'Pending Acceptance',
-            leadId: lead.id,
-            consultantId: lead.assignedToId,
-            internalNotes: meetingNotes || ''
-          }
-        });
-      }
-    }
+    // Auto-create/update consultation if assigned
+    await syncLeadConsultation(lead.id);
 
     res.json({
       success: true,
@@ -404,6 +317,90 @@ async function updateMeetingPreference(req, res) {
   }
 }
 
+// Sync Consultation Session and generate/update meeting details and link
+async function syncLeadConsultation(leadId) {
+  try {
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId }
+    });
+    if (!lead || !lead.assignedToId || !lead.meetingPreferredDate) {
+      return;
+    }
+
+    const { getCustomization } = require('./settingsController');
+    const settings = getCustomization();
+    const duration = settings.flowAutomationSettings?.defaultMeetingDuration || 30;
+
+    let consultation = await prisma.consultation.findFirst({
+      where: { leadId: lead.id }
+    });
+
+    const meetingLink = consultation?.meetingLink || ('https://zoom.us/j/' + Math.floor(100000000 + Math.random() * 900000000));
+
+    if (!consultation) {
+      consultation = await prisma.consultation.create({
+        data: {
+          date: lead.meetingPreferredDate,
+          timeSlot: lead.meetingPreferredTime || 'TBD',
+          durationMinutes: Number(duration),
+          status: 'Pending Acceptance',
+          leadId: lead.id,
+          consultantId: lead.assignedToId,
+          internalNotes: lead.meetingNotes || '',
+          meetingLink: meetingLink
+        }
+      });
+      console.log(`Auto-created consultation (ID: ${consultation.id}) for Lead: ${lead.id}`);
+    } else {
+      consultation = await prisma.consultation.update({
+        where: { id: consultation.id },
+        data: {
+          date: lead.meetingPreferredDate,
+          timeSlot: lead.meetingPreferredTime || 'TBD',
+          consultantId: lead.assignedToId,
+          meetingLink: meetingLink
+        }
+      });
+      console.log(`Updated consultation (ID: ${consultation.id}) for Lead: ${lead.id}`);
+    }
+
+    // Send instant confirmation email to the lead
+    const { sendEmail } = require('../services/emailService');
+    if (lead.email) {
+      sendEmail({
+        to: lead.email,
+        subject: 'Spain Visa Eligibility Assessment Scheduled - AAA Visa',
+        html: `
+          <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; color: #2d3748;">
+            <div style="text-align: center; margin-bottom: 24px;">
+              <h2 style="color: #4f46e5; margin: 0;">AAA Business Consultancy</h2>
+              <p style="color: #718096; font-size: 14px; margin: 4px 0 0;">Relocation & Spain Visa Services</p>
+            </div>
+            <h3 style="color: #1a202c; border-bottom: 1px solid #edf2f7; padding-bottom: 10px;">Booking Details 🎉</h3>
+            <p>Hello <strong>${lead.firstName} ${lead.lastName}</strong>,</p>
+            <p>We have scheduled/updated your Free 20-Minute Eligibility Assessment consultation.</p>
+            
+            <div style="background-color: #f7fafc; border-left: 4px solid #4f46e5; padding: 16px; margin: 20px 0; border-radius: 4px;">
+              <h4 style="margin: 0 0 8px; color: #4f46e5;">Appointment Details</h4>
+              <p style="margin: 4px 0;"><strong>Date:</strong> ${lead.meetingPreferredDate}</p>
+              <p style="margin: 4px 0;"><strong>Preferred Time Slot:</strong> ${lead.meetingPreferredTime}</p>
+              <p style="margin: 4px 0;"><strong>Language:</strong> ${lead.meetingPreferredLanguage || lead.preferredLanguage || 'English'}</p>
+              <p style="margin: 4px 0;"><strong>Meeting Link:</strong> <a href="${meetingLink}" style="color: #4f46e5; text-decoration: underline;">Join Zoom Call</a></p>
+            </div>
+            
+            <p>A Spain Visa expert has been assigned to your case and will meet you online at the scheduled time.</p>
+            <p style="font-size: 13px; color: #718096; margin-top: 30px; border-top: 1px solid #edf2f7; padding-top: 10px;">
+              This is an automated notification from AAA Visa CRM. Please do not reply directly to this email.
+            </p>
+          </div>
+        `
+      }).catch(err => console.error('Failed to send confirmation email:', err));
+    }
+  } catch (error) {
+    console.error('Error in syncLeadConsultation:', error);
+  }
+}
+
 module.exports = { 
   getLeads, 
   createLead, 
@@ -412,7 +409,7 @@ module.exports = {
   deleteLead,
   getLeadById, 
   updateLead, 
-  findLeadByEmail, 
+  getPublicLeadDetails, 
   updateMeetingPreference 
 };
 

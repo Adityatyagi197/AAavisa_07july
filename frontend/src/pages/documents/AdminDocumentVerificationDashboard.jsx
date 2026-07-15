@@ -572,12 +572,12 @@ export const AdminDocumentVerificationDashboard = () => {
                 if (tableFilters.assignedConsultantId && c.assignedConsultantId !== tableFilters.assignedConsultantId) return false;
                 return true;
               }).length === 0 && (
-                <tr>
-                  <td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: '#94A3B8', fontWeight: 500 }}>
-                    No clients match the current filters.
-                  </td>
-                </tr>
-              )}
+                  <tr>
+                    <td colSpan={6} style={{ padding: '32px', textAlign: 'center', color: '#94A3B8', fontWeight: 500 }}>
+                      No clients match the current filters.
+                    </td>
+                  </tr>
+                )}
             </tbody>
           </table>
         </Box>

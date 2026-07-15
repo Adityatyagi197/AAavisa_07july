@@ -3,9 +3,21 @@ const zoomService = require('../services/zoomService');
 
 const getConsultations = async (req, res) => {
   try {
+    let whereClause = {};
+    if (req.user.role === 'client') {
+      const lead = await prisma.lead.findUnique({ where: { clientId: req.user.id } });
+      whereClause = {
+        OR: [
+          { leadId: req.user.id },
+          ...(lead ? [{ leadId: lead.id }] : [])
+        ]
+      };
+    }
+
     const consultations = await prisma.consultation.findMany({
+      where: whereClause,
       include: {
-        lead: { select: { firstName: true, lastName: true, email: true } },
+        lead: { select: { firstName: true, lastName: true, email: true, clientId: true } },
         consultant: { select: { fullName: true } }
       },
       orderBy: { createdAt: 'desc' }

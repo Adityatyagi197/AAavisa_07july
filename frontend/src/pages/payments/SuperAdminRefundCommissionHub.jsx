@@ -109,6 +109,7 @@ export const SuperAdminRefundCommissionHub = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['commission-rates'] });
       queryClient.invalidateQueries({ queryKey: ['commission-report'] });
+      queryClient.invalidateQueries({ queryKey: ['agents'] });
       showAlert('Commission rate modified successfully', 'success');
       setRateModalOpen(false);
     }
@@ -134,14 +135,10 @@ export const SuperAdminRefundCommissionHub = () => {
 
   const handleOpenRateModal = (agent) => {
     setSelectedAgentId(agent.id);
-    const existingRate = commissionRates.find(r => r.agentId === agent.id);
-    if (existingRate) {
-      setCommissionType(existingRate.type);
-      setCommissionValue(String(existingRate.value));
-    } else {
-      setCommissionType('10%');
-      setCommissionValue('10');
-    }
+    const existingType = agent.commissionType || '10%';
+    const existingValue = agent.commissionRate !== undefined && agent.commissionRate !== null ? agent.commissionRate : 10;
+    setCommissionType(existingType);
+    setCommissionValue(String(existingValue));
     setRateModalOpen(true);
   };
 
@@ -160,14 +157,14 @@ export const SuperAdminRefundCommissionHub = () => {
       const packagesSold = agentReports.length;
       const totalEarned = agentReports.reduce((sum, r) => sum + r.commissionEarned, 0);
       const totalPaid = agentReports.reduce((sum, r) => sum + r.commissionPaid, 0);
-      const currentRate = commissionRates.find(r => r.agentId === agent.id) || { type: '10%', value: 10 };
+      const currentRate = { type: agent.commissionType || '10%', value: agent.commissionRate || 10 };
 
       return {
         ...agent,
         packagesSold,
         totalEarned,
         totalPaid,
-        structure: `${currentRate.type} (${currentRate.type === 'fixed' ? '€' + currentRate.value : currentRate.value + '%'})`
+        structure: currentRate.type === 'fixed' ? `€${currentRate.value}` : `${currentRate.value}%`
       };
     });
   };

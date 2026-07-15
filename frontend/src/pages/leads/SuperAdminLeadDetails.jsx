@@ -505,7 +505,7 @@ export const SuperAdminLeadDetails = () => {
                       sx={{ fontSize: '0.875rem', py: 0.2 }}
                     >
                       <MenuItem value="">Unassigned</MenuItem>
-                      {consultants.map((c) => (
+                      {consultants.filter(c => c.role === 'consultant').map((c) => (
                         <MenuItem key={c.id} value={c.id}>
                           {c.name}
                         </MenuItem>
@@ -625,7 +625,7 @@ export const SuperAdminLeadDetails = () => {
                             variant="outlined"
                             startIcon={<SendIcon />}
                             onClick={() => {
-                              const link = `${window.location.origin}/#/public/lead-form`;
+                              const link = `${window.location.origin}/#/public/lead-form?id=${lead.id}`;
                               navigator.clipboard.writeText(link);
                               showAlert('Form link copied to clipboard! Send to lead via WhatsApp or Email.', 'success');
                             }}

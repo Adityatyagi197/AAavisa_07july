@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
@@ -37,6 +38,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { SERVICES, PACKAGES } from '../../constants/mockData';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import AiSummaryModal from '../../components/AiSummaryModal';
+import CredentialsModal from '../../components/CredentialsModal';
 
 export const AdminClientDetails = () => {
   const { id } = useParams();
@@ -44,7 +46,78 @@ export const AdminClientDetails = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { showAlert } = useAlert();
-  const { isAdmin, isOperations } = useAuth();
+  const { isAdmin, isOperations, currentUser, hasFeature } = useAuth();
+
+  const [credentialsModalOpen, setCredentialsModalOpen] = useState(false);
+  const [generatedPassword, setGeneratedPassword] = useState('');
+
+  const handleGenerateCredentials = async () => {
+    if (!client) return;
+    try {
+      const res = await dbService.generateClientCredentials(client.id);
+      setGeneratedPassword(res.password);
+      setCredentialsModalOpen(true);
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+    } catch (error) {
+      console.error('Error generating credentials', error);
+      showAlert('Failed to generate credentials. Ensure backend is running.', 'error');
+    }
+  };
+
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
+  const canViewDeps = hasFeature(customizationSettings, 'canViewDependents');
+
+  const roleConfig = (customizationSettings?.[currentUser?.id] || customizationSettings?.[currentUser?.role]) || {};
+  const clientsActions = roleConfig.actions?.clients || { 
+    canChangeVisaStatus: true, 
+    canVerifyDocs: true, 
+    canDelete: true,
+    canManageCredentials: true,
+    canManageDependents: true,
+    canAssignCaseManager: true,
+    canSendMessages: true
+  };
+
+  const { data: clients = [], isLoading } = useQuery({
+    queryKey: ['clients'],
+    queryFn: dbService.getClients
+  });
+
+  const client = clients.find((c) => c.id === id);
+
+  const { data: payments = [] } = useQuery({
+    queryKey: ['payments'],
+    queryFn: dbService.getPayments
+  });
+
+  const { data: documents = [] } = useQuery({
+    queryKey: ['documents'],
+    queryFn: dbService.getDocuments
+  });
+
+  const { data: consultations = [] } = useQuery({
+    queryKey: ['consultations'],
+    queryFn: dbService.getConsultations
+  });
+
+  const { data: consultants = [] } = useQuery({
+    queryKey: ['consultants'],
+    queryFn: dbService.getConsultants
+  });
+
+  const { data: leads = [] } = useQuery({
+    queryKey: ['leads'],
+    queryFn: dbService.getLeads
+  });
+
+  const { data: leadStages = [] } = useQuery({
+    queryKey: ['lead-stages'],
+    queryFn: dbService.getLeadStages
+  });
 
   const queryParams = new URLSearchParams(location.search);
   const tabParam = queryParams.get('tab');
@@ -68,41 +141,6 @@ export const AdminClientDetails = () => {
   const [appealDeadline, setAppealDeadline] = useState('2026-07-28');
   const [refusalReason, setRefusalReason] = useState('Missing translated criminal records');
   const [assignedLawyer, setAssignedLawyer] = useState('c1');
-
-  // Fetch client details
-  const { data: clients = [], isLoading } = useQuery({
-    queryKey: ['clients'],
-    queryFn: dbService.getClients });
-
-  const client = clients.find((c) => c.id === id);
-
-  // Fetch payments, documents, consultations
-  const { data: payments = [] } = useQuery({
-    queryKey: ['payments'],
-    queryFn: dbService.getPayments });
-
-  const { data: documents = [] } = useQuery({
-    queryKey: ['documents'],
-    queryFn: dbService.getDocuments });
-
-  const { data: consultations = [] } = useQuery({
-    queryKey: ['consultations'],
-    queryFn: dbService.getConsultations });
-
-  // Fetch Consultants dynamically
-  const { data: consultants = [] } = useQuery({
-    queryKey: ['consultants'],
-    queryFn: dbService.getConsultants });
-
-  // Fetch Leads dynamically
-  const { data: leads = [] } = useQuery({
-    queryKey: ['leads'],
-    queryFn: dbService.getLeads });
-
-  // Fetch dynamic lifecycle stages
-  const { data: leadStages = [] } = useQuery({
-    queryKey: ['lead-stages'],
-    queryFn: dbService.getLeadStages });
 
   // Mutations
   const updateStatusMutation = useMutation({
@@ -205,21 +243,21 @@ export const AdminClientDetails = () => {
             >
               AI Summary
             </Button>
-            <Button
-              variant="outlined"
-              color="secondary"
-              onClick={() => {
-                const link = `${window.location.origin}/#/public/intake/client/${client.id}`;
-                navigator.clipboard.writeText(link);
-                showAlert('Client document upload link copied!', 'success');
-              }}
-              sx={{ textTransform: 'none' }}
-            >
-              Copy Upload Link
-            </Button>
-            <Button variant="contained" onClick={handleOpenStatusModal} sx={{ textTransform: 'none' }}>
-              Update Progression Status
-            </Button>
+            {clientsActions.canManageCredentials !== false && (
+              <Button
+                variant={client?.hasCredentials ? "outlined" : "contained"}
+                color={client?.hasCredentials ? "primary" : "error"}
+                onClick={handleGenerateCredentials}
+                sx={{ textTransform: 'none' }}
+              >
+                {client?.hasCredentials ? "View/Reset Credentials" : "Generate Credentials"}
+              </Button>
+            )}
+            {clientsActions.canChangeVisaStatus !== false && (
+              <Button variant="contained" onClick={handleOpenStatusModal} sx={{ textTransform: 'none' }}>
+                Update Progression Status
+              </Button>
+            )}
           </Stack>
         }
       />
@@ -306,6 +344,9 @@ export const AdminClientDetails = () => {
               <Tab label="Documents Upload" sx={{ fontWeight: 600 }} />
               <Tab label="Payments & Invoices" sx={{ fontWeight: 600 }} />
               <Tab label="Meetings / Consultations" sx={{ fontWeight: 600 }} />
+              {(canViewDeps && clientsActions.canManageDependents !== false) && (
+                <Tab label="Family & Dependents" sx={{ fontWeight: 600 }} />
+              )}
             </Tabs>
 
             <Box sx={{ p: 3 }}>
@@ -668,6 +709,70 @@ export const AdminClientDetails = () => {
                   )}
                 </Box>
               )}
+
+              {activeTab === 4 && canViewDeps && clientsActions.canManageDependents !== false && (
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+                    👨‍👩‍👧‍👦 Family Members & Dependents Details
+                  </Typography>
+                  {!client.dependentsDetails || !Array.isArray(client.dependentsDetails) || client.dependentsDetails.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      No dependents or family details recorded for this client.
+                    </Typography>
+                  ) : (
+                    <Box className="grid grid-cols-12 gap-3">
+                      {client.dependentsDetails.map((dep, idx) => {
+                        const depDocs = documents.filter(d => d.belongsTo === `${dep.firstName} ${dep.lastName}` || d.belongsTo === dep.firstName);
+                        const totalUploaded = depDocs.length;
+                        
+                        return (
+                          <Box key={idx} className="col-span-12 sm:col-span-6">
+                            <Paper sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2.5, boxShadow: 'none' }}>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span>{dep.firstName} {dep.lastName}</span>
+                                <Chip label={dep.relation} size="small" color="secondary" sx={{ fontSize: '0.7rem', height: 20 }} />
+                              </Typography>
+                              <Divider sx={{ my: 1.5 }} />
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 2 }}>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <Typography variant="caption" color="text.secondary">Nationality</Typography>
+                                  <Typography variant="caption" sx={{ fontWeight: 600 }}>{dep.nationality || 'N/A'}</Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <Typography variant="caption" color="text.secondary">Passport Number</Typography>
+                                  <Typography variant="caption" sx={{ fontWeight: 600 }}>{dep.passportNumber || 'N/A'}</Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <Typography variant="caption" color="text.secondary">Uploaded Documents</Typography>
+                                  <Typography variant="caption" sx={{ fontWeight: 600 }}>{totalUploaded} Document(s)</Typography>
+                                </Box>
+                              </Box>
+                              
+                              {totalUploaded > 0 ? (
+                                <Box sx={{ bgcolor: 'background.neutral', p: 1.5, borderRadius: 2 }}>
+                                  <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 1 }}>Documents list:</Typography>
+                                  {depDocs.map((d) => (
+                                    <Box key={d.id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                                      <Typography variant="caption" color="text.secondary" sx={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '70%' }}>
+                                        📄 {d.name}
+                                      </Typography>
+                                      <Chip label={d.status} size="small" color={d.status === 'VERIFIED' ? 'success' : 'warning'} sx={{ height: 16, fontSize: '0.6rem' }} />
+                                    </Box>
+                                  ))}
+                                </Box>
+                              ) : (
+                                <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                                  No documents uploaded yet.
+                                </Typography>
+                              )}
+                            </Paper>
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  )}
+                </Box>
+              )}
             </Box>
           </AppCard>
         </Box>
@@ -725,6 +830,12 @@ export const AdminClientDetails = () => {
         </Box>
       </AppModal>
       <AiSummaryModal open={aiSummaryOpen} onClose={() => setAiSummaryOpen(false)} clientData={client} isLead={false} />
+      <CredentialsModal
+        open={credentialsModalOpen}
+        onClose={() => setCredentialsModalOpen(false)}
+        client={client}
+        password={generatedPassword}
+      />
 
       {/* MODAL: Refusal Action Setup */}
       <AppModal

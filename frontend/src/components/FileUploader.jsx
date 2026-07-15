@@ -30,10 +30,17 @@ const autoDetectCategory = (filename) => {
   return 'Others';
 };
 
-export const FileUploader = ({ onUpload, clientId, clientName }) => {
+export const FileUploader = ({ onUpload, clientId, clientName, categories }) => {
+  const selectCategories = Array.isArray(categories) && categories.length > 0 ? categories : CATEGORIES;
   const [file, setFile] = useState(null);
-  const [category, setCategory] = useState('Passport');
+  const [category, setCategory] = useState(selectCategories[0] || 'Passport');
   const { showAlert } = useAlert();
+
+  React.useEffect(() => {
+    if (selectCategories.length > 0) {
+      setCategory(selectCategories[0]);
+    }
+  }, [categories]);
 
   const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
     if (rejectedFiles && rejectedFiles.length > 0) {
@@ -44,11 +51,14 @@ export const FileUploader = ({ onUpload, clientId, clientName }) => {
     if (acceptedFiles && acceptedFiles.length > 0) {
       const selectedFile = acceptedFiles[0];
       setFile(selectedFile);
-      const detected = autoDetectCategory(selectedFile.name);
+      // Try to match file name to one of selectCategories
+      const lowerFile = selectedFile.name.toLowerCase();
+      const matched = selectCategories.find(c => lowerFile.includes(c.toLowerCase().split(' ')[0]));
+      const detected = matched || selectCategories[0] || 'Passport';
       setCategory(detected);
-      showAlert(`File "${selectedFile.name}" selected. Category auto-set to "${detected}". Click Upload to submit.`, 'info');
+      showAlert(`File "${selectedFile.name}" selected. Category set to "${detected}". Click Upload to submit.`, 'info');
     }
-  }, [showAlert]);
+  }, [showAlert, selectCategories]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -92,7 +102,7 @@ export const FileUploader = ({ onUpload, clientId, clientName }) => {
           label="Document Category"
           onChange={(e) => setCategory(e.target.value)}
         >
-          {CATEGORIES.map((cat) => (
+          {selectCategories.map((cat) => (
             <MenuItem key={cat} value={cat}>
               {cat}
             </MenuItem>

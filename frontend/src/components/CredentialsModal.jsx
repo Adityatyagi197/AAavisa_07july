@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -17,18 +17,28 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import KeyIcon from '@mui/icons-material/Key';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import { useAlert } from '../contexts/AlertContext';
+import { dbService } from '../services/dbService';
 
 export const CredentialsModal = ({ open, onClose, client, password }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [copiedField, setCopiedField] = useState(null);
+  const [localPassword, setLocalPassword] = useState('');
+  const [saving, setSaving] = useState(false);
+  const { showAlert } = useAlert();
+
+  useEffect(() => {
+    setLocalPassword(password || '');
+  }, [password, open]);
 
   if (!client) return null;
 
   const portalUrl = `${window.location.origin}/#/portal/login`;
-  const username = client.id;
+  const username = client.email || client.id;
   const clientName = `${client.firstName} ${client.lastName}`;
 
   const triggerCopy = (text, fieldName) => {
+    if (!text) return;
     navigator.clipboard.writeText(text);
     setCopiedField(fieldName);
     setTimeout(() => {
@@ -36,12 +46,30 @@ export const CredentialsModal = ({ open, onClose, client, password }) => {
     }, 2000);
   };
 
+  const handleSavePassword = async () => {
+    if (!localPassword || localPassword.length < 6) {
+      showAlert('Password must be at least 6 characters long', 'error');
+      return;
+    }
+    setSaving(true);
+    try {
+      await dbService.changeClientPassword(client.id, localPassword);
+      showAlert('Portal credentials updated successfully!', 'success');
+      onClose();
+    } catch (error) {
+      console.error('Failed to update password:', error);
+      showAlert('Failed to save portal credentials.', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const copyAllText = `AAA Immigration Portal Credentials:
 ---------------------------------------------
 Client Name: ${clientName}
 Portal URL : ${portalUrl}
 Username   : ${username}
-Password   : ${password}
+Password   : ${localPassword}
 ---------------------------------------------
 Please login and change your password immediately.`;
 
@@ -155,9 +183,10 @@ Please login and change your password immediately.`;
             fullWidth
             size="small"
             type={showPassword ? 'text' : 'password'}
-            value={password}
+            value={localPassword}
+            onChange={(e) => setLocalPassword(e.target.value)}
+            placeholder="Type a secure temporary password"
             InputProps={{
-              readOnly: true,
               startAdornment: (
                 <InputAdornment position="start">
                   <KeyIcon sx={{ color: 'text.secondary', fontSize: 18 }} />
@@ -168,7 +197,7 @@ Please login and change your password immediately.`;
                   <IconButton onClick={() => setShowPassword(!showPassword)} size="small" sx={{ mr: 0.5 }}>
                     {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
                   </IconButton>
-                  <IconButton onClick={() => triggerCopy(password, 'password')} size="small">
+                  <IconButton onClick={() => triggerCopy(localPassword, 'password')} size="small">
                     {copiedField === 'password' ? <CheckIcon color="success" /> : <ContentCopyIcon />}
                   </IconButton>
                 </InputAdornment>
@@ -179,6 +208,16 @@ Please login and change your password immediately.`;
       </DialogContent>
 
       <DialogActions sx={{ p: 2, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1 }}>
+        <Button
+          fullWidth
+          variant="contained"
+          color="success"
+          onClick={handleSavePassword}
+          disabled={saving || !localPassword}
+          sx={{ textTransform: 'none', fontWeight: 700, py: 1, borderRadius: 2 }}
+        >
+          {saving ? 'Saving...' : 'Save Credentials'}
+        </Button>
         <Button
           fullWidth
           variant="contained"

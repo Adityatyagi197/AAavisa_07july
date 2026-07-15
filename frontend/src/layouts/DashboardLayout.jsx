@@ -617,6 +617,11 @@ export const DashboardLayout = () => {
   const subItems = ALL_SUB_ITEMS.filter(item => connectedPlatforms[item.channel]);
 
   const handleSocialClick = () => {
+    if (subItems.length === 0) {
+      showAlert('No social media platforms connected. Please connect a platform in the Integrations tab.', 'warning');
+      return;
+    }
+
     if (!sidebarOpen) {
       setSidebarOpen(true);
       setSocialMenuOpen(true);

@@ -111,7 +111,11 @@ export const Agents = () => {
         setActiveAgentId(newAgent.id);
       }
     },
-    onError: () => showAlert('Error registering agent.', 'error') });
+    onError: (error) => {
+      const msg = error.response?.data?.message || 'Error registering agent.';
+      showAlert(msg, 'error');
+    }
+  });
 
   const deleteAgentMutation = useMutation({
     mutationFn: (id) => dbService.deleteAgent(id),

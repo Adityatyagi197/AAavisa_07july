@@ -138,7 +138,15 @@ const ALL_CLIENT_COLUMNS = [
 
 const DEFAULT_ACTIONS = {
   leads: { canCreate: true, canDelete: true, canAssignAgent: true },
-  clients: { canChangeVisaStatus: true, canVerifyDocs: true, canDelete: true },
+  clients: { 
+    canChangeVisaStatus: true, 
+    canVerifyDocs: true, 
+    canDelete: true,
+    canManageCredentials: true,
+    canManageDependents: true,
+    canAssignCaseManager: true,
+    canSendMessages: true
+  },
   calendar: { canAssignAgent: true, canScheduleSession: true },
   finance: { canGeneratePaymentLink: true, canUpdatePaymentStatus: true },
   marketing: { canUpdateMarketingSpend: true },
@@ -156,7 +164,7 @@ const DEFAULT_CUSTOMIZATION = {
     menus: ['Dashboard', 'Agents', 'Active Cases', 'Doc Verification', 'Finance', 'Closed Cases', 'Clients', 'Leads', 'Social Inbox', 'Marketing', 'Calendar', 'All Agents Performance', 'Integrations'],
     cards: ['Total Clients', 'Today\'s Clients', 'Total Consultations', 'Today\'s Consultations', 'Upcoming Meetings', 'Pending Payments', 'Total Revenue', 'Active Cases', 'Completed Cases', 'Lost Consultations', 'Revenue Today', 'Outstanding Revenue', 'Refunded (50% Rejections)'],
     viewOnlyMenus: [],
-    features: ['canEditTranslationRates'],
+    features: ['canEditTranslationRates', 'canViewDependents'],
     actions: JSON.parse(JSON.stringify(DEFAULT_ACTIONS)),
     columns: JSON.parse(JSON.stringify(DEFAULT_COLUMNS))
   },
@@ -164,7 +172,7 @@ const DEFAULT_CUSTOMIZATION = {
     menus: ['Dashboard', 'Agents', 'Active Cases', 'Doc Verification', 'Closed Cases', 'Clients', 'Leads', 'Social Inbox', 'Marketing', 'Calendar', 'All Agents Performance'],
     cards: ['Total Clients', 'Today\'s Clients', 'Total Consultations', 'Today\'s Consultations', 'Upcoming Meetings', 'Active Cases', 'Completed Cases'],
     viewOnlyMenus: [],
-    features: [],
+    features: ['canViewDependents'],
     actions: JSON.parse(JSON.stringify(DEFAULT_ACTIONS)),
     columns: JSON.parse(JSON.stringify(DEFAULT_COLUMNS))
   },
@@ -180,7 +188,7 @@ const DEFAULT_CUSTOMIZATION = {
     menus: ['Dashboard', 'Clients', 'Leads', 'Social Inbox', 'Calendar'],
     cards: ['Upcoming Meetings', 'Active Cases'],
     viewOnlyMenus: [],
-    features: [],
+    features: ['canViewDependents'],
     actions: JSON.parse(JSON.stringify(DEFAULT_ACTIONS)),
     columns: JSON.parse(JSON.stringify(DEFAULT_COLUMNS))
   },
@@ -229,10 +237,20 @@ export const SuperAdminCustomization = () => {
     { id: 'marketing', label: 'Marketing Executive' }
   ];
 
-  // Top level tabs: 0 = Role Permissions, 1 = Stage Manager
+  // Top level tabs: 0 = Role Permissions, 1 = Stage Manager, 2 = Visa Document Checklists
   const [topTab, setTopTab] = useState(0);
   const [activeTab, setActiveTab] = useState(0);
   const currentRoleId = dynamicRoles[activeTab]?.id || 'admin';
+
+  const [selectedVisaId, setSelectedVisaId] = useState('dnv');
+  const [newDocText, setNewDocText] = useState({
+    main: '',
+    spouse: '',
+    minorChild: '',
+    adultChild: '',
+    parent: '',
+    other: ''
+  });
 
   // Target customization state (All Users vs Individual User)
   const [targetType, setTargetType] = useState('role'); // 'role' or 'individual'
@@ -416,6 +434,54 @@ export const SuperAdminCustomization = () => {
     saveSettingsMutation.mutate(localSettings);
   };
 
+  const handleAddDoc = (category) => {
+    const docName = newDocText[category]?.trim();
+    if (!docName) return;
+
+    const checklists = localSettings.documentChecklists || {};
+    const serviceChecklist = checklists[selectedVisaId] || {};
+    const categoryList = serviceChecklist[category] || [];
+
+    if (categoryList.includes(docName)) {
+      showAlert('Document already exists in this category', 'warning');
+      return;
+    }
+
+    const updatedChecklist = {
+      ...checklists,
+      [selectedVisaId]: {
+        ...serviceChecklist,
+        [category]: [...categoryList, docName]
+      }
+    };
+
+    setLocalSettings({
+      ...localSettings,
+      documentChecklists: updatedChecklist
+    });
+
+    setNewDocText(prev => ({ ...prev, [category]: '' }));
+  };
+
+  const handleRemoveDoc = (category, docName) => {
+    const checklists = localSettings.documentChecklists || {};
+    const serviceChecklist = checklists[selectedVisaId] || {};
+    const categoryList = serviceChecklist[category] || [];
+
+    const updatedChecklist = {
+      ...checklists,
+      [selectedVisaId]: {
+        ...serviceChecklist,
+        [category]: categoryList.filter(d => d !== docName)
+      }
+    };
+
+    setLocalSettings({
+      ...localSettings,
+      documentChecklists: updatedChecklist
+    });
+  };
+
   const handleResetDefaults = () => {
     if (window.confirm("Are you sure you want to reset ALL roles and settings to factory defaults?")) {
       setLocalSettings(DEFAULT_CUSTOMIZATION);
@@ -438,6 +504,16 @@ export const SuperAdminCustomization = () => {
         viewOnlyMenus: updatedViewOnly
       }
     });
+  };
+
+  const handleUpdateFlowSetting = (key, value) => {
+    setLocalSettings(prev => ({
+      ...prev,
+      flowAutomationSettings: {
+        ...(prev.flowAutomationSettings || {}),
+        [key]: value
+      }
+    }));
   };
 
   const handleResetCurrentRole = () => {
@@ -726,6 +802,46 @@ export const SuperAdminCustomization = () => {
                 }
                 label={<Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>Delete Clients</Typography>}
               />
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={roleActions.clients?.canManageCredentials !== false}
+                    onChange={() => handleToggleAction('clients', 'canManageCredentials')}
+                  />
+                }
+                label={<Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>Manage Credentials</Typography>}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={roleActions.clients?.canManageDependents !== false}
+                    onChange={() => handleToggleAction('clients', 'canManageDependents')}
+                  />
+                }
+                label={<Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>Manage Dependents</Typography>}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={roleActions.clients?.canAssignCaseManager !== false}
+                    onChange={() => handleToggleAction('clients', 'canAssignCaseManager')}
+                  />
+                }
+                label={<Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>Assign Case Manager</Typography>}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={roleActions.clients?.canSendMessages !== false}
+                    onChange={() => handleToggleAction('clients', 'canSendMessages')}
+                  />
+                }
+                label={<Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>Send Client Messages</Typography>}
+              />
             </Box>
 
             <Divider sx={{ my: 1 }} />
@@ -906,6 +1022,8 @@ export const SuperAdminCustomization = () => {
           >
             <Tab label="👤 Role Permissions" sx={{ fontWeight: 800, px: 3, py: 2 }} />
             <Tab label="⚡ Lifecycle Stages Manager" sx={{ fontWeight: 800, px: 3, py: 2 }} />
+            <Tab label="📂 Visa Document Checklists" sx={{ fontWeight: 800, px: 3, py: 2 }} />
+            <Tab label="⚙️ Flow Settings" sx={{ fontWeight: 800, px: 3, py: 2 }} />
           </Tabs>
         </Paper>
       </Box>
@@ -1134,6 +1252,23 @@ export const SuperAdminCustomization = () => {
                         <Typography variant="caption" color="text.secondary">Allows this role to manually modify the per-word rates of English, French, Arabic, Spanish sworn translations in the general settings.</Typography>
                       </Box>
                     }
+                    sx={{ mb: 2.5 }}
+                  />
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={roleFeatures.includes('canViewDependents')}
+                        onChange={() => handleToggleFeature('canViewDependents')}
+                        color="secondary"
+                      />
+                    }
+                    label={
+                      <Box>
+                        <Typography sx={{ fontSize: '0.9rem', fontWeight: 700 }}>Can View Dependents & Family Data</Typography>
+                        <Typography variant="caption" color="text.secondary">Allows users under this role to view the client's dependents details and document verification cards.</Typography>
+                      </Box>
+                    }
+                    sx={{ mb: 1.5 }}
                   />
                 </FormGroup>
               </Paper>
@@ -1306,6 +1441,266 @@ export const SuperAdminCustomization = () => {
                 </Box>
               );
             })}
+          </Box>
+        </Box>
+      )}
+
+      {/* ─── TAB 2: Visa Document Checklists ─── */}
+      {topTab === 2 && (
+        <Box>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', gap: 2, mb: 3 }}>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 800, mb: 0.5 }}>
+                📂 Visa Document Checklists Editor
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Configure required documents checklist globally by visa type. These rules will apply dynamically in the customer portals.
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1.5 }}>
+              <Button
+                variant="contained"
+                color="secondary"
+                startIcon={<SaveIcon />}
+                onClick={handleSave}
+                sx={{ fontWeight: 700, px: 3, borderRadius: 2 }}
+                disabled={saveSettingsMutation.isPending}
+              >
+                {saveSettingsMutation.isPending ? 'Saving...' : 'Save All Checklists'}
+              </Button>
+            </Box>
+          </Box>
+
+          <Paper sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none', mb: 4 }}>
+            <FormControl size="small" sx={{ minWidth: 280, mb: 1 }}>
+              <InputLabel id="visa-select-label">Select Visa Program</InputLabel>
+              <Select
+                labelId="visa-select-label"
+                value={selectedVisaId}
+                label="Select Visa Program"
+                onChange={(e) => setSelectedVisaId(e.target.value)}
+                sx={{ borderRadius: 2 }}
+              >
+                <MenuItem value="dnv">Digital Nomad Visa (DNV)</MenuItem>
+                <MenuItem value="nlv">Non-Lucrative Visa (NLV)</MenuItem>
+                <MenuItem value="study">Study Visa</MenuItem>
+                <MenuItem value="property">Golden Visa</MenuItem>
+                <MenuItem value="family">Partner & Family Reunification</MenuItem>
+              </Select>
+            </FormControl>
+          </Paper>
+
+          <Box className="grid grid-cols-12 gap-3">
+            {[
+              { key: 'main', label: '👤 Main Applicant Requirements', color: '#3B82F6' },
+              { key: 'spouse', label: '👩 Spouse Requirements', color: '#EC4899' },
+              { key: 'minorChild', label: '👶 Minor Child Requirements (< 18)', color: '#10B981' },
+              { key: 'adultChild', label: '👦 Adult Child Requirements (>= 18)', color: '#8B5CF6' },
+              { key: 'parent', label: '🧓 Dependent Parent Requirements', color: '#F59E0B' },
+              { key: 'other', label: '👥 Other Dependents Requirements', color: '#6B7280' }
+            ].map((cat) => {
+              const checklists = localSettings.documentChecklists || {};
+              const serviceChecklist = checklists[selectedVisaId] || {};
+              const docList = serviceChecklist[cat.key] || [];
+
+              return (
+                <Box className="col-span-12 md:col-span-6" key={cat.key}>
+                  <Paper sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 800, color: cat.color, mb: 1.5 }}>
+                        {cat.label}
+                      </Typography>
+                      <Divider sx={{ mb: 2 }} />
+
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
+                        {docList.length === 0 ? (
+                          <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                            No documents defined for this category.
+                          </Typography>
+                        ) : (
+                          docList.map((doc) => (
+                            <Chip
+                              key={doc}
+                              label={doc}
+                              onDelete={() => handleRemoveDoc(cat.key, doc)}
+                              sx={{ 
+                                fontWeight: 600,
+                                borderRadius: 1.5,
+                                border: '1px solid rgba(0,0,0,0.06)'
+                              }}
+                            />
+                          ))
+                        )}
+                      </Box>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', gap: 1, mt: 'auto' }}>
+                      <TextField
+                        size="small"
+                        fullWidth
+                        placeholder="Add new document name"
+                        value={newDocText[cat.key] || ''}
+                        onChange={(e) => setNewDocText(prev => ({ ...prev, [cat.key]: e.target.value }))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddDoc(cat.key);
+                          }
+                        }}
+                      />
+                      <Button
+                        variant="contained"
+                        onClick={() => handleAddDoc(cat.key)}
+                        sx={{ minWidth: 80, fontWeight: 700, borderRadius: 2 }}
+                      >
+                        Add
+                      </Button>
+                    </Box>
+                  </Paper>
+                </Box>
+              );
+            })}
+          </Box>
+        </Box>
+      )}
+
+      {/* ─── TAB 3: Flow Automation Settings ─── */}
+      {topTab === 3 && (
+        <Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h5" sx={{ fontWeight: 800, color: '#051A3B', fontFamily: 'Outfit, sans-serif' }}>
+              ⚙️ Flow Automation & Booking Settings
+            </Typography>
+            <Button
+              variant="contained"
+              color="secondary"
+              startIcon={<SaveIcon />}
+              onClick={handleSave}
+              sx={{ fontWeight: 700, borderRadius: 2.5, px: 3, py: 1 }}
+            >
+              Save Flow Settings
+            </Button>
+          </Box>
+
+          <Box className="grid grid-cols-12 gap-3" sx={{ mt: 2 }}>
+            {/* Column 1: Meeting & Booking limits */}
+            <Box className="col-span-12 md:col-span-6" sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {/* Meeting Scheduler card */}
+              <Paper sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 3, boxShadow: 'none' }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#051A3B', mb: 2, display: 'flex', alignItems: 'center', gap: 1, fontFamily: 'Outfit, sans-serif' }}>
+                  📅 Meeting Scheduler Settings
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                  <TextField
+                    type="number"
+                    label="Default Meeting Duration (Minutes)"
+                    value={localSettings?.flowAutomationSettings?.defaultMeetingDuration || 30}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      handleUpdateFlowSetting('defaultMeetingDuration', isNaN(val) ? '' : val);
+                    }}
+                    fullWidth
+                    size="small"
+                  />
+                  <TextField
+                    type="number"
+                    label="Join Grace Period / Booking Expiry (Minutes)"
+                    value={localSettings?.flowAutomationSettings?.joinGracePeriod || 10}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      handleUpdateFlowSetting('joinGracePeriod', isNaN(val) ? '' : val);
+                    }}
+                    fullWidth
+                    size="small"
+                    helperText="Grace period allocated to join zoom calls or lock timeslots."
+                  />
+                </Box>
+              </Paper>
+
+              {/* Age Limits and dependency card */}
+              <Paper sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 3, boxShadow: 'none' }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#051A3B', mb: 2, display: 'flex', alignItems: 'center', gap: 1, fontFamily: 'Outfit, sans-serif' }}>
+                  👶 Dependent Classification Rules
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+                  <TextField
+                    type="number"
+                    label="Adult Dependent Age Threshold"
+                    value={localSettings?.flowAutomationSettings?.adultAgeThreshold || 18}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value, 10);
+                      handleUpdateFlowSetting('adultAgeThreshold', isNaN(val) ? '' : val);
+                    }}
+                    fullWidth
+                    size="small"
+                    helperText="Dependents under this age are classified as minorChild, otherwise adultChild."
+                  />
+                </Box>
+              </Paper>
+
+              {/* Allowed booking hours card */}
+              <Paper sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 3, boxShadow: 'none' }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#051A3B', mb: 2, display: 'flex', alignItems: 'center', gap: 1, fontFamily: 'Outfit, sans-serif' }}>
+                  🕒 Allowed Booking Windows (Time Picker Bounds)
+                </Typography>
+                <Box className="grid grid-cols-12 gap-2">
+                  <Box className="col-span-6">
+                    <TextField
+                      type="time"
+                      label="Booking Start Time"
+                      value={localSettings?.flowAutomationSettings?.bookingAllowedStart || '09:00'}
+                      onChange={(e) => handleUpdateFlowSetting('bookingAllowedStart', e.target.value)}
+                      fullWidth
+                      size="small"
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Box>
+                  <Box className="col-span-6">
+                    <TextField
+                      type="time"
+                      label="Booking End Time"
+                      value={localSettings?.flowAutomationSettings?.bookingAllowedEnd || '18:00'}
+                      onChange={(e) => handleUpdateFlowSetting('bookingAllowedEnd', e.target.value)}
+                      fullWidth
+                      size="small"
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Box>
+                </Box>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
+                  Restricts clients from scheduling assessments outside of these business hours in the self-fill booking forms.
+                </Typography>
+              </Paper>
+            </Box>
+
+            {/* Column 2: Welcome email editor */}
+            <Box className="col-span-12 md:col-span-6">
+              <Paper sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 3, boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#051A3B', mb: 2, display: 'flex', alignItems: 'center', gap: 1, fontFamily: 'Outfit, sans-serif' }}>
+                  ✉️ Onboarding Welcome Email Customization
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, flex: 1 }}>
+                  <TextField
+                    label="Welcome Email Subject"
+                    value={localSettings?.flowAutomationSettings?.welcomeEmailSubject || ''}
+                    onChange={(e) => handleUpdateFlowSetting('welcomeEmailSubject', e.target.value)}
+                    fullWidth
+                    size="small"
+                  />
+                  <TextField
+                    label="Welcome Email Template (HTML format)"
+                    value={localSettings?.flowAutomationSettings?.welcomeEmailTemplate || ''}
+                    onChange={(e) => handleUpdateFlowSetting('welcomeEmailTemplate', e.target.value)}
+                    fullWidth
+                    multiline
+                    rows={20}
+                    size="small"
+                    sx={{ flex: 1, '& .MuiInputBase-root': { height: '100%' } }}
+                    helperText="Supported placeholders: {client_name}, {portal_url}, {username}, {temp_password}"
+                  />
+                </Box>
+              </Paper>
+            </Box>
           </Box>
         </Box>
       )}

@@ -642,6 +642,7 @@ export const SuperAdminClientList = () => {
                     {...register('assignedConsultantId')}
                     value={watchConsultantId || ''}
                     label="Assigned Agent"
+                    disabled={clientsActions.canAssignCaseManager === false}
                   >
                     {consultants.map((c) => (
                       <MenuItem key={c.id} value={c.id}>

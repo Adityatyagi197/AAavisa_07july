@@ -285,6 +285,11 @@ export const dbService = {
     const res = await apiClient.post('/auth/login', { email, password });
     return res.data;
   },
+  // Verify stored JWT token is still valid against backend
+  verifyToken: async () => {
+    const res = await apiClient.get('/auth/me');
+    return res.data;
+  },
   clientLogin: async (clientId, password) => {
     const res = await apiClient.post('/clients/login', { clientId, password });
     return res.data;
