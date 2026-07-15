@@ -310,7 +310,7 @@ const navigate = useNavigate();
               disabled={isConsultant}
             >
               <MenuItem value="">Show All Experts</MenuItem>
-              {agents.map((c) => (
+              {agents.filter(a => a.role === 'consultant').map((c) => (
                 <MenuItem key={c.id} value={c.id}>
                   {c.name}
                 </MenuItem>
@@ -559,7 +559,7 @@ const navigate = useNavigate();
               onChange={(e) => setAgentId(e.target.value)}
               label="Select Agent Host"
             >
-              {agents.map((c) => (
+              {agents.filter(a => a.role === 'consultant').map((c) => (
                 <MenuItem key={c.id} value={c.id}>
                   {c.name}
                 </MenuItem>

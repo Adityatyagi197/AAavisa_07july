@@ -1,209 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { dbService } from '../../services/dbService';
 import Box from '@mui/material/Box';
+
+const FALLBACK_DATE = '2026-07-14';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
-import MenuItem from '@mui/material/MenuItem';
 import Divider from '@mui/material/Divider';
 import CircularProgress from '@mui/material/CircularProgress';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
-import Tooltip from '@mui/material/Tooltip';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
-import IconButton from '@mui/material/IconButton';
 import PageHeader from '../../components/PageHeader';
 import FilterPanel from '../../components/FilterPanel';
 import { useAlert } from '../../contexts/AlertContext';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { SERVICES } from '../../constants/mockData';
+import CredentialsModal from '../../components/CredentialsModal';
 
 // Icons
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import ErrorIcon from '@mui/icons-material/Error';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import StampIcon from '@mui/icons-material/Verified';
-
-const renderMockPDFContent = (doc, client) => {
-  if (!doc) return null;
-  const category = (doc.category || '').toLowerCase();
-  const docName = doc.name || doc.fileName || 'document.pdf';
-  const clientName = client ? `${client.firstName} ${client.lastName}` : 'Client Name';
-
-  if (category.includes('passport')) {
-    return (
-      <Box sx={{ border: '2.5px solid #64748B', p: 3, borderRadius: 2.5, bgcolor: '#FFFDF5', fontFamily: 'Courier, monospace', color: '#1E293B', minHeight: 320 }}>
-        <Typography variant="subtitle2" align="center" sx={{ fontWeight: 900, borderBottom: '1px solid #1E293B', pb: 1, mb: 2, fontSize: '0.85rem' }}>
-          🛂 OFFICIAL PASSPORT DOCUMENT (SIMULATED COPY)
-        </Typography>
-        <Box className="grid grid-cols-12 gap-2">
-          <Box className="col-span-4">
-            <Box sx={{ width: 110, height: 130, bgcolor: '#E2E8F0', border: '1px solid #94A3B8', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: 1.5 }}>
-              <Box sx={{ width: 48, height: 48, borderRadius: '50%', bgcolor: '#94A3B8', mb: 1 }} />
-              <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem' }}>[BIO PHOTO]</Typography>
-            </Box>
-          </Box>
-          <Box className="col-span-8" sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-            <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Type / Tipo: <strong>P</strong></Typography>
-            <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Country / País: <strong>ESP</strong></Typography>
-            <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Passport No / Pasaporte: <strong>{client?.passportNumber || 'G9023812'}</strong></Typography>
-            <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Surname / Apellidos: <strong>{client?.lastName?.toUpperCase() || 'SMITH'}</strong></Typography>
-            <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Given Names / Nombres: <strong>{client?.firstName?.toUpperCase() || 'JOHN'}</strong></Typography>
-            <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Nationality / Nacionalidad: <strong>{client?.nationality?.toUpperCase() || 'BRITISH'}</strong></Typography>
-            <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Date of Birth / Fecha Nacimiento: <strong>{client?.dateOfBirth || '14 DEC 1988'}</strong></Typography>
-            <Typography variant="caption" sx={{ fontSize: '0.7rem' }}>Sex / Sexo: <strong>M</strong></Typography>
-          </Box>
-        </Box>
-        <Box sx={{ mt: 3, border: '2px dashed #059669', p: 1, textAlign: 'center', bgcolor: '#D1FAE5', color: '#065F46', fontWeight: 'bold', fontSize: '0.7rem', transform: 'rotate(-1.5deg)' }}>
-          OFFICIAL CHIP DATA ENCRYPTED & VALIDATED
-        </Box>
-      </Box>
-    );
-  }
-
-  if (category.includes('bank') || category.includes('statement') || category.includes('fund') || category.includes('savings')) {
-    return (
-      <Box sx={{ border: '2.5px solid #64748B', p: 3, borderRadius: 2.5, bgcolor: '#FFFFFF', fontFamily: 'monospace', color: '#1E293B', minHeight: 320 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 900, borderBottom: '2.5px solid #1E293B', pb: 1, mb: 2, display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-          <span>🏦 BANCO SANTANDER - CURRENT ACCOUNT STATEMENT</span>
-          <span style={{ fontSize: '0.7rem' }}>CONFIDENTIAL</span>
-        </Typography>
-        <Typography variant="caption" sx={{ display: 'block', mb: 2, fontSize: '0.7rem' }}>
-          Account Holder: <strong>{clientName}</strong> | Account IBAN: <strong>ES90 0049 8912 3456 7890</strong>
-        </Typography>
-
-        <table style={{ width: '100%', fontSize: '0.7rem', borderCollapse: 'collapse', marginBottom: '16px' }}>
-          <thead>
-            <tr style={{ borderBottom: '1.5px solid #475569', textAlign: 'left' }}>
-              <th style={{ padding: '6px 4px' }}>Date</th>
-              <th style={{ padding: '6px 4px' }}>Description</th>
-              <th style={{ padding: '6px 4px', textAlign: 'right' }}>Amount</th>
-              <th style={{ padding: '6px 4px', textAlign: 'right' }}>Balance</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr style={{ borderBottom: '1px solid #E2E8F0' }}>
-              <td style={{ padding: '6px 4px' }}>01 Jun 2026</td>
-              <td style={{ padding: '6px 4px' }}>Opening Balance</td>
-              <td style={{ padding: '6px 4px', textAlign: 'right' }}>-</td>
-              <td style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 'bold' }}>€15,200.00</td>
-            </tr>
-            <tr style={{ borderBottom: '1px solid #E2E8F0' }}>
-              <td style={{ padding: '6px 4px' }}>05 Jun 2026</td>
-              <td style={{ padding: '6px 4px' }}>Remote Employment Income</td>
-              <td style={{ padding: '6px 4px', textAlign: 'right', color: '#10B981' }}>+€3,800.00</td>
-              <td style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 'bold' }}>€19,000.00</td>
-            </tr>
-            <tr style={{ borderBottom: '1px solid #E2E8F0' }}>
-              <td style={{ padding: '6px 4px' }}>12 Jun 2026</td>
-              <td style={{ padding: '6px 4px' }}>ATM Withdrawal Madrid Centro</td>
-              <td style={{ padding: '6px 4px', textAlign: 'right', color: '#EF4444' }}>-€200.00</td>
-              <td style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 'bold' }}>€18,800.00</td>
-            </tr>
-            <tr style={{ borderBottom: '1.5px solid #475569' }}>
-              <td style={{ padding: '6px 4px' }}>15 Jun 2026</td>
-              <td style={{ padding: '6px 4px' }}>Carrefour Madrid Supermarket</td>
-              <td style={{ padding: '6px 4px', textAlign: 'right', color: '#EF4444' }}>-€125.40</td>
-              <td style={{ padding: '6px 4px', textAlign: 'right', fontWeight: 'bold' }}>€18,674.60</td>
-            </tr>
-          </tbody>
-        </table>
-
-        <Box sx={{ p: 1.2, bgcolor: '#ECFDF5', borderRadius: 1.5, border: '1px solid #A7F3D0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#047857', fontSize: '0.68rem' }}>✓ Financial threshold criteria met (&gt; €18,000 balance)</Typography>
-          <Typography variant="caption" sx={{ color: '#065F46', fontWeight: 800, fontSize: '0.68rem' }}>Total Balance: €18,674.60</Typography>
-        </Box>
-      </Box>
-    );
-  }
-
-  if (category.includes('employment') || category.includes('letter') || category.includes('contract')) {
-    return (
-      <Box sx={{ border: '2.5px solid #64748B', p: 4, borderRadius: 2.5, bgcolor: '#FAFAF9', fontFamily: 'Georgia, serif', color: '#1E293B', minHeight: 320, fontSize: '0.78rem', lineHeight: 1.6 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 900, fontFamily: 'monospace', mb: 3, borderBottom: '1px solid #1E293B', pb: 1, fontSize: '0.85rem' }}>
-          📝 EMPLOYMENT VERIFICATION LETTER
-        </Typography>
-        <Typography sx={{ mb: 2, fontSize: '0.72rem' }}>Date: May 24, 2026</Typography>
-        <Typography sx={{ mb: 2, fontSize: '0.72rem' }}><strong>TO WHOM IT MAY CONCERN,</strong></Typography>
-        <Typography sx={{ mb: 2, fontSize: '0.72rem' }}>
-          This letter serves to confirm that <strong>{clientName}</strong> is employed full-time with our firm in the capacity of <strong>Lead Software Consultant</strong>.
-        </Typography>
-        <Typography sx={{ mb: 2, fontSize: '0.72rem' }}>
-          Their current salary is <strong>€3,800.00</strong> per month. We also confirm that their duties can be performed fully remotely, and we authorize <strong>{clientName}</strong> to work remotely from Spain.
-        </Typography>
-        <Typography sx={{ mt: 4, fontSize: '0.72rem' }}>
-          Sincerely,<br />
-          <strong>Victoria Vance</strong><br />
-          HR Director, Tech Solutions UK Ltd
-        </Typography>
-      </Box>
-    );
-  }
-
-  if (category.includes('health') || category.includes('policy') || category.includes('insurance')) {
-    return (
-      <Box sx={{ border: '2.5px solid #64748B', p: 3, borderRadius: 2.5, bgcolor: '#EFF6FF', fontFamily: 'sans-serif', color: '#1E293B', minHeight: 320 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 900, color: '#1D4ED8', mb: 2, borderBottom: '1px solid #BFDBFE', pb: 1, fontSize: '0.85rem' }}>
-          🏥 SANITAS INSURANCE POLICY CONFIRMATION
-        </Typography>
-        <Box className="grid grid-cols-12 gap-5" sx={{ fontSize: '0.72rem', mb: 3 }}>
-          <Box className="col-span-6">
-            <Typography variant="caption" color="text.secondary" display="block">Insured Person Name:</Typography>
-            <Typography variant="caption" sx={{ fontWeight: 800 }}>{clientName}</Typography>
-          </Box>
-          <Box className="col-span-6">
-            <Typography variant="caption" color="text.secondary" display="block">Policy Reference:</Typography>
-            <Typography variant="caption" sx={{ fontWeight: 800 }}>SAN-90812-SPAIN</Typography>
-          </Box>
-          <Box className="col-span-6">
-            <Typography variant="caption" color="text.secondary" display="block">Co-payments (Copagos):</Typography>
-            <Typography variant="caption" sx={{ fontWeight: 800, color: '#10B981' }}>SIN COPAGOS (Zero Co-pay)</Typography>
-          </Box>
-          <Box className="col-span-6">
-            <Typography variant="caption" color="text.secondary" display="block">Repatriation Coverage:</Typography>
-            <Typography variant="caption" sx={{ fontWeight: 800, color: '#10B981' }}>INCLUDED (Full Repatriation)</Typography>
-          </Box>
-        </Box>
-        <Alert severity="success" sx={{ py: 0.5, '& .MuiAlert-message': { fontSize: '0.7rem' } }}>
-          Policy complies fully with Spanish Residency health coverage criteria.
-        </Alert>
-      </Box>
-    );
-  }
-
-  // Generic file mock
-  return (
-    <Box sx={{ border: '2px solid #94A3B8', p: 4, borderRadius: 2, bgcolor: '#F8FAFC', color: '#475569', minHeight: 320, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-      <InsertDriveFileIcon sx={{ fontSize: 64, color: '#94A3B8' }} />
-      <Box sx={{ textAlign: 'center' }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#1E293B' }}>
-          {docName}
-        </Typography>
-        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
-          Category: {doc.category} | Size: {doc.fileSize || '1.5 MB'}
-        </Typography>
-      </Box>
-      <Box sx={{ width: '80%', display: 'flex', flexDirection: 'column', gap: 1, mt: 1 }}>
-        <Box sx={{ height: 6, bgcolor: '#E2E8F0', borderRadius: 3 }} />
-        <Box sx={{ height: 6, bgcolor: '#E2E8F0', borderRadius: 3, width: '70%' }} />
-        <Box sx={{ height: 6, bgcolor: '#E2E8F0', borderRadius: 3, width: '90%' }} />
-      </Box>
-      <Typography variant="caption" sx={{ color: '#D97706', fontWeight: 800, mt: 2, fontSize: '0.65rem', border: '1px solid #F59E0B', px: 1, py: 0.2, borderRadius: 1, bgcolor: '#FEF3C7' }}>
-        SIMULATED SCAN DATA PREVIEW
-      </Typography>
-    </Box>
-  );
-};
 
 export const OperationsDocumentVerificationDashboard = () => {
   const queryClient = useQueryClient();
@@ -214,6 +41,10 @@ export const OperationsDocumentVerificationDashboard = () => {
   const [tableFilters, setTableFilters] = useState({ serviceId: '', status: '', assignedConsultantId: '' });
   const [credentialsModalOpen, setCredentialsModalOpen] = useState(false);
   const [credentialsData, setCredentialsData] = useState(null);
+
+  const [credentialsOpen, setCredentialsOpen] = useState(false);
+  const [generatedPassword, setGeneratedPassword] = useState('');
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   // Fetch Collections
   const { data: clients = [], isLoading: isClientsLoading } = useQuery({
@@ -250,12 +81,28 @@ export const OperationsDocumentVerificationDashboard = () => {
   // Auto-select first client if none selected
   useEffect(() => {
     if (intakeClients.length > 0 && !selectedClientId) {
-      setSelectedClientId(intakeClients[0].id);
+      const timer = setTimeout(() => {
+        setSelectedClientId(intakeClients[0].id);
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [intakeClients, selectedClientId]);
 
   const selectedClient = clients.find(c => c && c.id === selectedClientId);
   const clientDocs = documents.filter(d => d && d.clientId === selectedClientId);
+
+  const generateCredentialsAction = async () => {
+    if (!selectedClient) return;
+    try {
+      const res = await dbService.generateClientCredentials(selectedClient.id);
+      setGeneratedPassword(res.password);
+      setCredentialsOpen(true);
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+    } catch (error) {
+      console.error('Error generating credentials', error);
+      showAlert('Failed to generate credentials. Ensure backend is running.', 'error');
+    }
+  };
 
   const handlePrintPDF = () => {
     if (!selectedClient) return;
@@ -350,7 +197,7 @@ export const OperationsDocumentVerificationDashboard = () => {
               <span style="font-size: 10px; color: #475569;">Tel: +34 91 123 4567 | info@aaabusinessconsultancy.com</span>
             </div>
             <div style="text-align: right; font-size: 11px;">
-              Date: ${new Date(selectedClient.onboardingDate || Date.now()).toLocaleDateString()}
+              Date: ${new Date(selectedClient.onboardingDate || FALLBACK_DATE).toLocaleDateString()}
             </div>
           </div>
 
@@ -443,7 +290,7 @@ export const OperationsDocumentVerificationDashboard = () => {
     const docName = doc.name || doc.fileName || 'document.pdf';
     const clientName = selectedClient ? `${selectedClient.firstName} ${selectedClient.lastName}` : 'Client Name';
 
-    let docHtml = '';
+    let docHtml;
 
     if (category.includes('passport')) {
       docHtml = `
@@ -514,7 +361,7 @@ export const OperationsDocumentVerificationDashboard = () => {
       docHtml = `
         <div style="border: 2px solid black; padding: 40px; margin: 40px auto; max-width: 600px; font-family: serif; color: #333; line-height: 1.6;">
           <h3 style="text-align: center; border-bottom: 1px solid; padding-bottom: 10px;">DOC REF: ${docName.toUpperCase()}</h3>
-          <p style="text-align: right; font-size: 12px;">Date: ${new Date(doc.uploadedDate || Date.now()).toLocaleDateString()}</p>
+          <p style="text-align: right; font-size: 12px;">Date: ${new Date(doc.uploadedDate || FALLBACK_DATE).toLocaleDateString()}</p>
           <p><strong>Document Verification Intake Record</strong></p>
           <p>This is a simulated verification record of the document category <strong>"${doc.category}"</strong> uploaded by client <strong>${clientName}</strong>.</p>
           <p>Document details, metadata and file integrity certificates have been validated by the backend service. File is clean and active.</p>
@@ -595,7 +442,7 @@ export const OperationsDocumentVerificationDashboard = () => {
               {/* Generate button */}
               <Button
                 variant="contained"
-                color="secondary"
+                color={selectedClient?.hasCredentials ? 'warning' : 'secondary'}
                 size="small"
                 disabled={!selectedClient}
                 onClick={async () => {
@@ -610,7 +457,7 @@ export const OperationsDocumentVerificationDashboard = () => {
                 }}
                 sx={{ textTransform: 'none', fontWeight: 'bold', whiteSpace: 'nowrap', flexShrink: 0 }}
               >
-                Generate Portal Credentials
+                {selectedClient?.hasCredentials ? 'Reset Portal Credentials' : 'Generate Portal Credentials'}
               </Button>
             </Box>
           </Box>
@@ -828,7 +675,7 @@ export const OperationsDocumentVerificationDashboard = () => {
                       FORM ID: INTAKE-{selectedClient.id}
                     </Typography>
                     <Typography variant="caption" sx={{ color: '#64748B', display: 'block', fontSize: '0.68rem' }}>
-                      Date: {new Date(selectedClient.onboardingDate || Date.now()).toLocaleDateString()}
+                      Date: {new Date(selectedClient.onboardingDate || FALLBACK_DATE).toLocaleDateString()}
                     </Typography>
                   </Box>
                 </Box>
@@ -952,7 +799,6 @@ export const OperationsDocumentVerificationDashboard = () => {
                 {clientDocs.map((doc) => {
                   const isApproved = doc.status === 'Approved';
                   const isRejected = doc.status === 'Rejected';
-                  const isPending = !isApproved && !isRejected;
 
                   return (
                     <Card
@@ -1123,6 +969,7 @@ export const OperationsDocumentVerificationDashboard = () => {
                   setCredentialsData(res);
                   showAlert('Credentials reset successfully!', 'success');
                 } catch (error) {
+                  console.error(error);
                   showAlert('Failed to reset credentials', 'error');
                 }
               }}
@@ -1154,6 +1001,45 @@ export const OperationsDocumentVerificationDashboard = () => {
       </Dialog>
 
       {/* Dialog Preview removed - files now open directly in new tabs */}
+      {/* Reset Confirmation Dialog */}
+      <Dialog
+        open={resetConfirmOpen}
+        onClose={() => setResetConfirmOpen(false)}
+        PaperProps={{ sx: { borderRadius: 3 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 800 }}>Reset Portal Credentials?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            This client already has portal access. Generating new credentials will overwrite their current password and they will be locked out of their account until you provide them with the new temporary password.
+            <br /><br />
+            Are you sure you want to proceed?
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 3.5 }}>
+          <Button onClick={() => setResetConfirmOpen(false)} variant="outlined" sx={{ textTransform: 'none', fontWeight: 600 }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => {
+              setResetConfirmOpen(false);
+              generateCredentialsAction();
+            }}
+            variant="contained"
+            color="error"
+            sx={{ textTransform: 'none', fontWeight: 700 }}
+          >
+            Yes, Reset Credentials
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Credentials Presentation Modal */}
+      <CredentialsModal
+        open={credentialsOpen}
+        onClose={() => setCredentialsOpen(false)}
+        client={selectedClient}
+        password={generatedPassword}
+      />
     </Box>
   );
 };

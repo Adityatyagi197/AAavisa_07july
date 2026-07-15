@@ -45,10 +45,19 @@ export const LeadSelfFillForm = () => {
   const [step, setStep] = useState(1); // 1: unified form, 2: success
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
   // Optional lookup state
   const [lookupOpen, setLookupOpen] = useState(false);
   const [lookupEmail, setLookupEmail] = useState("");
+  const [isExistingLead, setIsExistingLead] = useState(false);
+  const [customizationSettings, setCustomizationSettings] = useState(null);
+
+  useEffect(() => {
+    axios.get(`${API_URL}/settings/customization`)
+      .then(res => {
+        setCustomizationSettings(res.data);
+      })
+      .catch(err => console.error("Failed to load customization settings:", err));
+  }, []);
 
   // Form fields
   const [form, setForm] = useState({
@@ -60,6 +69,7 @@ export const LeadSelfFillForm = () => {
     preferredLanguage: "English",
     serviceId: "dnv",
     applicantsCount: "Main Only",
+    dependentsDetails: [],
     meetingPreferredDate: "",
     meetingPreferredTime: "",
     meetingPreferredLanguage: "English",
@@ -69,27 +79,87 @@ export const LeadSelfFillForm = () => {
   const [nationalitySearch, setNationalitySearch] = useState("");
   const [showNationalityDropdown, setShowNationalityDropdown] = useState(false);
 
-  // Parse URL query parameters on mount to auto-populate fields
+  // Parse URL query parameters on mount to auto-populate fields or load from ID
   useEffect(() => {
     const searchString = window.location.search || (window.location.hash.includes("?") ? window.location.hash.split("?")[1] : "");
     const params = new URLSearchParams(searchString);
-
+    const idParam = params.get("id") || "";
     const phoneParam = params.get("phone") || params.get("whatsapp") || "";
     const emailParam = params.get("email") || "";
     const serviceParam = params.get("service") || params.get("program") || "";
     const applicantsParam = params.get("applicants") || "";
     const nationalityParam = params.get("nationality") || "";
 
-    setForm((prev) => ({
-      ...prev,
-      phone: phoneParam ? decodeURIComponent(phoneParam).trim() : prev.phone,
-      email: emailParam ? decodeURIComponent(emailParam).trim() : prev.email,
-      serviceId: serviceParam ? decodeURIComponent(serviceParam).trim() : prev.serviceId,
-      applicantsCount: applicantsParam ? decodeURIComponent(applicantsParam).trim() : prev.applicantsCount,
-      nationality: nationalityParam ? decodeURIComponent(nationalityParam).trim() : prev.nationality,
-    }));
-    if (nationalityParam) {
-      setNationalitySearch(decodeURIComponent(nationalityParam).trim());
+    if (idParam) {
+      setLoading(true);
+      axios.get(`${API_URL}/leads/${idParam}/public-details`)
+        .then((res) => {
+          const data = res.data;
+          setForm((prev) => {
+            const applicantsVal = data.applicantsCount || prev.applicantsCount;
+            const count = getDepsCount(applicantsVal);
+            const currentDeps = data.dependentsDetails || [];
+            const initialDeps = [];
+            for (let i = 0; i < count; i++) {
+              initialDeps.push({
+                firstName: currentDeps[i]?.firstName || "",
+                lastName: currentDeps[i]?.lastName || "",
+                relation: currentDeps[i]?.relation || "Spouse",
+                passportNumber: currentDeps[i]?.passportNumber || "",
+                nationality: currentDeps[i]?.nationality || ""
+              });
+            }
+            return {
+              ...prev,
+              id: data.id,
+              firstName: data.firstName || "",
+              lastName: data.lastName || "",
+              email: data.email || "",
+              phone: data.phone || "",
+              nationality: data.nationality || "",
+              preferredLanguage: data.preferredLanguage || "English",
+              serviceId: data.serviceType || "dnv",
+              applicantsCount: applicantsVal,
+              dependentsDetails: initialDeps,
+              meetingPreferredDate: data.meetingPreferredDate || "",
+              meetingPreferredTime: data.meetingPreferredTime || "",
+              meetingPreferredLanguage: data.meetingPreferredLanguage || data.preferredLanguage || "English",
+              meetingNotes: data.meetingNotes || "",
+            };
+          });
+          if (data.nationality) {
+            setNationalitySearch(data.nationality);
+          }
+          setIsExistingLead(true);
+        })
+        .catch((err) => {
+          setError(err.response?.data?.message || "Invalid or expired booking link.");
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    } else {
+      setForm((prev) => {
+        const applicantsVal = applicantsParam ? decodeURIComponent(applicantsParam).trim() : prev.applicantsCount;
+        const count = getDepsCount(applicantsVal);
+        const initialDeps = [];
+        for (let i = 0; i < count; i++) {
+          initialDeps.push({ firstName: "", lastName: "", relation: "Spouse", passportNumber: "", nationality: "" });
+        }
+        
+        return {
+          ...prev,
+          phone: phoneParam ? decodeURIComponent(phoneParam).trim() : prev.phone,
+          email: emailParam ? decodeURIComponent(emailParam).trim() : prev.email,
+          serviceId: serviceParam ? decodeURIComponent(serviceParam).trim() : prev.serviceId,
+          applicantsCount: applicantsVal,
+          dependentsDetails: initialDeps,
+          nationality: nationalityParam ? decodeURIComponent(nationalityParam).trim() : prev.nationality,
+        };
+      });
+      if (nationalityParam) {
+        setNationalitySearch(decodeURIComponent(nationalityParam).trim());
+      }
     }
   }, []);
 
@@ -133,6 +203,19 @@ export const LeadSelfFillForm = () => {
     }
   };
 
+  const getDepsCount = (countStr) => {
+    if (!countStr || countStr === 'Main Only') return 0;
+    const numericVal = parseInt(countStr, 10);
+    if (!isNaN(numericVal) && String(numericVal) === countStr.trim()) {
+      return Math.max(0, numericVal - 1);
+    }
+    const match = countStr.match(/Main\s*\+\s*(\d+)/i);
+    if (match) {
+      return parseInt(match[1], 10);
+    }
+    return 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.firstName || !form.lastName || !form.email || !form.phone) {
@@ -143,11 +226,22 @@ export const LeadSelfFillForm = () => {
       setError("Please select your preferred meeting date and time.");
       return;
     }
+    const flowSettings = customizationSettings?.flowAutomationSettings || {};
+    const selectTime = form.meetingPreferredTime;
+    const allowedStart = flowSettings.bookingAllowedStart || '09:00';
+    const allowedEnd = flowSettings.bookingAllowedEnd || '18:00';
+    if (selectTime && (selectTime < allowedStart || selectTime > allowedEnd)) {
+      setError(`Preferred meeting time must be between ${allowedStart} and ${allowedEnd}.`);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
-      // POST /leads handles both creating new leads and updating existing leads by phone
-      await axios.post(`${API_URL}/leads`, form);
+      if (isExistingLead && form.id) {
+        await axios.patch(`${API_URL}/leads/${form.id}/meeting-preference`, form);
+      } else {
+        await axios.post(`${API_URL}/leads`, form);
+      }
       setStep(2);
     } catch (err) {
       setError(
@@ -160,7 +254,34 @@ export const LeadSelfFillForm = () => {
   };
 
   const handleChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      const updated = { ...prev, [field]: value };
+      if (field === "applicantsCount") {
+        const count = getDepsCount(value);
+        const currentDeps = prev.dependentsDetails || [];
+        const newDeps = [];
+        for (let i = 0; i < count; i++) {
+          newDeps.push({
+            firstName: currentDeps[i]?.firstName || "",
+            lastName: currentDeps[i]?.lastName || "",
+            relation: currentDeps[i]?.relation || "Spouse",
+            passportNumber: currentDeps[i]?.passportNumber || "",
+            nationality: currentDeps[i]?.nationality || "",
+            age: currentDeps[i]?.age || ""
+          });
+        }
+        updated.dependentsDetails = newDeps;
+      }
+      return updated;
+    });
+  };
+
+  const handleDependentChange = (index, field, value) => {
+    setForm((prev) => {
+      const updatedDeps = [...prev.dependentsDetails];
+      updatedDeps[index] = { ...updatedDeps[index], [field]: value };
+      return { ...prev, dependentsDetails: updatedDeps };
+    });
   };
 
   // Get minimum date (today)
@@ -277,55 +398,7 @@ export const LeadSelfFillForm = () => {
                 >
                   Book Assessment 📅
                 </h2>
-                <button
-                  type="button"
-                  onClick={() => setLookupOpen(!lookupOpen)}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    color: "#667eea",
-                    fontSize: "13px",
-                    cursor: "pointer",
-                    textDecoration: "underline",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  {lookupOpen ? "Cancel Autofill" : "Load My Details"}
-                </button>
               </div>
-
-              {lookupOpen && (
-                <div
-                  style={{
-                    background: "rgba(102,126,234,0.1)",
-                    border: "1px solid rgba(102,126,234,0.25)",
-                    borderRadius: "12px",
-                    padding: "16px",
-                    marginBottom: "20px",
-                  }}
-                >
-                  <p style={{ margin: "0 0 10px", color: "rgba(255,255,255,0.7)", fontSize: "13px" }}>
-                    Enter email to retrieve previously saved details:
-                  </p>
-                  <form onSubmit={handleLookup} style={{ display: "flex", gap: "8px" }}>
-                    <input
-                      type="email"
-                      required
-                      placeholder="you@example.com"
-                      value={lookupEmail}
-                      onChange={(e) => setLookupEmail(e.target.value)}
-                      style={{ ...inputStyle, flex: 1 }}
-                    />
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      style={{ ...btnPrimaryStyle, width: "auto", padding: "10px 16px" }}
-                    >
-                      {loading ? "Loading..." : "Autofill"}
-                    </button>
-                  </form>
-                </div>
-              )}
 
               <p
                 style={{
@@ -359,7 +432,14 @@ export const LeadSelfFillForm = () => {
                         handleChange("firstName", e.target.value)
                       }
                       placeholder="John"
-                      style={inputStyle}
+                      disabled={isExistingLead}
+                      style={{
+                        ...inputStyle,
+                        background: isExistingLead ? "rgba(255, 255, 255, 0.03)" : inputStyle.background,
+                        color: isExistingLead ? "rgba(255, 255, 255, 0.4)" : inputStyle.color,
+                        border: isExistingLead ? "1px solid rgba(255, 255, 255, 0.08)" : inputStyle.border,
+                        cursor: isExistingLead ? "not-allowed" : "text"
+                      }}
                     />
                   </div>
                   <div>
@@ -369,7 +449,14 @@ export const LeadSelfFillForm = () => {
                       value={form.lastName}
                       onChange={(e) => handleChange("lastName", e.target.value)}
                       placeholder="Doe"
-                      style={inputStyle}
+                      disabled={isExistingLead}
+                      style={{
+                        ...inputStyle,
+                        background: isExistingLead ? "rgba(255, 255, 255, 0.03)" : inputStyle.background,
+                        color: isExistingLead ? "rgba(255, 255, 255, 0.4)" : inputStyle.color,
+                        border: isExistingLead ? "1px solid rgba(255, 255, 255, 0.08)" : inputStyle.border,
+                        cursor: isExistingLead ? "not-allowed" : "text"
+                      }}
                     />
                   </div>
                 </div>
@@ -390,7 +477,14 @@ export const LeadSelfFillForm = () => {
                       value={form.email}
                       onChange={(e) => handleChange("email", e.target.value)}
                       placeholder="you@example.com"
-                      style={inputStyle}
+                      disabled={isExistingLead}
+                      style={{
+                        ...inputStyle,
+                        background: isExistingLead ? "rgba(255, 255, 255, 0.03)" : inputStyle.background,
+                        color: isExistingLead ? "rgba(255, 255, 255, 0.4)" : inputStyle.color,
+                        border: isExistingLead ? "1px solid rgba(255, 255, 255, 0.08)" : inputStyle.border,
+                        cursor: isExistingLead ? "not-allowed" : "text"
+                      }}
                     />
                   </div>
                   <div>
@@ -400,7 +494,14 @@ export const LeadSelfFillForm = () => {
                       value={form.phone}
                       onChange={(e) => handleChange("phone", e.target.value)}
                       placeholder="+971 50 123 4567"
-                      style={inputStyle}
+                      disabled={isExistingLead}
+                      style={{
+                        ...inputStyle,
+                        background: isExistingLead ? "rgba(255, 255, 255, 0.03)" : inputStyle.background,
+                        color: isExistingLead ? "rgba(255, 255, 255, 0.4)" : inputStyle.color,
+                        border: isExistingLead ? "1px solid rgba(255, 255, 255, 0.08)" : inputStyle.border,
+                        cursor: isExistingLead ? "not-allowed" : "text"
+                      }}
                     />
                   </div>
                 </div>
@@ -425,12 +526,19 @@ export const LeadSelfFillForm = () => {
                         setNationalitySearch(e.target.value);
                         setShowNationalityDropdown(true);
                       }}
-                      onFocus={() => setShowNationalityDropdown(true)}
+                      onFocus={() => !isExistingLead && setShowNationalityDropdown(true)}
                       onBlur={() => {
                         // Delay to allow onClick selection
                         setTimeout(() => setShowNationalityDropdown(false), 250);
                       }}
-                      style={inputStyle}
+                      disabled={isExistingLead}
+                      style={{
+                        ...inputStyle,
+                        background: isExistingLead ? "rgba(255, 255, 255, 0.03)" : inputStyle.background,
+                        color: isExistingLead ? "rgba(255, 255, 255, 0.4)" : inputStyle.color,
+                        border: isExistingLead ? "1px solid rgba(255, 255, 255, 0.08)" : inputStyle.border,
+                        cursor: isExistingLead ? "not-allowed" : "text"
+                      }}
                     />
                     {showNationalityDropdown && filteredNationalities.length > 0 && (
                       <div
@@ -543,6 +651,95 @@ export const LeadSelfFillForm = () => {
                   </div>
                 </div>
 
+                {form.dependentsDetails && form.dependentsDetails.length > 0 && (
+                  <div
+                    style={{
+                      background: "rgba(255, 255, 255, 0.04)",
+                      border: "1px solid rgba(255, 255, 255, 0.08)",
+                      borderRadius: "14px",
+                      padding: "20px",
+                      marginBottom: "24px",
+                    }}
+                  >
+                    <div style={{ ...sectionHeaderStyle, borderBottom: "none", marginBottom: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
+                      👨‍👩‍👧‍👦 Dependent Details
+                    </div>
+                    {form.dependentsDetails.map((dep, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          marginBottom: idx === form.dependentsDetails.length - 1 ? 0 : "20px",
+                          borderBottom: idx === form.dependentsDetails.length - 1 ? "none" : "1px dashed rgba(255, 255, 255, 0.1)",
+                          paddingBottom: idx === form.dependentsDetails.length - 1 ? 0 : "20px",
+                        }}
+                      >
+                        <div style={{ color: "#a0aec0", fontSize: "13px", fontWeight: 600, marginBottom: "10px" }}>
+                          Dependent #{idx + 1}
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+                          <div>
+                            <label style={labelStyle}>First Name *</label>
+                            <input
+                              required
+                              value={dep.firstName}
+                              onChange={(e) => handleDependentChange(idx, "firstName", e.target.value)}
+                              placeholder="First Name"
+                              style={inputStyle}
+                            />
+                          </div>
+                          <div>
+                            <label style={labelStyle}>Last Name *</label>
+                            <input
+                              required
+                              value={dep.lastName}
+                              onChange={(e) => handleDependentChange(idx, "lastName", e.target.value)}
+                              placeholder="Last Name"
+                              style={inputStyle}
+                            />
+                          </div>
+                        </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 0.8fr", gap: "10px" }}>
+                          <div>
+                            <label style={labelStyle}>Relation *</label>
+                            <select
+                              value={dep.relation}
+                              onChange={(e) => handleDependentChange(idx, "relation", e.target.value)}
+                              style={{ ...inputStyle, color: "#fff" }}
+                            >
+                              <option value="Spouse" style={{ background: "#24243e" }}>Spouse</option>
+                              <option value="Child" style={{ background: "#24243e" }}>Child</option>
+                              <option value="Parent" style={{ background: "#24243e" }}>Parent</option>
+                              <option value="Other" style={{ background: "#24243e" }}>Other</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label style={labelStyle}>Passport Number</label>
+                            <input
+                              value={dep.passportNumber}
+                              onChange={(e) => handleDependentChange(idx, "passportNumber", e.target.value)}
+                              placeholder="Optional"
+                              style={inputStyle}
+                            />
+                          </div>
+                          <div>
+                            <label style={labelStyle}>Age *</label>
+                            <input
+                              type="number"
+                              required
+                              min="0"
+                              max="120"
+                              value={dep.age || ""}
+                              onChange={(e) => handleDependentChange(idx, "age", e.target.value)}
+                              placeholder="Age"
+                              style={inputStyle}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {/* Section: Meeting Preferences */}
                 <div style={sectionHeaderStyle}>📅 Meeting Preferences</div>
 
@@ -562,47 +759,15 @@ export const LeadSelfFillForm = () => {
 
                 <div style={{ marginBottom: "14px" }}>
                   <label style={labelStyle}>Preferred Time Slot *</label>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "8px",
-                    }}
-                  >
-                    {TIME_SLOTS.map((slot) => (
-                      <label
-                        key={slot.value}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "10px",
-                          cursor: "pointer",
-                          padding: "12px 14px",
-                          borderRadius: "10px",
-                          border: `1px solid ${form.meetingPreferredTime === slot.value ? "#667eea" : "rgba(255,255,255,0.15)"}`,
-                          background:
-                            form.meetingPreferredTime === slot.value
-                              ? "rgba(102,126,234,0.2)"
-                              : "transparent",
-                          transition: "all 0.2s ease",
-                        }}
-                      >
-                        <input
-                          type="radio"
-                          name="timeSlot"
-                          value={slot.value}
-                          checked={form.meetingPreferredTime === slot.value}
-                          onChange={(e) =>
-                            handleChange("meetingPreferredTime", e.target.value)
-                          }
-                          style={{ accentColor: "#667eea" }}
-                        />
-                        <span style={{ color: "#fff", fontSize: "14px" }}>
-                          {slot.label}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
+                  <input
+                    type="time"
+                    required
+                    value={form.meetingPreferredTime}
+                    onChange={(e) =>
+                      handleChange("meetingPreferredTime", e.target.value)
+                    }
+                    style={{ ...inputStyle, color: "#fff" }}
+                  />
                 </div>
 
                 <div style={{ marginBottom: "14px" }}>

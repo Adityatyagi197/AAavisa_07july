@@ -452,7 +452,7 @@ export const OperationsLeadDetails = () => {
                       sx={{ fontSize: '0.875rem', py: 0.2 }}
                     >
                       <MenuItem value="">Unassigned</MenuItem>
-                      {consultants.map((c) => (
+                      {consultants.filter(c => c.role === 'consultant').map((c) => (
                         <MenuItem key={c.id} value={c.id}>
                           {c.name}
                         </MenuItem>

@@ -395,6 +395,11 @@ export const ClientPortalDocs = () => {
     queryFn: dbService.getSettings
   });
 
+  const { data: customizationSettings } = useQuery({
+    queryKey: ['customization-settings'],
+    queryFn: dbService.getCustomizationSettings
+  });
+
   const getRateForLang = (lang) => {
     if (generalSettings && Array.isArray(generalSettings.swornTranslationRates)) {
       const match = generalSettings.swornTranslationRates.find(r => r.name === lang);
@@ -595,24 +600,92 @@ export const ClientPortalDocs = () => {
 
   // Client specific details
   const clientDocuments = documents.filter((d) => d.clientId === client.id);
-  const clientConsultations = consultations.filter((c) => c.leadId === client.id);
+  const clientConsultations = consultations.filter((c) => c.leadId === client.id || c.lead?.clientId === client.id);
   const activeConsultation = clientConsultations.find(c => c.status === 'Scheduled' || c.status === 'Pending Assignment');
   const assignedAgent = agents.find(a => a.id === client.assignedConsultantId);
 
-  // Document categories checklist
-  const REQUIRED_CATEGORIES = {
-    dnv: ['Passport (Copy)', 'Employment Verification Letter', 'Remote Income Bank Statements', 'Social Security Certificate'],
-    nlv: ['Passport (Copy)', 'Spanish Health Insurance Policy', 'Clean Criminal Record Certificate', 'Savings Bank Statements'],
-    study: ['Passport (Copy)', 'Complutense Admission Letter', 'Medical Certificate', 'Sufficient Funds Guarantee'],
-    property: ['Passport (Copy)', 'Property Purchase Escrow Registry', 'Spanish Bank Account Certificate'],
-    family: ['Passport (Copy)', 'Relationship Verification Certificate', 'Sufficient Income Proof']
+  // Document categories checklist default fallback
+  const DEFAULT_CHECKLISTS = {
+    dnv: {
+      main: ['Passport (Copy)', 'Employment Verification Letter', 'Remote Income Bank Statements', 'Social Security Certificate'],
+      spouse: ['Passport (Copy)', 'Marriage Certificate'],
+      minorChild: ['Passport (Copy)', 'Birth Certificate', 'School Enrollment Confirmation'],
+      adultChild: ['Passport (Copy)', 'Proof of Financial Dependency', 'Clean Criminal Record Certificate'],
+      parent: ['Passport (Copy)', 'Proof of Financial Dependency', 'Medical Insurance Certificate'],
+      other: ['Passport (Copy)', 'Relationship Verification Certificate']
+    },
+    nlv: {
+      main: ['Passport (Copy)', 'Spanish Health Insurance Policy', 'Clean Criminal Record Certificate', 'Savings Bank Statements'],
+      spouse: ['Passport (Copy)', 'Marriage Certificate'],
+      minorChild: ['Passport (Copy)', 'Birth Certificate'],
+      adultChild: ['Passport (Copy)', 'Proof of Financial Dependency', 'Clean Criminal Record Certificate'],
+      parent: ['Passport (Copy)', 'Proof of Financial Dependency', 'Spanish Health Insurance Policy'],
+      other: ['Passport (Copy)', 'Relationship Verification Certificate']
+    },
+    study: {
+      main: ['Passport (Copy)', 'Complutense Admission Letter', 'Medical Certificate', 'Sufficient Funds Guarantee'],
+      spouse: ['Passport (Copy)', 'Marriage Certificate'],
+      minorChild: ['Passport (Copy)', 'Birth Certificate'],
+      adultChild: ['Passport (Copy)', 'Proof of Financial Dependency'],
+      parent: ['Passport (Copy)', 'Proof of Financial Dependency'],
+      other: ['Passport (Copy)']
+    },
+    property: {
+      main: ['Passport (Copy)', 'Property Purchase Escrow Registry', 'Spanish Bank Account Certificate'],
+      spouse: ['Passport (Copy)', 'Marriage Certificate'],
+      minorChild: ['Passport (Copy)', 'Birth Certificate'],
+      adultChild: ['Passport (Copy)', 'Proof of Financial Dependency'],
+      parent: ['Passport (Copy)', 'Proof of Financial Dependency'],
+      other: ['Passport (Copy)']
+    },
+    family: {
+      main: ['Passport (Copy)', 'Relationship Verification Certificate', 'Sufficient Income Proof'],
+      spouse: ['Passport (Copy)', 'Marriage Certificate'],
+      minorChild: ['Passport (Copy)', 'Birth Certificate'],
+      adultChild: ['Passport (Copy)', 'Proof of Financial Dependency', 'Clean Criminal Record Certificate'],
+      parent: ['Passport (Copy)', 'Proof of Financial Dependency', 'Medical Insurance Certificate'],
+      other: ['Passport (Copy)', 'Relationship Verification Certificate']
+    }
   };
 
-  const getRequiredList = () => {
-    return REQUIRED_CATEGORIES[client.serviceId] || ['Passport (Copy)'];
-  };
+  const getRequiredDocsForPerson = (person) => {
+    const checklists = customizationSettings?.documentChecklists || DEFAULT_CHECKLISTS;
+    const serviceKey = (client.serviceId || '').toLowerCase();
+    const serviceChecklist = checklists[serviceKey] || checklists.dnv || {};
 
-  const requiredCategories = getRequiredList();
+    if (person === 'Main Applicant') {
+      return serviceChecklist.main || ['Passport (Copy)'];
+    }
+
+    // Parse dependent name
+    const match = (client.dependentsDetails || []).find(dep => {
+      const depNameString = `${dep.firstName} ${dep.lastName} (${dep.relation})`;
+      return depNameString === person;
+    });
+
+    if (!match) {
+      return serviceChecklist.other || ['Passport (Copy)'];
+    }
+
+    const relation = (match.relation || '').toLowerCase();
+    const age = parseInt(match.age, 10);
+
+    if (relation === 'spouse') {
+      return serviceChecklist.spouse || ['Passport (Copy)', 'Marriage Certificate'];
+    }
+    if (relation === 'child') {
+      const ageThreshold = customizationSettings?.flowAutomationSettings?.adultAgeThreshold || 18;
+      if (!isNaN(age) && age >= Number(ageThreshold)) {
+        return serviceChecklist.adultChild || ['Passport (Copy)', 'Proof of Financial Dependency', 'Clean Criminal Record Certificate'];
+      } else {
+        return serviceChecklist.minorChild || ['Passport (Copy)', 'Birth Certificate'];
+      }
+    }
+    if (relation === 'parent') {
+      return serviceChecklist.parent || ['Passport (Copy)', 'Proof of Financial Dependency'];
+    }
+    return serviceChecklist.other || ['Passport (Copy)'];
+  };
 
   // Generate dependent sections
   const applicantsList = [];
@@ -1026,13 +1099,29 @@ export const ClientPortalDocs = () => {
                       {t('upload_required')}
                     </Typography>
 
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                      {requiredCategories.map((cat, idx) => {
-                        const isUploaded = clientDocuments.some(d => d.category === cat);
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3.5 }}>
+                      {applicantsList.map((person) => {
+                        const personDocs = clientDocuments.filter(d => d.belongsTo === person || (!d.belongsTo && person === 'Main Applicant'));
+                        const docsNeeded = getRequiredDocsForPerson(person);
+
                         return (
-                          <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
-                            <CheckCircleIcon sx={{ fontSize: 20, color: isUploaded ? '#10B981' : '#CBD5E1' }} />
-                            <Typography variant="body2" sx={{ fontWeight: 700, color: isUploaded ? '#051A3B' : 'text.secondary', fontSize: '0.85rem' }}>{cat}</Typography>
+                          <Box key={person} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 800, color: '#051A3B', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 1, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                              📁 {person === 'Main Applicant' ? `${person} (${client.firstName})` : person}
+                            </Typography>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2, pl: isRTL ? 0 : 2, pr: isRTL ? 2 : 0 }}>
+                              {docsNeeded.map((cat, idx) => {
+                                const isUploaded = personDocs.some(d => d.category === cat);
+                                return (
+                                  <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexDirection: isRTL ? 'row-reverse' : 'row' }}>
+                                    <CheckCircleIcon sx={{ fontSize: 18, color: isUploaded ? '#10B981' : '#CBD5E1' }} />
+                                    <Typography variant="caption" sx={{ fontWeight: 700, color: isUploaded ? '#051A3B' : 'text.secondary', fontSize: '0.78rem' }}>
+                                      {cat}
+                                    </Typography>
+                                  </Box>
+                                );
+                              })}
+                            </Box>
                           </Box>
                         );
                       })}
@@ -1057,6 +1146,7 @@ export const ClientPortalDocs = () => {
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                       {applicantsList.map((person, index) => {
                         const personDocs = clientDocuments.filter(d => d.belongsTo === person || (!d.belongsTo && person === 'Main Applicant'));
+                        const docsNeeded = getRequiredDocsForPerson(person);
                         return (
                           <Accordion 
                             key={person} 
@@ -1078,13 +1168,14 @@ export const ClientPortalDocs = () => {
                             </AccordionSummary>
                             <AccordionDetails sx={{ px: 3, pb: 3, textAlign: isRTL ? 'right' : 'left', bgcolor: 'rgba(250, 246, 237, 0.2)' }}>
                               <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5, fontWeight: 500 }}>
-                                Upload files specifically belonging to **{person}**. Required files include: {requiredCategories.join(', ')}.
+                                Upload files specifically belonging to **{person}**. Required files include: {docsNeeded.join(', ')}.
                               </Typography>
 
                               <FileUploader
                                 onUpload={(docData) => handleDocUploaded(docData, person)}
                                 clientId={client.id}
                                 clientName={`${client.firstName} ${client.lastName}`}
+                                categories={docsNeeded}
                               />
 
                               <Divider sx={{ my: 3, borderColor: 'rgba(0,0,0,0.06)' }} />

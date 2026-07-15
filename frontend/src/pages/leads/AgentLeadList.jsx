@@ -220,7 +220,12 @@ export const AgentLeadList = () => {
       showAlert('Lead created successfully', 'success');
       setAddModalOpen(false);
       reset();
-    } });
+    },
+    onError: (error) => {
+      const msg = error.response?.data?.message || 'Error creating lead';
+      showAlert(msg, 'error');
+    }
+  });
 
   const deleteLeadMutation = useMutation({
     mutationFn: dbService.deleteLead,
@@ -761,6 +766,7 @@ export const AgentLeadList = () => {
                     <MenuItem value="Website Traffic">Website Traffic</MenuItem>
                     <MenuItem value="WeChat">WeChat</MenuItem>
                     <MenuItem value="Telegram">Telegram</MenuItem>
+                    <MenuItem value="Manual">Manual</MenuItem>
                   </Select>
                   {errors.source && (
                     <FormHelperText>{errors.source.message}</FormHelperText>
@@ -821,7 +827,7 @@ export const AgentLeadList = () => {
               label="Select Agent"
             >
               <MenuItem value="">Unassigned</MenuItem>
-              {agents.map((c) => (
+              {agents.filter(c => c.role === 'consultant').map((c) => (
                 <MenuItem key={c.id} value={c.id}>
                   {c.name} ({(c.languages || []).join('/')}) - {c.casesCount || 0} active cases
                 </MenuItem>

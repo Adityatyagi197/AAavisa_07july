@@ -68,6 +68,17 @@ export const OperationsClientList = () => {
   });
 
   const isViewOnly = isViewOnlyMenu(customizationSettings, 'Clients');
+  const roleConfig = (customizationSettings?.[currentUser?.id] || customizationSettings?.[currentUser?.role]) || {};
+  const baseActions = roleConfig.actions?.clients || { 
+    canChangeVisaStatus: true, 
+    canVerifyDocs: true, 
+    canDelete: true,
+    canManageCredentials: true,
+    canManageDependents: true,
+    canAssignCaseManager: true,
+    canSendMessages: true
+  };
+  const clientsActions = isViewOnly ? { canChangeVisaStatus: false, canVerifyDocs: false, canDelete: false, canManageCredentials: false, canManageDependents: false, canAssignCaseManager: false, canSendMessages: false } : baseActions;
 
   // Filters & State
   const [searchTerm, setSearchTerm] = useState('');
@@ -637,6 +648,7 @@ export const OperationsClientList = () => {
                     {...register('assignedConsultantId')}
                     value={watchConsultantId || ''}
                     label="Assigned Agent"
+                    disabled={clientsActions.canAssignCaseManager === false}
                   >
                     {consultants.map((c) => (
                       <MenuItem key={c.id} value={c.id}>

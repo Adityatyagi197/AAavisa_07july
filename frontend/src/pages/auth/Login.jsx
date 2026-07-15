@@ -130,28 +130,13 @@ export const Login = () => {
         navigate('/dashboard');
         return;
       }
+      // Backend responded but no token — unexpected
+      showAlert('Login failed: unexpected server response.', 'error');
     } catch (err) {
-      console.warn('Backend login failed for quick login, falling back to mock user:', err);
+      console.error('Quick login failed:', err);
+      const msg = err?.response?.data?.message || 'Cannot connect to server. Please ensure the backend is running.';
+      showAlert(msg, 'error');
     }
-
-    // Fallback to mock user if backend fails
-    let mockUser = {
-      id: role + '-user',
-      name: role.replace('_', ' ').toUpperCase() + ' Demo',
-      email: role + '@aaabusinessconsultancy.com',
-      role: role,
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150' 
-    };
-
-    if (role === 'super_admin') {
-      mockUser.id = 'super-admin';
-      mockUser.name = 'Wael Madi (CEO)';
-      mockUser.email = 'wael.m@aaabusinessconsultancy.com';
-    }
-
-    login(mockUser);
-    showAlert(`Logged in as Demo ${role.toUpperCase()} (Offline Mode)`, 'warning');
-    navigate('/dashboard');
   };
 
   return (
