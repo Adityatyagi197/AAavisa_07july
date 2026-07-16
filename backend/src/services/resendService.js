@@ -20,7 +20,8 @@ const sendBookingLinkEmail = async (toEmail, firstName) => {
   const name = firstName || 'there';
   const encodedEmail = encodeURIComponent(toEmail);
   const encodedName = encodeURIComponent(name);
-  const bookingUrl = `http://localhost:5173/public/booking/eligibility?email=${encodedEmail}&firstName=${encodedName}`;
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const bookingUrl = `${frontendUrl}/#/public/lead-form?email=${encodedEmail}&firstName=${encodedName}`;
 
   const subject = '🇪🇸 Complete Your Registration & Book Your Assessment';
   
