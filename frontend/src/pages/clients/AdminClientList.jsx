@@ -249,7 +249,7 @@ export const AdminClientList = () => {
   // Filter Logic
   const filteredClients = clients
     .filter((client) => {
-      if (!filterByDate(client.onboardingDate, startDate, endDate)) return false;
+      if (!filterByDate(client.createdAt || client.onboardingDate, startDate, endDate)) return false;
 
       const fullName = `${client.firstName} ${client.lastName}`.toLowerCase();
       const matchSearch =
@@ -431,10 +431,14 @@ export const AdminClientList = () => {
             { label: '30D', key: '30d' },
             { label: 'All', key: 'all' },
           ].map(preset => {
+            const todayStr = new Date().toISOString().split('T')[0];
+            const sevenDaysAgoStr = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+            const thirtyDaysAgoStr = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
             const isActive =
-              preset.key === 'today' ? startDate === mockToday && endDate === mockToday :
-              preset.key === '7d' ? startDate === '2026-06-12' && endDate === mockToday :
-              preset.key === '30d' ? startDate === '2026-05-20' && endDate === mockToday :
+              preset.key === 'today' ? startDate === todayStr && endDate === todayStr :
+              preset.key === '7d' ? startDate === sevenDaysAgoStr && endDate === todayStr :
+              preset.key === '30d' ? startDate === thirtyDaysAgoStr && endDate === todayStr :
               preset.key === 'all' ? !startDate && !endDate : false;
             return (
               <Button
@@ -444,14 +448,14 @@ export const AdminClientList = () => {
                 color={isActive ? 'primary' : 'inherit'}
                 onClick={() => {
                   if (preset.key === 'today') {
-                    setStartDate(mockToday);
-                    setEndDate(mockToday);
+                    setStartDate(todayStr);
+                    setEndDate(todayStr);
                   } else if (preset.key === '7d') {
-                    setStartDate('2026-06-12');
-                    setEndDate(mockToday);
+                    setStartDate(sevenDaysAgoStr);
+                    setEndDate(todayStr);
                   } else if (preset.key === '30d') {
-                    setStartDate('2026-05-20');
-                    setEndDate(mockToday);
+                    setStartDate(thirtyDaysAgoStr);
+                    setEndDate(todayStr);
                   } else {
                     setStartDate('');
                     setEndDate('');

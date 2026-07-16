@@ -843,11 +843,9 @@ export const LeadSelfFillForm = () => {
                   margin: "0 0 28px",
                 }}
               >
-                Shukriya! Aapki details aur meeting preferences save ho gayi
-                hain.
+                Thank you! Your details and meeting preferences have been saved.
                 <br />
-                Hamari team jald hi aapse ek confirmed meeting time ke saath
-                contact karegi.
+                Our team will contact you shortly with a confirmed meeting time.
               </p>
               <div
                 style={{

@@ -135,7 +135,8 @@ const createClient = async (req, res) => {
       
       const settings = getCustomization();
       const flowSettings = settings.flowAutomationSettings || {};
-      const portalUrl = `http://localhost:5173/#/portal/login`;
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      const portalUrl = `${frontendUrl}/#/portal/login`;
       
       const customSubject = flowSettings.welcomeEmailSubject || 'Welcome to AAA Business Consultancy - Your Client Portal is Ready! ✈️';
       let customHtml = flowSettings.welcomeEmailTemplate || '';
