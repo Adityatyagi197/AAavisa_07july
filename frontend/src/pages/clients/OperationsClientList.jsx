@@ -257,6 +257,11 @@ export const OperationsClientList = () => {
     createClientMutation.mutate(data);
   };
 
+  const handleInvalid = (formErrors) => {
+    console.log('Client Onboard Validation Errors:', formErrors);
+    showAlert('Please fill in all required fields (including Agent assignment).', 'error');
+  };
+
   // Filter Logic
   const filteredClients = clients
     .filter((client) => {
@@ -550,7 +555,7 @@ export const OperationsClientList = () => {
               Cancel
             </Button>
             <Button
-              onClick={handleSubmit(handleCreateClient)}
+              onClick={handleSubmit(handleCreateClient, handleInvalid)}
               variant="contained"
               color="secondary"
               disabled={createClientMutation.isPending}

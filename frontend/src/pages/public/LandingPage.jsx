@@ -158,6 +158,12 @@ export const LandingPage = () => {
       title: 'Property Investment Guidance',
       desc: 'Comprehensive advice for global property buyers, high-net-worth investors, and local relocation compliance.',
       icon: <HomeIcon className="text-brand-gold text-3xl" />
+    },
+    {
+      title: 'Spanish Sworn Translation',
+      desc: 'Certified translation of official documents (PCC, Birth Certificate, Bank Statements) from English, Arabic, Urdu, or French to Spanish by Ministry-approved sworn translators.',
+      icon: <TranslateIcon className="text-brand-gold text-3xl" />,
+      link: '/public/translation'
     }
   ];
 
@@ -672,7 +678,8 @@ export const LandingPage = () => {
               <motion.div
                 key={idx}
                 whileHover={{ y: -8, boxShadow: '0px 20px 25px -5px rgba(15, 23, 42, 0.05), 0px 10px 10px -5px rgba(15, 23, 42, 0.05)' }}
-                className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative flex flex-col h-full group transition-all"
+                onClick={() => item.link ? navigate(item.link) : null}
+                className={`bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative flex flex-col h-full group transition-all ${item.link ? 'cursor-pointer' : ''}`}
               >
                 {item.tag && (
                   <span className="absolute top-4 right-4 text-[10px] font-bold bg-brand-gold/10 text-brand-gold border border-brand-gold/25 px-2.5 py-0.5 rounded-full">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || "https://aaa-consultancy-production.up.railway.app/api/v1";
@@ -42,6 +43,7 @@ const NATIONALITIES = [
 ];
 
 export const LeadSelfFillForm = () => {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1); // 1: unified form, 2: success
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -220,6 +222,10 @@ export const LeadSelfFillForm = () => {
     e.preventDefault();
     if (!form.firstName || !form.lastName || !form.email || !form.phone) {
       setError("Please fill in all required personal details (Name, Email, Phone).");
+      return;
+    }
+    if (form.serviceId === "sworn_translation") {
+      navigate("/public/translation", { state: { prefilledLead: form } });
       return;
     }
     if (!form.meetingPreferredDate || !form.meetingPreferredTime) {
@@ -741,70 +747,74 @@ export const LeadSelfFillForm = () => {
                 )}
 
                 {/* Section: Meeting Preferences */}
-                <div style={sectionHeaderStyle}>📅 Meeting Preferences</div>
+                {form.serviceId !== "sworn_translation" && (
+                  <>
+                    <div style={sectionHeaderStyle}>📅 Meeting Preferences</div>
 
-                <div style={{ marginBottom: "14px" }}>
-                  <label style={labelStyle}>Preferred Meeting Date *</label>
-                  <input
-                    type="date"
-                    required
-                    min={today}
-                    value={form.meetingPreferredDate}
-                    onChange={(e) =>
-                      handleChange("meetingPreferredDate", e.target.value)
-                    }
-                    style={inputStyle}
-                  />
-                </div>
+                    <div style={{ marginBottom: "14px" }}>
+                      <label style={labelStyle}>Preferred Meeting Date *</label>
+                      <input
+                        type="date"
+                        required={form.serviceId !== "sworn_translation"}
+                        min={today}
+                        value={form.meetingPreferredDate}
+                        onChange={(e) =>
+                          handleChange("meetingPreferredDate", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </div>
 
-                <div style={{ marginBottom: "14px" }}>
-                  <label style={labelStyle}>Preferred Time Slot *</label>
-                  <input
-                    type="time"
-                    required
-                    value={form.meetingPreferredTime}
-                    onChange={(e) =>
-                      handleChange("meetingPreferredTime", e.target.value)
-                    }
-                    style={{ ...inputStyle, color: "#fff" }}
-                  />
-                </div>
+                    <div style={{ marginBottom: "14px" }}>
+                      <label style={labelStyle}>Preferred Time Slot *</label>
+                      <input
+                        type="time"
+                        required={form.serviceId !== "sworn_translation"}
+                        value={form.meetingPreferredTime}
+                        onChange={(e) =>
+                          handleChange("meetingPreferredTime", e.target.value)
+                        }
+                        style={{ ...inputStyle, color: "#fff" }}
+                      />
+                    </div>
 
-                <div style={{ marginBottom: "14px" }}>
-                  <label style={labelStyle}>Consultation Language</label>
-                  <select
-                    value={form.meetingPreferredLanguage}
-                    onChange={(e) =>
-                      handleChange("meetingPreferredLanguage", e.target.value)
-                    }
-                    style={{ ...inputStyle, color: "#fff" }}
-                  >
-                    {LANGUAGES.map((l) => (
-                      <option key={l} value={l} style={{ background: "#24243e", color: "#fff" }}>
-                        {l}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    <div style={{ marginBottom: "14px" }}>
+                      <label style={labelStyle}>Consultation Language</label>
+                      <select
+                        value={form.meetingPreferredLanguage}
+                        onChange={(e) =>
+                          handleChange("meetingPreferredLanguage", e.target.value)
+                        }
+                        style={{ ...inputStyle, color: "#fff" }}
+                      >
+                        {LANGUAGES.map((l) => (
+                          <option key={l} value={l} style={{ background: "#24243e", color: "#fff" }}>
+                            {l}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                <div style={{ marginBottom: "28px" }}>
-                  <label style={labelStyle}>
-                    Your Questions / Goals (optional)
-                  </label>
-                  <textarea
-                    value={form.meetingNotes}
-                    onChange={(e) =>
-                      handleChange("meetingNotes", e.target.value)
-                    }
-                    rows={3}
-                    placeholder="What would you like to discuss? E.g. 'I want to know about DNV visa requirements for my family...'"
-                    style={{
-                      ...inputStyle,
-                      resize: "vertical",
-                      minHeight: "80px",
-                    }}
-                  />
-                </div>
+                    <div style={{ marginBottom: "28px" }}>
+                      <label style={labelStyle}>
+                        Your Questions / Goals (optional)
+                      </label>
+                      <textarea
+                        value={form.meetingNotes}
+                        onChange={(e) =>
+                          handleChange("meetingNotes", e.target.value)
+                        }
+                        rows={3}
+                        placeholder="What would you like to discuss? E.g. 'I want to know about DNV visa requirements for my family...'"
+                        style={{
+                          ...inputStyle,
+                          resize: "vertical",
+                          minHeight: "80px",
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
 
                 {error && <div style={errorStyle}>{error}</div>}
 
@@ -815,6 +825,8 @@ export const LeadSelfFillForm = () => {
                 >
                   {loading
                     ? "Submitting..."
+                    : form.serviceId === "sworn_translation"
+                    ? "✅ Proceed to Sworn Translation Quote"
                     : "✅ Confirm My Booking Preferences"}
                 </button>
               </form>
