@@ -335,7 +335,42 @@ async function syncLeadConsultation(leadId) {
       where: { leadId: lead.id }
     });
 
-    const meetingLink = consultation?.meetingLink || ('https://zoom.us/j/' + Math.floor(100000000 + Math.random() * 900000000));
+    // Generate real Zoom meeting if Zoom is configured
+    const zoomService = require('../services/zoomService');
+    let meetingLink = consultation?.meetingLink;
+    let consultationStatus = consultation?.status || 'Pending Acceptance';
+
+    if (!meetingLink) {
+      if (zoomService.isConfigured) {
+        try {
+          let startTimeISO = new Date().toISOString();
+          if (lead.meetingPreferredDate) {
+            const timeStr = lead.meetingPreferredTime && lead.meetingPreferredTime.includes(':') 
+              ? lead.meetingPreferredTime 
+              : '10:00';
+            const dateObj = new Date(`${lead.meetingPreferredDate}T${timeStr}`);
+            if (!isNaN(dateObj.getTime())) {
+              startTimeISO = dateObj.toISOString();
+            }
+          }
+          const zoomMeeting = await zoomService.createZoomMeeting({
+            topic: `Eligibility Assessment for ${lead.firstName} ${lead.lastName}`,
+            startTime: startTimeISO,
+            durationMinutes: Number(duration) || 30
+          });
+          if (zoomMeeting) {
+            meetingLink = zoomMeeting.joinUrl;
+            consultationStatus = 'Scheduled'; // If Zoom is ready, it's Scheduled
+          }
+        } catch (zoomErr) {
+          console.error('Failed to create Zoom meeting during lead sync:', zoomErr.message);
+        }
+      }
+
+      if (!meetingLink) {
+        meetingLink = 'https://zoom.us/j/' + Math.floor(100000000 + Math.random() * 900000000);
+      }
+    }
 
     if (!consultation) {
       consultation = await prisma.consultation.create({
@@ -343,7 +378,7 @@ async function syncLeadConsultation(leadId) {
           date: lead.meetingPreferredDate,
           timeSlot: lead.meetingPreferredTime || 'TBD',
           durationMinutes: Number(duration),
-          status: 'Pending Acceptance',
+          status: consultationStatus,
           leadId: lead.id,
           consultantId: lead.assignedToId,
           internalNotes: lead.meetingNotes || '',
@@ -358,44 +393,121 @@ async function syncLeadConsultation(leadId) {
           date: lead.meetingPreferredDate,
           timeSlot: lead.meetingPreferredTime || 'TBD',
           consultantId: lead.assignedToId,
+          status: consultationStatus,
           meetingLink: meetingLink
         }
       });
       console.log(`Updated consultation (ID: ${consultation.id}) for Lead: ${lead.id}`);
     }
 
-    // Send instant confirmation email to the lead
+    // Send instant confirmation email & WhatsApp to the lead
     const { sendEmail } = require('../services/emailService');
-    if (lead.email) {
-      sendEmail({
+    const { sendWhatsAppMessage } = require('../services/whatsappService');
+    const { remindersQueue } = require('../queues/queueSetup');
+
+    const name = `${lead.firstName} ${lead.lastName}`;
+    const date = lead.meetingPreferredDate;
+    const time = lead.meetingPreferredTime || 'TBD';
+
+    console.log(`[NOTIFICATIONS] Dispatching lead confirmation for: ${name} (${lead.phone} / ${lead.email})`);
+
+    // 1. Send WhatsApp Message
+    try {
+      await sendWhatsAppMessage({
+        to: lead.phone,
+        templateName: 'consultation_scheduled_confirmation',
+        components: [
+          {
+            type: 'body',
+            parameters: [
+              { type: 'text', text: lead.firstName },
+              { type: 'text', text: date },
+              { type: 'text', text: time },
+              { type: 'text', text: meetingLink }
+            ]
+          }
+        ]
+      });
+    } catch (waErr) {
+      console.error('[NOTIFICATIONS] Failed to send WhatsApp confirmation:', waErr.message);
+    }
+
+    // 2. Send Email
+    try {
+      const emailHtml = `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; color: #2d3748;">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h2 style="color: #4f46e5; margin: 0;">AAA Business Consultancy</h2>
+            <p style="color: #718096; font-size: 14px; margin: 4px 0 0;">Relocation & Spain Visa Services</p>
+          </div>
+          <h3 style="color: #1a202c; border-bottom: 1px solid #edf2f7; padding-bottom: 10px;">Booking Details 🎉</h3>
+          <p>Hello <strong>${lead.firstName} ${lead.lastName}</strong>,</p>
+          <p>We have scheduled/updated your Free Eligibility Assessment consultation.</p>
+          
+          <div style="background-color: #f7fafc; border-left: 4px solid #4f46e5; padding: 16px; margin: 20px 0; border-radius: 4px;">
+            <h4 style="margin: 0 0 8px; color: #4f46e5;">Appointment Details</h4>
+            <p style="margin: 4px 0;"><strong>Date:</strong> ${date}</p>
+            <p style="margin: 4px 0;"><strong>Preferred Time Slot:</strong> ${time}</p>
+            <p style="margin: 4px 0;"><strong>Language:</strong> ${lead.meetingPreferredLanguage || lead.preferredLanguage || 'English'}</p>
+            <p style="margin: 4px 0;"><strong>Meeting Link:</strong> <a href="${meetingLink}" style="color: #4f46e5; text-decoration: underline;">Join Zoom Call</a></p>
+          </div>
+          
+          <p>A Spain Visa expert has been assigned to your case and will meet you online at the scheduled time.</p>
+          <p style="font-size: 13px; color: #718096; margin-top: 30px; border-top: 1px solid #edf2f7; padding-top: 10px;">
+            This is an automated notification from AAA Visa CRM. Please do not reply directly to this email.
+          </p>
+        </div>
+      `;
+      await sendEmail({
         to: lead.email,
         subject: 'Spain Visa Eligibility Assessment Scheduled - AAA Visa',
-        html: `
-          <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px; color: #2d3748;">
-            <div style="text-align: center; margin-bottom: 24px;">
-              <h2 style="color: #4f46e5; margin: 0;">AAA Business Consultancy</h2>
-              <p style="color: #718096; font-size: 14px; margin: 4px 0 0;">Relocation & Spain Visa Services</p>
-            </div>
-            <h3 style="color: #1a202c; border-bottom: 1px solid #edf2f7; padding-bottom: 10px;">Booking Details 🎉</h3>
-            <p>Hello <strong>${lead.firstName} ${lead.lastName}</strong>,</p>
-            <p>We have scheduled/updated your Free 20-Minute Eligibility Assessment consultation.</p>
-            
-            <div style="background-color: #f7fafc; border-left: 4px solid #4f46e5; padding: 16px; margin: 20px 0; border-radius: 4px;">
-              <h4 style="margin: 0 0 8px; color: #4f46e5;">Appointment Details</h4>
-              <p style="margin: 4px 0;"><strong>Date:</strong> ${lead.meetingPreferredDate}</p>
-              <p style="margin: 4px 0;"><strong>Preferred Time Slot:</strong> ${lead.meetingPreferredTime}</p>
-              <p style="margin: 4px 0;"><strong>Language:</strong> ${lead.meetingPreferredLanguage || lead.preferredLanguage || 'English'}</p>
-              <p style="margin: 4px 0;"><strong>Meeting Link:</strong> <a href="${meetingLink}" style="color: #4f46e5; text-decoration: underline;">Join Zoom Call</a></p>
-            </div>
-            
-            <p>A Spain Visa expert has been assigned to your case and will meet you online at the scheduled time.</p>
-            <p style="font-size: 13px; color: #718096; margin-top: 30px; border-top: 1px solid #edf2f7; padding-top: 10px;">
-              This is an automated notification from AAA Visa CRM. Please do not reply directly to this email.
-            </p>
-          </div>
-        `
-      }).catch(err => console.error('Failed to send confirmation email:', err));
+        html: emailHtml
+      });
+    } catch (emailErr) {
+      console.error('[NOTIFICATIONS] Failed to send Email confirmation:', emailErr.message);
     }
+
+    // 3. Schedule 3 Reminders
+    if (remindersQueue && remindersQueue.add) {
+      const meetingStart = new Date(`${date}T${time.includes(':') ? time : '10:00'}`);
+      if (!isNaN(meetingStart.getTime())) {
+        const now = Date.now();
+
+        const scheduleReminder = async (label, timeBeforeMs, subject, textLabel) => {
+          const reminderTime = meetingStart.getTime() - timeBeforeMs;
+          const delay = reminderTime - now;
+          if (delay > 0) {
+            await remindersQueue.add('send-reminder', {
+              toEmail: lead.email,
+              toPhone: lead.phone,
+              subject: subject,
+              emailHtml: `<h3>Meeting Reminder</h3><p>Dear ${lead.firstName}, your Spain Visa Consultation is in ${textLabel}.</p><p>Zoom Join Link: <a href="${meetingLink}">${meetingLink}</a></p>`,
+              whatsappTemplate: 'consultation_scheduled_confirmation',
+              whatsappComponents: [
+                {
+                  type: 'body',
+                  parameters: [
+                    { type: 'text', text: lead.firstName },
+                    { type: 'text', text: date },
+                    { type: 'text', text: time },
+                    { type: 'text', text: meetingLink }
+                  ]
+                }
+              ]
+            }, {
+              jobId: `reminder-${label}-${consultation.id}`,
+              delay: delay
+            });
+            console.log(`[NOTIFICATIONS] Enqueued ${label} reminder with delay: ${Math.round(delay / 60000)} minutes`);
+          }
+        };
+
+        await scheduleReminder('24h', 24 * 60 * 60 * 1000, 'Reminder: Spain Visa Consultation in 24 Hours', '24 Hours');
+        await scheduleReminder('1h', 1 * 60 * 60 * 1000, 'Reminder: Spain Visa Consultation in 1 Hour', '1 Hour');
+        await scheduleReminder('10m', 10 * 60 * 1000, 'Urgent Reminder: Spain Visa Consultation in 10 Minutes', '10 Minutes');
+      }
+    }
+
   } catch (error) {
     console.error('Error in syncLeadConsultation:', error);
   }

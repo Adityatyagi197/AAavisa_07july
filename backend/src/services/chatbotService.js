@@ -48,18 +48,28 @@ exports.handleChatbotMessage = async (phone, name, text) => {
     return;
   }
 
-  // Handle initial greeting commands (when agent mode is NOT active)
-  if (cleanMessage === 'hello' || cleanMessage === 'hi') {
-    const sessionKey = `chatbot:session:${cleanPhone}`;
-    await redis.set(sessionKey, JSON.stringify({ stage: 'AWAITING_SERVICE' }), 'EX', SESSION_TIMEOUT);
-    await sendMenu(cleanPhone);
-    return;
-  }
-
   // Retrieve user session stage
   const sessionKey = `chatbot:session:${cleanPhone}`;
   const userSessionRaw = await redis.get(sessionKey);
   let userSession = userSessionRaw ? JSON.parse(userSessionRaw) : { stage: 'INIT' };
+
+  // Detect and track traffic source from incoming message text
+  if (!userSession.source) {
+    if (cleanMessage.includes('tiktok')) {
+      userSession.source = 'TikTok Ads';
+    } else if (cleanMessage.includes('instagram')) {
+      userSession.source = 'Instagram Ads';
+    } else if (cleanMessage.includes('facebook')) {
+      userSession.source = 'Facebook Ads';
+    }
+  }
+
+  // Handle initial greeting commands (when agent mode is NOT active)
+  if (cleanMessage === 'hello' || cleanMessage === 'hi' || cleanMessage.includes('want to apply')) {
+    await redis.set(sessionKey, JSON.stringify({ stage: 'AWAITING_SERVICE', source: userSession.source }), 'EX', SESSION_TIMEOUT);
+    await sendMenu(cleanPhone);
+    return;
+  }
 
   // 2. Handoff to Live Agent command
   if (cleanMessage === 'agent' || cleanMessage === 'talk to agent') {
@@ -192,20 +202,35 @@ async function askQuestionB(phone) {
  * Completes the onboarding flow, creates/updates the lead in CRM database, and sends congratulations booking link.
  */
 async function completeOnboarding(phone, name, serviceType, applicantsCount, sessionKey) {
+  let source = 'WhatsApp'; // Default fallback
+  try {
+    const userSessionRaw = await redis.get(sessionKey);
+    if (userSessionRaw) {
+      const userSession = JSON.parse(userSessionRaw);
+      if (userSession.source) {
+        source = userSession.source;
+      }
+    }
+  } catch (e) {
+    console.warn("Could not retrieve source from Redis session:", e.message);
+  }
+
+  let lead = null;
   // 1. Save or update Lead details in CRM database
   try {
     const numberPart = phone.replace('+', '');
-    let lead = await prisma.lead.findFirst({
+    lead = await prisma.lead.findFirst({
       where: { phone: { contains: numberPart } }
     });
 
     if (lead) {
-      await prisma.lead.update({
+      lead = await prisma.lead.update({
         where: { id: lead.id },
         data: {
           serviceType: serviceType,
           applicantsCount: applicantsCount,
-          status: 'Awaiting Assessment'
+          status: 'Awaiting Assessment',
+          source: lead.source === 'WhatsApp' ? source : undefined // Only update generic default source
         }
       });
       console.log(`[CHATBOT] Updated lead ${lead.id} with service: ${serviceType}, applicants: ${applicantsCount}`);
@@ -220,7 +245,7 @@ async function completeOnboarding(phone, name, serviceType, applicantsCount, ses
           serviceType: serviceType,
           applicantsCount: applicantsCount,
           status: 'New Lead',
-          source: 'WhatsApp'
+          source: source
         }
       });
       console.log(`[CHATBOT] Created new lead ${lead.id} with service: ${serviceType}, applicants: ${applicantsCount}`);
@@ -233,7 +258,7 @@ async function completeOnboarding(phone, name, serviceType, applicantsCount, ses
   await redis.del(sessionKey);
 
   // 3. Send final congratulations and booking invitation message
-  const congratsMsg = `Congratulations.\nBased on your initial information, you are invited to book a FREE Assessment & Verification Consultation with one of our consultants.\nPlease use the booking link below to select your preferred date and time.\n\nhttp://localhost:5173/#/public/lead-form`;
+  const congratsMsg = `Congratulations.\nBased on your initial information, you are invited to book a FREE Assessment & Verification Consultation with one of our consultants.\nPlease use the booking link below to select your preferred date and time.\n\nhttp://localhost:5173/#/public/lead-form?source=${encodeURIComponent(source)}&id=${lead ? lead.id : ''}`;
   
   await sendCustomWhatsApp(phone, congratsMsg);
 }

@@ -64,7 +64,6 @@ import OperationsSocialInbox from '../pages/social/OperationsSocialInbox';
 import AgentSocialInbox from '../pages/social/AgentSocialInbox';
 import ClientIntakeForm from '../pages/public/ClientIntakeForm';
 import LeadIntakeForm from '../pages/public/LeadIntakeForm';
-import EligibilityBookingForm from '../pages/public/EligibilityBookingForm';
 import SwornTranslationForm from '../pages/public/SwornTranslationForm';
 import LandingPage from '../pages/public/LandingPage';
 import ClientPortalLogin from '../pages/public/ClientPortalLogin';
@@ -287,7 +286,6 @@ export const AppRoutes = () => {
       {/* Public Secure Client Intake Portal (Unprotected) */}
       <Route path="/public/intake/client/:clientId" element={<ClientIntakeForm />} />
       <Route path="/public/intake" element={<LeadIntakeForm />} />
-      <Route path="/public/booking/eligibility" element={<EligibilityBookingForm />} />
       <Route path="/public/translation" element={<SwornTranslationForm />} />
       <Route path="/public/lead-form" element={<LeadSelfFillForm />} />
 
