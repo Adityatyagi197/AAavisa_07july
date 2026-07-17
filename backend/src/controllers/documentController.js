@@ -123,7 +123,7 @@ const uploadTranslatedDocument = async (req, res) => {
             <h3>Dear ${document.client.firstName},</h3>
             <p>We are pleased to inform you that the sworn translation of your document (<b>${document.name}</b>) is complete and ready.</p>
             <p>You can now download the certified PDF directly from your Client Portal dashboard.</p>
-            <p><a href="http://localhost:5173/#/portal/login">Log in to Client Portal</a></p>
+            <p><a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/#/portal/login">Log in to Client Portal</a></p>
             <br/>
             <p>Best regards,<br/>AAA Business Consultancy Team</p>
           `

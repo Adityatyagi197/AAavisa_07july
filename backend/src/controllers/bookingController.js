@@ -410,7 +410,8 @@ exports.checkoutTranslationDocument = async (req, res) => {
     });
 
     // 5. Generate Stripe Mock Link (Direct portal redirect for local testing)
-    const paymentUrl = `http://localhost:5173/#/portal/login?success=true&clientId=${client.id}&tempPassword=${generatedPassword || 'Pre-existing'}`;
+    const frontendUrl = process.env.FRONTEND_URL || req.headers.origin || 'http://localhost:5173';
+    const paymentUrl = `${frontendUrl}/#/portal/login?success=true&clientId=${client.id}&tempPassword=${generatedPassword || 'Pre-existing'}`;
 
     // Update payment record with mock gateway details
     await prisma.payment.update({
