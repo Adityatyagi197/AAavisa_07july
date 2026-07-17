@@ -1,7 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const { remindersQueue, noShowEnforcerQueue } = require('../queues/queueSetup');
-const pdfParse = require('pdf-parse');
+const { PDFParse } = require('pdf-parse');
 const { sendEmail } = require('../services/emailService');
 const { sendWhatsAppMessage } = require('../services/whatsappService');
 const zoomService = require('../services/zoomService');
@@ -277,8 +277,9 @@ exports.uploadTranslationDocument = async (req, res) => {
     }
 
     // Parse PDF
-    const data = await pdfParse(req.file.buffer);
-    const text = data.text;
+    const parser = new PDFParse({ data: req.file.buffer });
+    const result = await parser.getText();
+    const text = result.pages.map(p => p.text).join('\n');
     
     // Count words (naive whitespace split)
     const wordCount = text.trim().split(/\s+/).filter(word => word.length > 0).length;
@@ -301,5 +302,121 @@ exports.uploadTranslationDocument = async (req, res) => {
   } catch (error) {
     console.error('PDF Parse Error:', error);
     return res.status(500).json({ success: false, error: 'Failed to parse PDF document' });
+  }
+};
+
+exports.checkoutTranslationDocument = async (req, res) => {
+  const crypto = require('crypto');
+  const bcrypt = require('bcrypt');
+
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      nationality,
+      sourceLanguage,
+      targetLanguage,
+      wordCount,
+      estimatedPrice
+    } = req.body;
+
+    if (!firstName || !lastName || !email || !phone) {
+      return res.status(400).json({ success: false, message: 'Missing required client details' });
+    }
+
+    // 1. Find or create Client
+    let client = await prisma.client.findUnique({
+      where: { email: email.toLowerCase() }
+    });
+
+    let generatedPassword = '';
+    if (!client) {
+      generatedPassword = crypto.randomBytes(8).toString('hex');
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(generatedPassword, salt);
+
+      client = await prisma.client.create({
+        data: {
+          firstName,
+          lastName,
+          email: email.toLowerCase(),
+          phone,
+          nationality: nationality || null,
+          serviceType: 'Spanish Sworn Translation',
+          password: hashedPassword,
+          isTemporaryPassword: true,
+          status: 'Documents Under Review'
+        }
+      });
+    } else {
+      client = await prisma.client.update({
+        where: { id: client.id },
+        data: { status: 'Documents Under Review' }
+      });
+    }
+
+    // 2. Save Document record
+    const document = await prisma.document.create({
+      data: {
+        clientId: client.id,
+        name: req.file.originalname,
+        category: 'Translation Input',
+        url: `/uploads/${req.file.filename}`,
+        size: `${(req.file.size / 1024 / 1024).toFixed(2)} MB`,
+        status: 'Pending Verification',
+        belongsTo: 'Main Applicant'
+      }
+    });
+
+    // 3. Create Case Cycle (ApplicationCycle)
+    const applicationCycle = await prisma.applicationCycle.create({
+      data: {
+        clientId: client.id,
+        serviceType: 'sworn_translation',
+        status: 'Documents Under Review'
+      }
+    });
+
+    // 4. Create Payment Record
+    const payment = await prisma.payment.create({
+      data: {
+        clientId: client.id,
+        applicationId: applicationCycle.id,
+        amount: Number(estimatedPrice) || 0,
+        totalPaid: Number(estimatedPrice) || 0,
+        status: 'Paid',
+        paymentMethod: 'Stripe Mock Auto',
+        dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+      }
+    });
+
+    // 5. Generate Stripe Mock Link (Direct portal redirect for local testing)
+    const paymentUrl = `http://localhost:5173/#/portal/login?success=true&clientId=${client.id}&tempPassword=${generatedPassword || 'Pre-existing'}`;
+
+    // Update payment record with mock gateway details
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { gatewayId: `sess_${payment.id}` }
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Checkout initialized successfully',
+      data: {
+        clientId: client.id,
+        paymentUrl,
+        tempPassword: generatedPassword || null
+      }
+    });
+
+  } catch (error) {
+    console.error('Translation Checkout Error:', error);
+    return res.status(500).json({ success: false, error: 'Internal Server Error during checkout' });
   }
 };

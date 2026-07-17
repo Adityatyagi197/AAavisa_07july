@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
@@ -100,6 +100,18 @@ export const ClientPortalLogin = () => {
   const [loginLang, setLoginLang] = useState(() => {
     return localStorage.getItem('client-portal-lang') || 'English';
   });
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search || window.location.hash.substring(window.location.hash.indexOf('?')));
+    const urlClientId = params.get('clientId');
+    const urlTempPassword = params.get('tempPassword');
+    const successMsg = params.get('success');
+    if (urlClientId) setUsername(urlClientId);
+    if (urlTempPassword) setPassword(urlTempPassword);
+    if (successMsg) {
+      showAlert('Payment Successful! Your account has been created. Please log in using the credentials below.', 'success');
+    }
+  }, [showAlert]);
 
   const changeLanguage = (newLang) => {
     setLoginLang(newLang);

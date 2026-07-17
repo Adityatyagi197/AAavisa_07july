@@ -344,7 +344,9 @@ export const ClientPortalDocs = () => {
     queryKey: ['clients'],
     queryFn: dbService.getClients });
 
-  const client = clients.find((c) => c.id === clientId);
+  const dbClient = clients.find((c) => c.id === clientId);
+  const localMockClient = JSON.parse(localStorage.getItem('mockClientData') || 'null');
+  const client = dbClient || (localMockClient && localMockClient.id === clientId ? localMockClient : undefined);
 
   useEffect(() => {
     if (client) {
@@ -385,6 +387,11 @@ export const ClientPortalDocs = () => {
   const { data: consultations = [], isLoading: isConsultationsLoading } = useQuery({
     queryKey: ['consultations'],
     queryFn: dbService.getConsultations });
+
+  const { data: allPayments = [], isLoading: isPaymentsLoading } = useQuery({
+    queryKey: ['payments'],
+    queryFn: dbService.getPayments
+  });
 
   const { data: agents = [] } = useQuery({
     queryKey: ['agents'],
@@ -431,6 +438,44 @@ export const ClientPortalDocs = () => {
     setWordRate(rate);
     setCalcPrice(parseFloat((wordCount * rate).toFixed(2)));
   }, [generalSettings, sourceLang, targetLang, wordCount]);
+
+  useEffect(() => {
+    // 1. First check if there is real DB client matching
+    if (client && (client.serviceId === 'sworn_translation' || client.serviceId === 'translation' || client.serviceId === 'sworn' || client.serviceType === 'Spanish Sworn Translation')) {
+      setIsCalculated(true);
+      
+      const clientPayments = allPayments.filter(p => p.clientId === clientId);
+      const activePayment = clientPayments[0];
+
+      if (activePayment) {
+        setCalcPrice(activePayment.amount);
+        setTranslationPaid(activePayment.status === 'Paid');
+      }
+
+      // Map client case status to stepper state
+      if (client.status === 'Documents Under Review' || client.status === 'Processing') {
+        setTranslationStatus('processing');
+      } else if (client.status === 'Completed' || client.status === 'Delivered') {
+        setTranslationStatus('delivered');
+      } else if (activePayment && activePayment.status === 'Paid') {
+        setTranslationStatus('processing');
+      } else {
+        setTranslationStatus('word_calculated');
+      }
+    } else {
+      // 2. Fallback to mock case in localStorage
+      const mockCase = JSON.parse(localStorage.getItem('mockTranslationCase') || 'null');
+      if (mockCase && mockCase.clientId === clientId) {
+        setSourceLang(mockCase.sourceLanguage || 'English');
+        setTargetLang(mockCase.targetLanguage || 'Spanish');
+        setWordCount(mockCase.wordCount || 250);
+        setCalcPrice(mockCase.estimatedPrice || 30);
+        setTranslationPaid(mockCase.paid || false);
+        setIsCalculated(true);
+        setTranslationStatus(mockCase.status || 'processing');
+      }
+    }
+  }, [clientId, client, allPayments]);
 
   // Mutations
   const uploadDocMutation = useMutation({
@@ -548,7 +593,7 @@ export const ClientPortalDocs = () => {
     });
   };
 
-  if (isClientsLoading || isDocsLoading || isConsultationsLoading) {
+  if (isClientsLoading || isDocsLoading || isConsultationsLoading || isPaymentsLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
         <CircularProgress />
@@ -873,7 +918,7 @@ export const ClientPortalDocs = () => {
               '&.Mui-selected': { color: '#C59B27' }
             }} 
           />
-          {client && (client.serviceId === 'sworn_translation' || client.serviceId === 'translation' || client.serviceId === 'sworn') ? (
+          {client && (client.serviceId === 'sworn_translation' || client.serviceId === 'translation' || client.serviceId === 'sworn' || client.serviceType === 'Spanish Sworn Translation') ? (
             <Tab 
               label={t('calculator_title')} 
               sx={{ 
@@ -1236,7 +1281,7 @@ export const ClientPortalDocs = () => {
         )}
 
         {/* Tab 1: Sworn Translation Calculator */}
-        {tabValue === 1 && (client.serviceId === 'sworn_translation' || client.serviceId === 'translation' || client.serviceId === 'sworn') && (
+        {tabValue === 1 && (client.serviceId === 'sworn_translation' || client.serviceId === 'translation' || client.serviceId === 'sworn' || client.serviceType === 'Spanish Sworn Translation') && (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <Paper 
               sx={{ 
@@ -1467,6 +1512,11 @@ export const ClientPortalDocs = () => {
                               fullWidth
                               onClick={() => {
                                 setTranslationStatus('delivered');
+                                const mockCase = JSON.parse(localStorage.getItem('mockTranslationCase') || 'null');
+                                if (mockCase) {
+                                  mockCase.status = 'delivered';
+                                  localStorage.setItem('mockTranslationCase', JSON.stringify(mockCase));
+                                }
                                 showAlert('Demo translation file completed & delivered!', 'success');
                               }}
                               sx={{
@@ -1514,7 +1564,7 @@ export const ClientPortalDocs = () => {
           </Box>
         )}
 
-        {tabValue === 1 && client && client.serviceId !== 'sworn_translation' && client.serviceId !== 'translation' && client.serviceId !== 'sworn' && (() => {
+        {tabValue === 1 && client && client.serviceId !== 'sworn_translation' && client.serviceId !== 'translation' && client.serviceId !== 'sworn' && client.serviceType !== 'Spanish Sworn Translation' && (() => {
           const baseServicePrice = SERVICES.find(s => s.id === client.serviceId)?.basePrice || 1500;
           const numApplicants = client.applicantsCount || 1;
 
