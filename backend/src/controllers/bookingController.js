@@ -195,7 +195,7 @@ exports.createEligibilityBooking = async (req, res) => {
               <li><strong>Duration:</strong> 20 Minutes</li>
             </ul>
             <p><strong>Meeting Join Link:</strong><br/>
-               <a href="${link}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">Join Zoom Meeting</a>
+               <em>The Zoom meeting join link will be shared with you shortly via email once a consultant is confirmed. Please stay tuned and join the meeting on time.</em>
             </p>
             <p><em>Important: If you do not join your scheduled Free Eligibility Assessment within 10 minutes of the appointment time, your booking will be automatically cancelled. Due to high demand, missed appointments are not eligible for rescheduling.</em></p>
             <p>Thank you for choosing AAA Business Consultancy!</p>

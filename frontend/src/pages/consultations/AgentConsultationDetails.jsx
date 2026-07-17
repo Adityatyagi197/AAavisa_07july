@@ -50,34 +50,37 @@ export const AgentConsultationDetails = () => {
       queryClient.invalidateQueries({ queryKey: ['consultations'] });
       showAlert('Consultation claimed successfully!', 'success');
     },
-    onError: () => showAlert('Error claiming consultation.', 'error') });
+    onError: () => showAlert('Error claiming consultation.', 'error')
+  });
   const [clientRequested, setClientRequested] = useState('dnv');
   const [aaaRecommended, setAaaRecommended] = useState('dnv');
   const [outcomeNotes, setOutcomeNotes] = useState('');
 
-  // S3 Interactive Audio Player States
+  // Interactive Audio Player States (for legacy S3 playback)
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(2052); // default 34m 12s
+  const [duration, setDuration] = useState(0); 
   const [volume, setVolume] = useState(80);
+  const audioRef = useRef(null);
 
+  // Sync isPlaying with audio element
   useEffect(() => {
-    let interval = null;
+    if (!audioRef.current) return;
     if (isPlaying) {
-      interval = setInterval(() => {
-        setCurrentTime((prev) => {
-          if (prev >= duration) {
-            setIsPlaying(false);
-            return 0;
-          }
-          return prev + 1;
-        });
-      }, 1000);
+      audioRef.current.play().catch(err => {
+        console.error("Audio playback failed:", err.message);
+        setIsPlaying(false);
+      });
     } else {
-      clearInterval(interval);
+      audioRef.current.pause();
     }
-    return () => clearInterval(interval);
-  }, [isPlaying, duration]);
+  }, [isPlaying]);
+
+  // Sync volume with audio element
+  useEffect(() => {
+    if (!audioRef.current) return;
+    audioRef.current.volume = volume / 100;
+  }, [volume]);
 
   const handlePlayPause = () => {
     setIsPlaying(!isPlaying);
@@ -85,23 +88,56 @@ export const AgentConsultationDetails = () => {
 
   const handleSliderChange = (e, newValue) => {
     setCurrentTime(newValue);
+    if (audioRef.current) {
+      audioRef.current.currentTime = newValue;
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
+  };
+
+  const handleAudioEnded = () => {
+    setIsPlaying(false);
+    setCurrentTime(0);
   };
 
   const formatTime = (secs) => {
+    if (isNaN(secs)) return '0:00';
     const mins = Math.floor(secs / 60);
     const remainingSecs = Math.floor(secs % 60);
     return `${mins}:${remainingSecs.toString().padStart(2, '0')}`;
   };
 
-  // Fetch consultation details
+  const getRecordingFilename = (url) => {
+    if (!url) return '';
+    try {
+      const parts = url.split('/');
+      return parts[parts.length - 1];
+    } catch (e) {
+      return 'Assessment_Recording.mp4';
+    }
+  };
+
+  // Fetch consultation details (poll every 5s if meeting is active to capture completion)
   const { data: consultations = [], isLoading } = useQuery({
     queryKey: ['consultations'],
-    queryFn: dbService.getConsultations });
+    queryFn: dbService.getConsultations,
+    refetchInterval: 5000 });
 
   // Fetch consultants dynamically
   const { data: consultants = [] } = useQuery({
     queryKey: ['consultants'],
-    queryFn: dbService.getConsultants });
+    queryFn: dbService.getConsultants
+  });
 
   const cons = consultations.find((c) => c.id === id);
 
@@ -111,7 +147,8 @@ export const AgentConsultationDetails = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['consultations'] });
       showAlert('Consultation status updated', 'success');
-    } });
+    }
+  });
 
   const respondMutation = useMutation({
     mutationFn: ({ id, action, declineReason }) => dbService.respondToConsultation(id, action, declineReason),
@@ -131,7 +168,8 @@ export const AgentConsultationDetails = () => {
       queryClient.invalidateQueries({ queryKey: ['leads'] });
       showAlert('Consultation marked completed. Outcome recorded!', 'success');
       setCompleteModalOpen(false);
-    } });
+    }
+  });
 
   if (isLoading) {
     return (
@@ -165,8 +203,10 @@ export const AgentConsultationDetails = () => {
       id: cons.id,
       outcome: {
         clientRequestedService: requestedObj ? requestedObj.name : 'Digital Nomad Visa (DNV)',
-        aaaRecommendedService: recommendedObj ? recommendedObj.name : 'Digital Nomad Visa (DNV)' },
-      notes: outcomeNotes });
+        aaaRecommendedService: recommendedObj ? recommendedObj.name : 'Digital Nomad Visa (DNV)'
+      },
+      notes: outcomeNotes
+    });
   };
 
   return (
@@ -211,51 +251,51 @@ export const AgentConsultationDetails = () => {
             )}
             {cons.status === 'Scheduled' && (
               <Stack direction="row" spacing={1}>
-              {!cons.consultantId ? (
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  onClick={() => claimMutation.mutate()}
-                  disabled={claimMutation.isPending}
-                  sx={{
-                    background: 'linear-gradient(135deg, #2563EB 0%, #14B8A6 100%)',
-                    color: 'white',
-                    '&:hover': { opacity: 0.9 }
-                  }}
-                >
-                  Claim Consultation (Pick Up)
-                </Button>
-              ) : (
-                (cons.consultantId === currentUser?.id || currentUser?.role === 'admin' || currentUser?.role === 'operations') && (
-                  <>
-                    <Button
-                      variant="contained"
-                      color="success"
-                      startIcon={<CheckCircleIcon />}
-                      onClick={() => setCompleteModalOpen(true)}
-                    >
-                      Mark Complete
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      color="warning"
-                      onClick={() => handleStatusChange('No Show')}
-                    >
-                      Mark No Show
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      startIcon={<HighlightOffIcon />}
-                      onClick={() => handleStatusChange('Cancelled')}
-                    >
-                      Cancel Meeting
-                    </Button>
-                  </>
-                )
-              )}
-            </Stack>
-          )}
+                {!cons.consultantId ? (
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    onClick={() => claimMutation.mutate()}
+                    disabled={claimMutation.isPending}
+                    sx={{
+                      background: 'linear-gradient(135deg, #2563EB 0%, #14B8A6 100%)',
+                      color: 'white',
+                      '&:hover': { opacity: 0.9 }
+                    }}
+                  >
+                    Claim Consultation (Pick Up)
+                  </Button>
+                ) : (
+                  (cons.consultantId === currentUser?.id || currentUser?.role === 'admin' || currentUser?.role === 'operations') && (
+                    <>
+                      <Button
+                        variant="contained"
+                        color="success"
+                        startIcon={<CheckCircleIcon />}
+                        onClick={() => setCompleteModalOpen(true)}
+                      >
+                        Mark Complete
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="warning"
+                        onClick={() => handleStatusChange('No Show')}
+                      >
+                        Mark No Show
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        startIcon={<HighlightOffIcon />}
+                        onClick={() => handleStatusChange('Cancelled')}
+                      >
+                        Cancel Meeting
+                      </Button>
+                    </>
+                  )
+                )}
+              </Stack>
+            )}
           </>
         }
       />
@@ -275,24 +315,24 @@ export const AgentConsultationDetails = () => {
                   <Typography variant="caption" color="text.secondary">Meeting Link</Typography>
                   <Box>
                     {cons.status === 'Pending Acceptance' ? (
-                      <Link 
+                      <Link
                         component="button"
                         underline="none"
-                        onClick={() => showAlert('Please accept the meeting first to access the video link.', 'warning')} 
+                        onClick={() => showAlert('Please accept the meeting first to access the video link.', 'warning')}
                         sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontWeight: 600, color: 'text.secondary', cursor: 'pointer' }}
                       >
                         <VideoCallIcon fontSize="small" /> Virtual Meeting
                       </Link>
                     ) : (
-                      <Link 
-                        href={cons.meetingLink || '#'} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        onClick={(e) => { 
-                          if (!cons.meetingLink) { 
-                            e.preventDefault(); 
-                            showAlert('Meeting link has not been generated yet.', 'warning'); 
-                          } 
+                      <Link
+                        href={cons.meetingLink || '#'}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => {
+                          if (!cons.meetingLink) {
+                            e.preventDefault();
+                            showAlert('Meeting link has not been generated yet.', 'warning');
+                          }
                         }}
                         sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, fontWeight: 600 }}
                       >
@@ -322,64 +362,110 @@ export const AgentConsultationDetails = () => {
 
             {/* Recording Section */}
             {cons.status === 'Completed' && (
-              <AppCard title="Automated Meeting Recording (AWS S3 Cloud)">
-                <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: 'background.neutral', border: '1px solid', borderColor: 'divider' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1.5 }}>
-                    <IconButton 
-                      onClick={handlePlayPause} 
-                      color="secondary" 
-                      sx={{ 
-                        width: 48, 
-                        height: 48, 
-                        bgcolor: 'secondary.main', 
-                        color: 'white',
-                        '&:hover': { bgcolor: 'secondary.dark' } 
-                      }}
-                    >
-                      {isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
-                    </IconButton>
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                        Assessment_Recording_{cons.id}.mp3
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        S3 Path: https://aaa-consultancy-recordings.s3.eu-west-1.amazonaws.com/recordings/meeting-{cons.id}.mp3
-                      </Typography>
+              <AppCard title="Automated Meeting Recording (Zoom Cloud)">
+                {cons.recordingUrl ? (
+                  cons.recordingUrl.includes('zoom.us') || cons.recordingUrl.includes('zoom.com') ? (
+                    /* Zoom Cloud playback page (Opens in new tab) */
+                    <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: 'background.neutral', border: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
+                        <VideoCallIcon color="primary" sx={{ fontSize: 32 }} />
+                        <Box sx={{ flexGrow: 1 }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                            Assessment Meeting Recording (Zoom Cloud)
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ wordBreak: 'break-all' }}>
+                            Meeting Link: {cons.recordingUrl}
+                          </Typography>
+                        </Box>
+                      </Box>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        href={cons.recordingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        startIcon={<PlayArrowIcon />}
+                        sx={{ mt: 1, px: 3, fontWeight: 700 }}
+                      >
+                        Play Recording on Zoom Cloud
+                      </Button>
                     </Box>
-                  </Box>
+                  ) : (
+                    /* Legacy direct audio stream playback (e.g. S3 files) */
+                    <Box sx={{ p: 2.5, borderRadius: 2, bgcolor: 'background.neutral', border: '1px solid', borderColor: 'divider' }}>
+                      <audio
+                        ref={audioRef}
+                        src={cons.recordingUrl}
+                        onTimeUpdate={handleTimeUpdate}
+                        onLoadedMetadata={handleLoadedMetadata}
+                        onEnded={handleAudioEnded}
+                      />
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1.5 }}>
+                        <IconButton 
+                          onClick={handlePlayPause} 
+                          color="secondary" 
+                          sx={{ 
+                            width: 48, 
+                            height: 48, 
+                            bgcolor: 'secondary.main', 
+                            color: 'white',
+                            '&:hover': { bgcolor: 'secondary.dark' } 
+                          }}
+                        >
+                          {isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
+                        </IconButton>
+                        <Box sx={{ flexGrow: 1 }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                            {getRecordingFilename(cons.recordingUrl)}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ wordBreak: 'break-all' }}>
+                            S3 Path: {cons.recordingUrl}
+                          </Typography>
+                        </Box>
+                      </Box>
 
-                  {/* Slider Timeline */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ minWidth: 35 }}>
-                      {formatTime(currentTime)}
-                    </Typography>
-                    <Slider
-                      size="small"
-                      value={currentTime}
-                      min={0}
-                      max={duration}
-                      onChange={handleSliderChange}
-                      color="secondary"
-                      sx={{ flexGrow: 1 }}
-                    />
-                    <Typography variant="caption" color="text.secondary" sx={{ minWidth: 35 }}>
-                      {formatTime(duration)}
-                    </Typography>
-                  </Box>
+                      {/* Slider Timeline */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ minWidth: 35 }}>
+                          {formatTime(currentTime)}
+                        </Typography>
+                        <Slider
+                          size="small"
+                          value={currentTime}
+                          min={0}
+                          max={duration || 1}
+                          onChange={handleSliderChange}
+                          color="secondary"
+                          sx={{ flexGrow: 1 }}
+                        />
+                        <Typography variant="caption" color="text.secondary" sx={{ minWidth: 35 }}>
+                          {formatTime(duration)}
+                        </Typography>
+                      </Box>
 
-                  {/* Volume Controller */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, justifyContent: 'flex-end' }}>
-                    <VolumeUpIcon fontSize="small" color="action" />
-                    <Slider
-                      size="small"
-                      value={volume}
-                      onChange={(e, val) => setVolume(val)}
-                      min={0}
-                      max={100}
-                      sx={{ width: 80, color: 'text.secondary' }}
-                    />
+                      {/* Volume Controller */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1, justifyContent: 'flex-end' }}>
+                        <VolumeUpIcon fontSize="small" color="action" />
+                        <Slider
+                          size="small"
+                          value={volume}
+                          onChange={(e, val) => setVolume(val)}
+                          min={0}
+                          max={100}
+                          sx={{ width: 80, color: 'text.secondary' }}
+                        />
+                      </Box>
+                    </Box>
+                  )
+                ) : (
+                  /* Recording processing state */
+                  <Box sx={{ p: 3, textAlign: 'center', bgcolor: 'background.neutral', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Automated cloud recording is currently processing on Zoom Cloud. Please wait...
+                    </Typography>
+                    <CircularProgress size={24} sx={{ mt: 2, color: 'secondary.main' }} />
                   </Box>
-                </Box>
+                )}
               </AppCard>
             )}
 
@@ -430,7 +516,8 @@ export const AgentConsultationDetails = () => {
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
                     px: 1,
-                    boxSizing: 'border-box' }}
+                    boxSizing: 'border-box'
+                  }}
                 >
                   {consultant.email}
                 </Typography>

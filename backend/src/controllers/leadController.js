@@ -449,7 +449,7 @@ async function syncLeadConsultation(leadId) {
             <p style="margin: 4px 0;"><strong>Date:</strong> ${date}</p>
             <p style="margin: 4px 0;"><strong>Preferred Time Slot:</strong> ${time}</p>
             <p style="margin: 4px 0;"><strong>Language:</strong> ${lead.meetingPreferredLanguage || lead.preferredLanguage || 'English'}</p>
-            <p style="margin: 4px 0;"><strong>Meeting Link:</strong> <a href="${meetingLink}" style="color: #4f46e5; text-decoration: underline;">Join Zoom Call</a></p>
+            <p style="margin: 4px 0;"><strong>Meeting Link:</strong> <em>The Zoom meeting link will be shared shortly via email once the assigned consultant accepts. Please join on time.</em></p>
           </div>
           
           <p>A Spain Visa expert has been assigned to your case and will meet you online at the scheduled time.</p>
