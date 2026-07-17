@@ -27,9 +27,12 @@ const SwornTranslationForm = () => {
   });
 
   const [file, setFile] = useState(null);
+  const [category, setCategory] = useState('Passport');
+  const [customCategory, setCustomCategory] = useState('');
   const [status, setStatus] = useState(null);
   const [quote, setQuote] = useState(null);
   const [error, setError] = useState(null);
+  const [isDragActive, setIsDragActive] = useState(false);
 
   const handleInputChange = (e) => {
     setFormData({
@@ -41,6 +44,7 @@ const SwornTranslationForm = () => {
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setFile(e.target.files[0]);
+      setQuote(null);
     }
   };
 
@@ -55,15 +59,15 @@ const SwornTranslationForm = () => {
       return;
     }
 
-    const formDataUpload = new FormData();
-    formDataUpload.append('document', file);
-    formDataUpload.append('sourceLanguage', formData.sourceLanguage);
-    formDataUpload.append('targetLanguage', formData.targetLanguage);
-
     try {
       setStatus('loading');
       setError(null);
       
+      const formDataUpload = new FormData();
+      formDataUpload.append('document', file);
+      formDataUpload.append('sourceLanguage', formData.sourceLanguage);
+      formDataUpload.append('targetLanguage', formData.targetLanguage);
+
       const res = await axios.post(`${API_URL}/booking/translation/upload`, formDataUpload, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
@@ -96,6 +100,12 @@ const SwornTranslationForm = () => {
 
       const formDataCheckout = new FormData();
       formDataCheckout.append('document', file);
+      
+      let finalCategory = category;
+      if (category === 'Other') {
+        finalCategory = `Other: ${customCategory || 'General Document'}`;
+      }
+      formDataCheckout.append('category', finalCategory);
       formDataCheckout.append('firstName', formData.firstName);
       formDataCheckout.append('lastName', formData.lastName);
       formDataCheckout.append('email', formData.email);
@@ -303,18 +313,147 @@ const SwornTranslationForm = () => {
             {/* File Upload Box */}
             <div>
               <label style={labelStyle}>Upload PDF Document *</label>
-              <input
-                type="file"
-                accept="application/pdf"
-                required
-                onChange={handleFileChange}
-                style={{
-                  ...inputStyle,
-                  padding: '8px 12px',
-                  cursor: 'pointer'
+              <div 
+                onDragOver={(e) => { e.preventDefault(); setIsDragActive(true); }}
+                onDragLeave={() => setIsDragActive(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragActive(false);
+                  if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                    setFile(e.dataTransfer.files[0]);
+                    setQuote(null);
+                  }
                 }}
-              />
+                onClick={() => document.getElementById('landing-file-input').click()}
+                style={{
+                  border: isDragActive ? '2px dashed #38ef7d' : '2px dashed rgba(255,255,255,0.2)',
+                  borderRadius: '12px',
+                  padding: '30px 20px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  backgroundColor: isDragActive ? 'rgba(56, 239, 125, 0.05)' : 'rgba(255,255,255,0.02)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <input 
+                  id="landing-file-input"
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handleFileChange}
+                  style={{ display: 'none' }}
+                />
+                <span style={{ fontSize: '32px', display: 'block', marginBottom: '8px' }}>📁</span>
+                <span style={{ color: '#fff', fontSize: '14px', fontWeight: 600, display: 'block' }}>
+                  {isDragActive ? 'Drop your file here' : 'Drag & drop your file here, or click to browse'}
+                </span>
+                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px', display: 'block', marginTop: '4px' }}>
+                  Supports PDF (Max 10MB)
+                </span>
+              </div>
             </div>
+
+            {/* Uploaded File Category Selector directly above button */}
+            {file && (
+              <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <span style={labelStyle}>Uploaded File & Category:</span>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  padding: '14px',
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '12px',
+                  color: '#fff',
+                  textAlign: 'left'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '18px' }}>📄</span>
+                      <div>
+                        <span style={{ display: 'block', fontSize: '13px', fontWeight: 600, maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {file.name}
+                        </span>
+                        <span style={{ display: 'block', fontSize: '10px', color: 'rgba(255,255,255,0.4)' }}>
+                          {(file.size / 1024).toFixed(1)} KB
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFile(null);
+                        setQuote(null);
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'rgba(255,255,255,0.4)',
+                        fontSize: '16px',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        transition: 'color 0.2s',
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {/* Category Selection Dropdown */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.5)', fontWeight: 600 }}>Select Category:</label>
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        background: 'rgba(0,0,0,0.2)',
+                        color: '#fff',
+                        fontSize: '12px',
+                        outline: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <option value="Passport" style={{ background: '#1c1e22' }}>Passport</option>
+                      <option value="Birth Certificate" style={{ background: '#1c1e22' }}>Birth Certificate</option>
+                      <option value="Marriage Certificate" style={{ background: '#1c1e22' }}>Marriage Certificate</option>
+                      <option value="Criminal Record Certificate" style={{ background: '#1c1e22' }}>Criminal Record Certificate</option>
+                      <option value="Academic Transcript / Diploma" style={{ background: '#1c1e22' }}>Academic Transcript / Diploma</option>
+                      <option value="Bank Statement" style={{ background: '#1c1e22' }}>Bank Statement</option>
+                      <option value="Other" style={{ background: '#1c1e22' }}>Other (specify below)</option>
+                    </select>
+                  </div>
+
+                  {/* Custom Category Input if "Other" is selected */}
+                  {category === 'Other' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.5)', fontWeight: 600 }}>Specify Document Category:</label>
+                      <input
+                        type="text"
+                        value={customCategory}
+                        onChange={(e) => setCustomCategory(e.target.value)}
+                        placeholder="e.g. Health Certificate"
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          background: 'rgba(0,0,0,0.2)',
+                          color: '#fff',
+                          fontSize: '12px',
+                          outline: 'none',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div style={{ paddingTop: '10px' }}>
               <button

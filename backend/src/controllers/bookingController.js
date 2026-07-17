@@ -295,10 +295,10 @@ exports.uploadTranslationDocument = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Only PDF files are supported' });
     }
 
-    // Parse PDF
-    const parser = new PDFParse({ data: req.file.buffer });
+    // Parse PDF using PDFParse class (correct API: pass data + verbosity in constructor, then call getText())
+    const parser = new PDFParse({ data: req.file.buffer, verbosity: 0 });
     const result = await parser.getText();
-    const text = result.pages.map(p => p.text).join('\n');
+    const text = (result.pages || []).map(p => p.text || '').join('\n');
     
     // Count words (naive whitespace split)
     const wordCount = text.trim().split(/\s+/).filter(word => word.length > 0).length;
@@ -367,22 +367,35 @@ exports.checkoutTranslationDocument = async (req, res) => {
           serviceType: 'Spanish Sworn Translation',
           password: hashedPassword,
           isTemporaryPassword: true,
-          status: 'Documents Under Review'
+          status: 'Documents Under Review',
+          sourceLanguage: sourceLanguage || 'English',
+          targetLanguage: targetLanguage || 'Spanish',
+          wordCount: parseInt(wordCount, 10) || 0
         }
       });
     } else {
       client = await prisma.client.update({
         where: { id: client.id },
-        data: { status: 'Documents Under Review' }
+        data: { 
+          status: 'Documents Under Review',
+          sourceLanguage: sourceLanguage || undefined,
+          targetLanguage: targetLanguage || undefined,
+          wordCount: wordCount ? parseInt(wordCount, 10) : undefined
+        }
       });
     }
 
     // 2. Save Document record
-    const document = await prisma.document.create({
+    let category = req.body.category || 'Translation Input';
+    if (category.startsWith('Other: ')) {
+      category = category.replace('Other: ', '');
+    }
+
+    await prisma.document.create({
       data: {
         clientId: client.id,
         name: req.file.originalname,
-        category: 'Translation Input',
+        category: category,
         url: `/uploads/${req.file.filename}`,
         size: `${(req.file.size / 1024 / 1024).toFixed(2)} MB`,
         status: 'Pending Verification',
