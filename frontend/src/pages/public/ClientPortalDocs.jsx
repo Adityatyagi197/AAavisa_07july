@@ -30,6 +30,7 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
+import Menu from '@mui/material/Menu';
 import Grid from '@mui/material/Grid';
 import InputAdornment from '@mui/material/InputAdornment';
 import IconButton from '@mui/material/IconButton';
@@ -250,6 +251,7 @@ export const ClientPortalDocs = () => {
   const queryClient = useQueryClient();
   const { showAlert } = useAlert();
   const [tabValue, setTabValue] = useState(0);
+  const [downloadMenuAnchor, setDownloadMenuAnchor] = useState(null);
   const [portalLang, setPortalLang] = useState(() => {
     return localStorage.getItem('client-portal-lang') || 'English';
   });
@@ -620,8 +622,8 @@ export const ClientPortalDocs = () => {
       paidPays.forEach((p, idx) => {
         const desc = idx === 0 ? "Initial Sworn Translation Checkout" : "Additional Add-on Translation Order";
         doc.text(desc, 16, currentY);
-        doc.text(`EUR ${p.amount.toFixed(2)}`, 160, currentY);
-        totalAmountPaid += p.amount;
+        doc.text(`EUR ${Number(p.amount).toFixed(2)}`, 160, currentY);
+        totalAmountPaid += Number(p.amount);
         currentY += 7;
       });
       
@@ -884,6 +886,7 @@ export const ClientPortalDocs = () => {
 
   // Client specific details
   const clientDocuments = documents.filter((d) => d.clientId === client.id);
+  const translatedDocs = clientDocuments.filter(d => d.translatedUrl);
   const clientConsultations = consultations.filter((c) => c.leadId === client.id || c.lead?.clientId === client.id);
   const activeConsultation = clientConsultations.find(c => c.status === 'Scheduled' || c.status === 'Pending Assignment');
   const assignedAgent = agents.find(a => a.id === client.assignedConsultantId);
@@ -1697,30 +1700,6 @@ export const ClientPortalDocs = () => {
                                     </Typography>
                                   </Box>
                                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                    <Button
-                                      variant="outlined"
-                                      size="small"
-                                      disabled={!doc.translatedUrl}
-                                      href={doc.translatedUrl ? `${(import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace('/api/v1', '')}${doc.translatedUrl}` : '#'}
-                                      target="_blank"
-                                      download
-                                      sx={{
-                                        textTransform: 'none',
-                                        fontSize: '0.72rem',
-                                        fontWeight: 800,
-                                        borderRadius: 2,
-                                        py: 0.3,
-                                        px: 1.5,
-                                        color: doc.translatedUrl ? '#C59B27' : 'text.disabled',
-                                        borderColor: doc.translatedUrl ? '#C59B27' : 'divider',
-                                        '&:hover': {
-                                          borderColor: '#051A3B',
-                                          color: '#051A3B'
-                                        }
-                                      }}
-                                    >
-                                      {doc.translatedUrl ? '📥 Download' : '⏳ In Progress'}
-                                    </Button>
                                     <Chip 
                                       label={doc.status} 
                                       size="small" 
@@ -2035,50 +2014,91 @@ export const ClientPortalDocs = () => {
                           >
                             📥 Download Detailed Receipt (PDF)
                           </Button>
-                          {translationStatus === 'delivered' ? (
-                            <Button 
-                              variant="contained" 
-                              fullWidth 
-                              href="#" 
-                              onClick={(e) => { e.preventDefault(); showAlert('Downloading certified Spanish sworn translation PDF...', 'info'); }}
-                              sx={{
-                                py: 1.5,
+                          <Button 
+                            variant="contained" 
+                            fullWidth 
+                            onClick={(e) => {
+                              if (translatedDocs.length === 0) {
+                                showAlert('Your documents are not verified yet / translation is in progress.', 'warning');
+                              } else {
+                                setDownloadMenuAnchor(e.currentTarget);
+                              }
+                            }}
+                            sx={{
+                              py: 1.5,
+                              borderRadius: 2.5,
+                              fontWeight: 800,
+                              textTransform: 'none',
+                              bgcolor: translatedDocs.length > 0 ? '#10B981' : 'rgba(16, 185, 129, 0.4)',
+                              color: 'white',
+                              fontFamily: 'Outfit, sans-serif',
+                              '&:hover': {
+                                bgcolor: translatedDocs.length > 0 ? '#059669' : 'rgba(16, 185, 129, 0.4)'
+                              }
+                            }}
+                          >
+                            Download Sworn Translation PDF
+                          </Button>
+                          
+                          <Menu
+                            anchorEl={downloadMenuAnchor}
+                            open={Boolean(downloadMenuAnchor)}
+                            onClose={() => setDownloadMenuAnchor(null)}
+                            sx={{
+                              '& .MuiPaper-root': {
                                 borderRadius: 2.5,
-                                fontWeight: 800,
-                                textTransform: 'none',
-                                bgcolor: '#10B981',
-                                fontFamily: 'Outfit, sans-serif'
-                              }}
-                            >
-                              Download Sworn Translation PDF
-                            </Button>
-                          ) : (
-                            <Button 
-                              variant="outlined" 
-                              fullWidth
-                              onClick={() => {
-                                setTranslationStatus('delivered');
-                                const mockCase = JSON.parse(localStorage.getItem('mockTranslationCase') || 'null');
-                                if (mockCase) {
-                                  mockCase.status = 'delivered';
-                                  localStorage.setItem('mockTranslationCase', JSON.stringify(mockCase));
-                                }
-                                showAlert('Demo translation file completed & delivered!', 'success');
-                              }}
-                              sx={{
-                                py: 1.5,
-                                borderRadius: 2.5,
-                                fontWeight: 800,
-                                textTransform: 'none',
-                                borderColor: '#051A3B',
-                                color: '#051A3B',
-                                fontFamily: 'Outfit, sans-serif',
-                                '&:hover': { borderColor: '#C59B27', color: '#C59B27' }
-                              }}
-                            >
-                              Simulate Translators Completion
-                            </Button>
-                          )}
+                                mt: 1,
+                                width: downloadMenuAnchor ? downloadMenuAnchor.clientWidth : 220,
+                                maxWidth: '100%',
+                                boxShadow: '0 8px 24px rgba(5, 26, 59, 0.1)',
+                                border: '1px solid rgba(0,0,0,0.06)'
+                              }
+                            }}
+                          >
+                            {translatedDocs.map((doc) => {
+                              const fileUrl = `${(import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace('/api/v1', '')}${doc.translatedUrl}`;
+                              return (
+                                <MenuItem 
+                                  key={doc.id}
+                                  onClick={async () => {
+                                    setDownloadMenuAnchor(null);
+                                    try {
+                                      showAlert(`Downloading ${doc.name}...`, 'info');
+                                      const response = await fetch(fileUrl);
+                                      if (!response.ok) throw new Error('Network response was not ok');
+                                      const blob = await response.blob();
+                                      const blobUrl = window.URL.createObjectURL(blob);
+                                      const link = document.createElement('a');
+                                      link.href = blobUrl;
+                                      // Append .pdf extension if not present in the name
+                                      const cleanName = doc.name.toLowerCase().endsWith('.pdf') ? doc.name : `${doc.name}.pdf`;
+                                      link.download = `Translated_${cleanName}`;
+                                      document.body.appendChild(link);
+                                      link.click();
+                                      document.body.removeChild(link);
+                                      window.URL.revokeObjectURL(blobUrl);
+                                      showAlert('Download complete!', 'success');
+                                    } catch (error) {
+                                      console.error('Direct download failed:', error);
+                                      showAlert('Direct download failed. Opening file in new tab instead.', 'error');
+                                      window.open(fileUrl, '_blank');
+                                    }
+                                  }}
+                                  sx={{
+                                    fontFamily: 'Outfit, sans-serif',
+                                    fontWeight: 700,
+                                    fontSize: '0.85rem',
+                                    color: '#051A3B',
+                                    py: 1.2,
+                                    whiteSpace: 'normal',
+                                    '&:hover': { bgcolor: 'rgba(197, 155, 39, 0.08)', color: '#C59B27' }
+                                  }}
+                                >
+                                  📥 {doc.name.length > 25 ? doc.name.substring(0, 22) + '...' : doc.name} (Translated)
+                                </MenuItem>
+                              );
+                            })}
+                          </Menu>
                         </Box>
                       ) : (
                         <Button

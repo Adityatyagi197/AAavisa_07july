@@ -853,19 +853,65 @@ export const SuperAdminDocumentVerificationDashboard = () => {
                               {doc.comment}
                             </Typography>
                           </Box>
-                        )}
+                )}
 
                         <Divider sx={{ my: 1.8 }} />
 
                         {/* Action Buttons */}
                         <Stack direction="row" spacing={1} justifyContent="flex-end">
+                          <Button
+                            variant="outlined"
+                            color="secondary"
+                            size="small"
+                            onClick={() => {
+                              if (doc.url) {
+                                const fileUrl = `${(import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace('/api/v1', '')}${doc.url}`;
+                                window.open(fileUrl, '_blank');
+                              } else {
+                                handleOpenMockFile(doc);
+                              }
+                            }}
+                            sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 700 }}
+                          >
+                            Open File
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            color="info"
+                            size="small"
+                            disabled={!doc.url}
+                            onClick={async () => {
+                              try {
+                                showAlert(`Downloading ${doc.name || 'document'}...`, 'info');
+                                const fileUrl = `${(import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1').replace('/api/v1', '')}${doc.url}`;
+                                const response = await fetch(fileUrl);
+                                if (!response.ok) throw new Error('File download failed');
+                                const blob = await response.blob();
+                                const blobUrl = window.URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = blobUrl;
+                                link.download = doc.name || 'download.pdf';
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                window.URL.revokeObjectURL(blobUrl);
+                                showAlert('Download complete!', 'success');
+                              } catch (err) {
+                                console.error(err);
+                                showAlert('Failed to download document directly.', 'error');
+                              }
+                            }}
+                            sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 700 }}
+                          >
+                            Download
+                          </Button>
                           {isTranslationClient && (
                             <>
                               <input
                                 type="file"
                                 id={`translated-file-input-${doc.id}`}
-                                accept="application/pdf"
                                 style={{ display: 'none' }}
+                                accept="application/pdf"
                                 onChange={async (e) => {
                                   if (e.target.files && e.target.files[0]) {
                                     try {
@@ -891,15 +937,6 @@ export const SuperAdminDocumentVerificationDashboard = () => {
                               </Button>
                             </>
                           )}
-                          <Button
-                            variant="outlined"
-                            color="secondary"
-                            size="small"
-                            onClick={() => handleOpenMockFile(doc)}
-                            sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 700 }}
-                          >
-                            Open File
-                          </Button>
                           <Button
                             variant="contained"
                             color="success"

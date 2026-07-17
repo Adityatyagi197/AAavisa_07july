@@ -431,8 +431,14 @@ exports.checkoutTranslationDocument = async (req, res) => {
       }
     });
 
+<<<<<<< HEAD
     let paymentUrl = `http://localhost:5173/#/portal/login?success=true&clientId=${client.id}&tempPassword=${generatedPassword || 'Pre-existing'}`;
     let gatewayId = `sess_${payment.id}`;
+=======
+    // 5. Generate Stripe Mock Link (Direct portal redirect for local testing)
+    const frontendUrl = process.env.FRONTEND_URL || req.headers.origin || 'http://localhost:5173';
+    const paymentUrl = `${frontendUrl}/#/portal/login?success=true&clientId=${client.id}&tempPassword=${generatedPassword || 'Pre-existing'}`;
+>>>>>>> e2cb8920fa744a51c4928e0bf04d38780b0991c6
 
     if (isRealStripe) {
       try {
