@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
 
 import TextField from '@mui/material/TextField';
 import MenuItem from '@mui/material/MenuItem';
@@ -82,6 +84,7 @@ export const SuperAdminLeadList = () => {
 
   // Filters & State
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeCategoryTab, setActiveCategoryTab] = useState('all'); // all, visa, property, translation
   const [filters, setFilters] = useState(() => {
     const savedFiltersStr = sessionStorage.getItem('leadList_filters');
     const savedFilters = savedFiltersStr ? JSON.parse(savedFiltersStr) : null;
@@ -338,6 +341,19 @@ export const SuperAdminLeadList = () => {
         }
       }
 
+      // Category Tab Filter
+      if (activeCategoryTab === 'visa') {
+        const isTranslation = (lead.serviceId || '').toLowerCase().includes('translation') || (lead.serviceType || '').toLowerCase().includes('translation');
+        const isProperty = (lead.serviceId || '').toLowerCase().includes('property') || (lead.serviceType || '').toLowerCase().includes('property');
+        if (isTranslation || isProperty) return false;
+      } else if (activeCategoryTab === 'property') {
+        const isProperty = (lead.serviceId || '').toLowerCase().includes('property') || (lead.serviceType || '').toLowerCase().includes('property');
+        if (!isProperty) return false;
+      } else if (activeCategoryTab === 'translation') {
+        const isTranslation = (lead.serviceId || '').toLowerCase().includes('translation') || (lead.serviceType || '').toLowerCase().includes('translation');
+        if (!isTranslation) return false;
+      }
+
       const matchService = filters.serviceId ? lead.serviceId === filters.serviceId : true;
       const matchStatus = filters.status ? lead.status === filters.status : true;
       const matchConsultant = filters.assignedConsultantId
@@ -519,6 +535,25 @@ export const SuperAdminLeadList = () => {
           </Box>
         </Box>
       )}
+
+      {/* Category Tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs
+          value={activeCategoryTab}
+          onChange={(e, newValue) => {
+            setActiveCategoryTab(newValue);
+            setPage(0);
+          }}
+          textColor="secondary"
+          indicatorColor="secondary"
+          aria-label="lead categories tabs"
+        >
+          <Tab value="all" label="💼 All Categories" sx={{ fontWeight: 700, textTransform: 'none' }} />
+          <Tab value="visa" label="✈️ Spain Visa & Case Assessment" sx={{ fontWeight: 700, textTransform: 'none' }} />
+          <Tab value="property" label="🏠 Property Investment Guidance" sx={{ fontWeight: 700, textTransform: 'none' }} />
+          <Tab value="translation" label="📄 Sworn Translation" sx={{ fontWeight: 700, textTransform: 'none' }} />
+        </Tabs>
+      </Box>
 
       {/* Date Filter Row */}
       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mb: 2, flexWrap: 'wrap' }}>

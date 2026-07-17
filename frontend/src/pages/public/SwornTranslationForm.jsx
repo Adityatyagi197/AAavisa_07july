@@ -65,6 +65,8 @@ const SwornTranslationForm = () => {
       
       const formDataUpload = new FormData();
       formDataUpload.append('document', file);
+      formDataUpload.append('sourceLanguage', formData.sourceLanguage);
+      formDataUpload.append('targetLanguage', formData.targetLanguage);
 
       const res = await axios.post(`${API_URL}/booking/translation/upload`, formDataUpload, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -182,9 +184,30 @@ const SwornTranslationForm = () => {
             <h2 style={{ color: '#fff', fontSize: '20px', fontWeight: 700, margin: '0 0 6px' }}>
               Sworn Translation Quote
             </h2>
-            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', margin: 0 }}>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', margin: '0 0 16px' }}>
               Upload your PDF document to get an instant word count and estimated price.
             </p>
+
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.04)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '12px',
+              padding: '14px 16px',
+              textAlign: 'left',
+              fontSize: '13px',
+              lineHeight: 1.5,
+              color: 'rgba(255, 255, 255, 0.7)'
+            }}>
+              <strong style={{ color: '#fff', display: 'block', marginBottom: '6px' }}>💰 Translation Rates (excluding 5% VAT):</strong>
+              <ul style={{ margin: 0, paddingLeft: '18px', color: '#cbd5e0' }}>
+                <li>English to Spanish: <strong>€0.15</strong> per word</li>
+                <li>Arabic to Spanish: <strong>€0.25</strong> per word</li>
+                <li>Urdu to Spanish: <strong>€0.40</strong> per word</li>
+              </ul>
+              <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.4)', display: 'block', marginTop: '6px' }}>
+                * Delivery within maximum 7 working days from payment confirmation.
+              </span>
+            </div>
           </div>
 
           <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

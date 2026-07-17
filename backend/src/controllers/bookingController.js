@@ -266,6 +266,25 @@ exports.createEligibilityBooking = async (req, res) => {
   }
 };
 
+function getTranslationRate(sourceLanguage) {
+  const lang = (sourceLanguage || 'English').toLowerCase().trim();
+  if (lang.includes('arabic')) {
+    return 0.25;
+  }
+  if (lang.includes('urdu')) {
+    return 0.40;
+  }
+  // Default (English)
+  return 0.15;
+}
+
+function calculateSwornTranslationPrice(wordCount, sourceLanguage) {
+  const rate = getTranslationRate(sourceLanguage);
+  const subtotal = wordCount * rate;
+  const vat = subtotal * 0.05;
+  return parseFloat((subtotal + vat).toFixed(2));
+}
+
 exports.uploadTranslationDocument = async (req, res) => {
   try {
     if (!req.file) {
@@ -284,11 +303,8 @@ exports.uploadTranslationDocument = async (req, res) => {
     // Count words (naive whitespace split)
     const wordCount = text.trim().split(/\s+/).filter(word => word.length > 0).length;
 
-    // Fetch settings for dynamic pricing
-    let settings = await prisma.companySetting.findFirst();
-    let rates = settings?.swornTranslationRates || { perWord: 0.10, baseFee: 20 };
-    
-    const calculatedPrice = (wordCount * rates.perWord) + rates.baseFee;
+    const sourceLanguage = req.body.sourceLanguage || 'English';
+    const calculatedPrice = calculateSwornTranslationPrice(wordCount, sourceLanguage);
 
     return res.status(200).json({
       success: true,
@@ -397,12 +413,13 @@ exports.checkoutTranslationDocument = async (req, res) => {
     });
 
     // 4. Create Payment Record
+    const finalPrice = calculateSwornTranslationPrice(Number(wordCount) || 0, sourceLanguage || 'English');
     const payment = await prisma.payment.create({
       data: {
         clientId: client.id,
         applicationId: applicationCycle.id,
-        amount: Number(estimatedPrice) || 0,
-        totalPaid: Number(estimatedPrice) || 0,
+        amount: finalPrice,
+        totalPaid: finalPrice,
         status: 'Paid',
         paymentMethod: 'Stripe Mock Auto',
         dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
