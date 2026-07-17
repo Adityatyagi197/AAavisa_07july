@@ -61,6 +61,8 @@ export const LeadSelfFillForm = () => {
       .catch(err => console.error("Failed to load customization settings:", err));
   }, []);
 
+  const [serviceCategory, setServiceCategory] = useState("visa"); // visa, property, translation
+
   // Form fields
   const [form, setForm] = useState({
     firstName: "",
@@ -76,6 +78,8 @@ export const LeadSelfFillForm = () => {
     meetingPreferredTime: "",
     meetingPreferredLanguage: "English",
     meetingNotes: "",
+    preferableAreaInSpain: "",
+    budget: "€100k - €250k"
   });
 
   const [nationalitySearch, setNationalitySearch] = useState("");
@@ -92,11 +96,33 @@ export const LeadSelfFillForm = () => {
     const applicantsParam = params.get("applicants") || "";
     const nationalityParam = params.get("nationality") || "";
 
+    // Set initial category from URL parameter
+    if (serviceParam) {
+      const lowerSvc = decodeURIComponent(serviceParam).toLowerCase();
+      if (lowerSvc.includes("property") || lowerSvc.includes("investment") || lowerSvc === "3") {
+        setServiceCategory("property");
+      } else if (lowerSvc.includes("translation") || lowerSvc.includes("sworn") || lowerSvc === "4") {
+        setServiceCategory("translation");
+      } else {
+        setServiceCategory("visa");
+      }
+    }
+
     if (idParam) {
       setLoading(true);
       axios.get(`${API_URL}/leads/${idParam}/public-details`)
         .then((res) => {
           const data = res.data;
+          
+          const serviceTypeLower = (data.serviceType || "").toLowerCase();
+          if (serviceTypeLower.includes("property") || serviceTypeLower.includes("investment")) {
+            setServiceCategory("property");
+          } else if (serviceTypeLower.includes("translation") || serviceTypeLower.includes("sworn")) {
+            setServiceCategory("translation");
+          } else {
+            setServiceCategory("visa");
+          }
+
           setForm((prev) => {
             const applicantsVal = data.applicantsCount || prev.applicantsCount;
             const count = getDepsCount(applicantsVal);
@@ -111,6 +137,7 @@ export const LeadSelfFillForm = () => {
                 nationality: currentDeps[i]?.nationality || ""
               });
             }
+            const qData = data.qualificationData || {};
             return {
               ...prev,
               id: data.id,
@@ -127,6 +154,8 @@ export const LeadSelfFillForm = () => {
               meetingPreferredTime: data.meetingPreferredTime || "",
               meetingPreferredLanguage: data.meetingPreferredLanguage || data.preferredLanguage || "English",
               meetingNotes: data.meetingNotes || "",
+              preferableAreaInSpain: qData.preferableAreaInSpain || "",
+              budget: qData.budget || "€100k - €250k"
             };
           });
           if (data.nationality) {
@@ -224,10 +253,12 @@ export const LeadSelfFillForm = () => {
       setError("Please fill in all required personal details (Name, Email, Phone).");
       return;
     }
-    if (form.serviceId === "sworn_translation") {
-      navigate("/public/translation", { state: { prefilledLead: form } });
+    
+    if (serviceCategory === "translation") {
+      navigate("/public/translation", { state: { prefilledLead: { ...form, serviceType: "Spanish Sworn Translation" } } });
       return;
     }
+    
     if (!form.meetingPreferredDate || !form.meetingPreferredTime) {
       setError("Please select your preferred meeting date and time.");
       return;
@@ -242,11 +273,25 @@ export const LeadSelfFillForm = () => {
     }
     setLoading(true);
     setError("");
+
+    // Prepare payload
+    const payload = { ...form };
+    if (serviceCategory === "property") {
+      payload.serviceType = "Property Investment Guidance";
+      payload.serviceId = "property";
+      payload.qualificationData = {
+        preferableAreaInSpain: form.preferableAreaInSpain,
+        budget: form.budget
+      };
+    } else {
+      payload.serviceType = form.serviceId;
+    }
+
     try {
       if (isExistingLead && form.id) {
-        await axios.patch(`${API_URL}/leads/${form.id}/meeting-preference`, form);
+        await axios.patch(`${API_URL}/leads/${form.id}/meeting-preference`, payload);
       } else {
-        await axios.post(`${API_URL}/leads`, form);
+        await axios.post(`${API_URL}/leads`, payload);
       }
       setStep(2);
     } catch (err) {
@@ -312,7 +357,11 @@ export const LeadSelfFillForm = () => {
     { value: "Main + 2", label: "Main + 2 Dependents" },
     { value: "Main + 3", label: "Main + 3 Dependents" },
     { value: "Main + 4", label: "Main + 4 Dependents" },
-    { value: "Main + 5", label: "Main + 5 Dependents" }
+    { value: "Main + 5", label: "Main + 5 Dependents" },
+    { value: "Main + 6", label: "Main + 6 Dependents" },
+    { value: "Main + 7", label: "Main + 7 Dependents" },
+    { value: "Main + 8", label: "Main + 8 Dependents" },
+    { value: "Main + 9", label: "Main + 9 Dependents" }
   ];
 
   return (
@@ -418,6 +467,20 @@ export const LeadSelfFillForm = () => {
               </p>
 
               <form onSubmit={handleSubmit}>
+                {/* Service Category Dropdown */}
+                <div style={{ marginBottom: "24px" }}>
+                  <label style={labelStyle}>Select Service Category *</label>
+                  <select
+                    value={serviceCategory}
+                    onChange={(e) => setServiceCategory(e.target.value)}
+                    style={{ ...inputStyle, color: "#fff", border: "1px solid rgba(102, 126, 234, 0.4)" }}
+                  >
+                    <option value="visa" style={{ background: "#24243e" }}>✈️ Spain Visa & Residency Services / Case Assessment</option>
+                    <option value="property" style={{ background: "#24243e" }}>🏠 Property Investment Guidance Service</option>
+                    <option value="translation" style={{ background: "#24243e" }}>📄 Spanish Sworn Translation Services</option>
+                  </select>
+                </div>
+
                 {/* Section: Personal Details */}
                 <div style={sectionHeaderStyle}>📋 Your Details</div>
 
@@ -612,52 +675,184 @@ export const LeadSelfFillForm = () => {
                   </div>
                 </div>
 
-                {/* Section: Visa Program */}
-                <div style={sectionHeaderStyle}>✈️ Relocation Details</div>
+                {/* Section: Visa Program (only for visa category) */}
+                {serviceCategory === 'visa' && (
+                  <>
+                    <div style={sectionHeaderStyle}>✈️ Relocation Details</div>
 
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "14px",
-                    marginBottom: "28px",
-                  }}
-                >
-                  <div>
-                    <label style={labelStyle}>Visa Program of Interest</label>
-                    <select
-                      value={form.serviceId}
-                      onChange={(e) =>
-                        handleChange("serviceId", e.target.value)
-                      }
-                      style={{ ...inputStyle, color: "#fff" }}
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "14px",
+                        marginBottom: "28px",
+                      }}
                     >
-                      {SERVICES.map((s) => (
-                        <option key={s.id} value={s.id} style={{ background: "#24243e", color: "#fff" }}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Total Applicants</label>
-                    <select
-                      value={form.applicantsCount}
-                      onChange={(e) =>
-                        handleChange("applicantsCount", e.target.value)
-                      }
-                      style={{ ...inputStyle, color: "#fff" }}
-                    >
-                      {APPLICANTS.map((a) => (
-                        <option key={a.value} value={a.value} style={{ background: "#24243e", color: "#fff" }}>
-                          {a.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+                      <div>
+                        <label style={labelStyle}>Visa Program of Interest</label>
+                        <select
+                          value={form.serviceId}
+                          onChange={(e) =>
+                            handleChange("serviceId", e.target.value)
+                          }
+                          style={{ ...inputStyle, color: "#fff" }}
+                        >
+                          {SERVICES.map((s) => (
+                            <option key={s.id} value={s.id} style={{ background: "#24243e", color: "#fff" }}>
+                              {s.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Total Applicants</label>
+                        <select
+                          value={form.applicantsCount}
+                          onChange={(e) =>
+                            handleChange("applicantsCount", e.target.value)
+                          }
+                          style={{ ...inputStyle, color: "#fff" }}
+                        >
+                          {APPLICANTS.map((a) => (
+                            <option key={a.value} value={a.value} style={{ background: "#24243e", color: "#fff" }}>
+                              {a.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
 
-                {form.dependentsDetails && form.dependentsDetails.length > 0 && (
+                    {form.dependentsDetails && form.dependentsDetails.length > 0 && (
+                      <div
+                        style={{
+                          background: "rgba(255, 255, 255, 0.04)",
+                          border: "1px solid rgba(255, 255, 255, 0.08)",
+                          borderRadius: "14px",
+                          padding: "20px",
+                          marginBottom: "24px",
+                        }}
+                      >
+                        <div style={{ ...sectionHeaderStyle, borderBottom: "none", marginBottom: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
+                          👨‍👩‍👧‍👦 Dependent Details
+                        </div>
+                        {form.dependentsDetails.map((dep, idx) => (
+                          <div
+                            key={idx}
+                            style={{
+                              marginBottom: idx === form.dependentsDetails.length - 1 ? 0 : "20px",
+                              borderBottom: idx === form.dependentsDetails.length - 1 ? "none" : "1px dashed rgba(255, 255, 255, 0.1)",
+                              paddingBottom: idx === form.dependentsDetails.length - 1 ? 0 : "20px",
+                            }}
+                          >
+                            <div style={{ color: "#a0aec0", fontSize: "13px", fontWeight: 600, marginBottom: "10px" }}>
+                              Dependent #{idx + 1}
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
+                              <div>
+                                <label style={labelStyle}>First Name *</label>
+                                <input
+                                  required
+                                  value={dep.firstName}
+                                  onChange={(e) => handleDependentChange(idx, "firstName", e.target.value)}
+                                  placeholder="First Name"
+                                  style={inputStyle}
+                                />
+                              </div>
+                              <div>
+                                <label style={labelStyle}>Last Name *</label>
+                                <input
+                                  required
+                                  value={dep.lastName}
+                                  onChange={(e) => handleDependentChange(idx, "lastName", e.target.value)}
+                                  placeholder="Last Name"
+                                  style={inputStyle}
+                                />
+                              </div>
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 0.8fr", gap: "10px" }}>
+                              <div>
+                                <label style={labelStyle}>Relation *</label>
+                                <select
+                                  value={dep.relation}
+                                  onChange={(e) => handleDependentChange(idx, "relation", e.target.value)}
+                                  style={{ ...inputStyle, color: "#fff" }}
+                                >
+                                  <option value="Spouse" style={{ background: "#24243e" }}>Spouse</option>
+                                  <option value="Child" style={{ background: "#24243e" }}>Child</option>
+                                  <option value="Parent" style={{ background: "#24243e" }}>Parent</option>
+                                  <option value="Other" style={{ background: "#24243e" }}>Other</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label style={labelStyle}>Passport Number</label>
+                                <input
+                                  value={dep.passportNumber}
+                                  onChange={(e) => handleDependentChange(idx, "passportNumber", e.target.value)}
+                                  placeholder="Optional"
+                                  style={inputStyle}
+                                />
+                              </div>
+                              <div>
+                                <label style={labelStyle}>Age *</label>
+                                <input
+                                  type="number"
+                                  required
+                                  min="0"
+                                  max="120"
+                                  value={dep.age || ""}
+                                  onChange={(e) => handleDependentChange(idx, "age", e.target.value)}
+                                  placeholder="Age"
+                                  style={inputStyle}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Section: Property Preferences (only for property category) */}
+                {serviceCategory === 'property' && (
+                  <>
+                    <div style={sectionHeaderStyle}>🏠 Property Preferences</div>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: "14px",
+                        marginBottom: "28px",
+                      }}
+                    >
+                      <div>
+                        <label style={labelStyle}>Preferable Area in Spain *</label>
+                        <input
+                          required={serviceCategory === 'property'}
+                          value={form.preferableAreaInSpain}
+                          onChange={(e) => handleChange("preferableAreaInSpain", e.target.value)}
+                          placeholder="e.g. Madrid, Malaga, Barcelona"
+                          style={inputStyle}
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Investment Budget *</label>
+                        <select
+                          value={form.budget}
+                          onChange={(e) => handleChange("budget", e.target.value)}
+                          style={{ ...inputStyle, color: "#fff" }}
+                        >
+                          <option value="€100k - €250k" style={{ background: "#24243e" }}>€100,000 – €250,000</option>
+                          <option value="€250k - €500k" style={{ background: "#24243e" }}>€250,000 – €500,000</option>
+                          <option value="€500k+ (Golden Visa)" style={{ background: "#24243e" }}>€500,000+ (Golden Visa)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Section: Sworn Translation redirect notice */}
+                {serviceCategory === 'translation' && (
                   <div
                     style={{
                       background: "rgba(255, 255, 255, 0.04)",
@@ -665,89 +860,17 @@ export const LeadSelfFillForm = () => {
                       borderRadius: "14px",
                       padding: "20px",
                       marginBottom: "24px",
+                      textAlign: "center",
                     }}
                   >
-                    <div style={{ ...sectionHeaderStyle, borderBottom: "none", marginBottom: "12px", display: "flex", alignItems: "center", gap: "6px" }}>
-                      👨‍👩‍👧‍👦 Dependent Details
-                    </div>
-                    {form.dependentsDetails.map((dep, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          marginBottom: idx === form.dependentsDetails.length - 1 ? 0 : "20px",
-                          borderBottom: idx === form.dependentsDetails.length - 1 ? "none" : "1px dashed rgba(255, 255, 255, 0.1)",
-                          paddingBottom: idx === form.dependentsDetails.length - 1 ? 0 : "20px",
-                        }}
-                      >
-                        <div style={{ color: "#a0aec0", fontSize: "13px", fontWeight: 600, marginBottom: "10px" }}>
-                          Dependent #{idx + 1}
-                        </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "10px" }}>
-                          <div>
-                            <label style={labelStyle}>First Name *</label>
-                            <input
-                              required
-                              value={dep.firstName}
-                              onChange={(e) => handleDependentChange(idx, "firstName", e.target.value)}
-                              placeholder="First Name"
-                              style={inputStyle}
-                            />
-                          </div>
-                          <div>
-                            <label style={labelStyle}>Last Name *</label>
-                            <input
-                              required
-                              value={dep.lastName}
-                              onChange={(e) => handleDependentChange(idx, "lastName", e.target.value)}
-                              placeholder="Last Name"
-                              style={inputStyle}
-                            />
-                          </div>
-                        </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 0.8fr", gap: "10px" }}>
-                          <div>
-                            <label style={labelStyle}>Relation *</label>
-                            <select
-                              value={dep.relation}
-                              onChange={(e) => handleDependentChange(idx, "relation", e.target.value)}
-                              style={{ ...inputStyle, color: "#fff" }}
-                            >
-                              <option value="Spouse" style={{ background: "#24243e" }}>Spouse</option>
-                              <option value="Child" style={{ background: "#24243e" }}>Child</option>
-                              <option value="Parent" style={{ background: "#24243e" }}>Parent</option>
-                              <option value="Other" style={{ background: "#24243e" }}>Other</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label style={labelStyle}>Passport Number</label>
-                            <input
-                              value={dep.passportNumber}
-                              onChange={(e) => handleDependentChange(idx, "passportNumber", e.target.value)}
-                              placeholder="Optional"
-                              style={inputStyle}
-                            />
-                          </div>
-                          <div>
-                            <label style={labelStyle}>Age *</label>
-                            <input
-                              type="number"
-                              required
-                              min="0"
-                              max="120"
-                              value={dep.age || ""}
-                              onChange={(e) => handleDependentChange(idx, "age", e.target.value)}
-                              placeholder="Age"
-                              style={inputStyle}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                    <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "14px", margin: "0 0 10px", lineHeight: 1.6 }}>
+                      For Spanish Sworn Translation services, you will be redirected to our translation quote tool where you can upload your PDF document for an instant word count and price estimation.
+                    </p>
                   </div>
                 )}
 
                 {/* Section: Meeting Preferences */}
-                {form.serviceId !== "sworn_translation" && (
+                {serviceCategory !== "translation" && (
                   <>
                     <div style={sectionHeaderStyle}>📅 Meeting Preferences</div>
 
@@ -755,7 +878,7 @@ export const LeadSelfFillForm = () => {
                       <label style={labelStyle}>Preferred Meeting Date *</label>
                       <input
                         type="date"
-                        required={form.serviceId !== "sworn_translation"}
+                        required={serviceCategory !== "translation"}
                         min={today}
                         value={form.meetingPreferredDate}
                         onChange={(e) =>
@@ -769,7 +892,7 @@ export const LeadSelfFillForm = () => {
                       <label style={labelStyle}>Preferred Time Slot *</label>
                       <input
                         type="time"
-                        required={form.serviceId !== "sworn_translation"}
+                        required={serviceCategory !== "translation"}
                         value={form.meetingPreferredTime}
                         onChange={(e) =>
                           handleChange("meetingPreferredTime", e.target.value)
@@ -777,6 +900,21 @@ export const LeadSelfFillForm = () => {
                         style={{ ...inputStyle, color: "#fff" }}
                       />
                     </div>
+
+                    {serviceCategory === "visa" && (
+                      <div style={{
+                        background: "rgba(239, 68, 68, 0.1)",
+                        border: "1px solid rgba(239, 68, 68, 0.2)",
+                        borderRadius: "8px",
+                        padding: "12px",
+                        marginBottom: "14px",
+                        fontSize: "12px",
+                        lineHeight: "1.5",
+                        color: "#fca5a5"
+                      }}>
+                        ⚠️ <strong>Important:</strong> If you do not join your scheduled Free Eligibility Assessment within 10 minutes of the appointment time, your booking will be automatically cancelled. Due to high demand, missed appointments are not eligible for rescheduling. This policy helps us provide fair access to all applicants.
+                      </div>
+                    )}
 
                     <div style={{ marginBottom: "14px" }}>
                       <label style={labelStyle}>Consultation Language</label>
@@ -805,7 +943,11 @@ export const LeadSelfFillForm = () => {
                           handleChange("meetingNotes", e.target.value)
                         }
                         rows={3}
-                        placeholder="What would you like to discuss? E.g. 'I want to know about DNV visa requirements for my family...'"
+                        placeholder={
+                          serviceCategory === "property"
+                            ? "What are your property investment goals? E.g. 'I want a Golden Visa property in Malaga...'"
+                            : "What would you like to discuss? E.g. 'I want to know about DNV visa requirements for my family...'"
+                        }
                         style={{
                           ...inputStyle,
                           resize: "vertical",
@@ -825,9 +967,11 @@ export const LeadSelfFillForm = () => {
                 >
                   {loading
                     ? "Submitting..."
-                    : form.serviceId === "sworn_translation"
-                    ? "✅ Proceed to Sworn Translation Quote"
-                    : "✅ Confirm My Booking Preferences"}
+                    : serviceCategory === "translation"
+                    ? "✅ Proceed to Sworn Translation Tool"
+                    : serviceCategory === "property"
+                    ? "✅ Book Free Consultation"
+                    : "✅ Book Free Eligibility Assessment"}
                 </button>
               </form>
             </>
@@ -887,7 +1031,11 @@ export const LeadSelfFillForm = () => {
                   }}
                 >
                   <li>Our team reviews your preferred time</li>
-                  <li>A visa expert is assigned to your case</li>
+                  <li>
+                    {serviceCategory === "property" 
+                      ? "A property investment expert is assigned to your case" 
+                      : "A Spain Visa expert is assigned to your case"}
+                  </li>
                   <li>
                     You receive a WhatsApp/Email confirmation with meeting link
                   </li>

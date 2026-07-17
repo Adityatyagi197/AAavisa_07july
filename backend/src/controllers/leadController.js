@@ -42,7 +42,8 @@ const createLead = async (req, res) => {
       meetingPreferredDate,
       meetingPreferredTime,
       meetingPreferredLanguage,
-      meetingNotes
+      meetingNotes,
+      qualificationData
     } = req.body;
     
     // Normalize phone number to check for existing lead (last 10 digits to match with or without country code)
@@ -86,6 +87,7 @@ const createLead = async (req, res) => {
           meetingPreferredTime,
           meetingPreferredLanguage,
           meetingNotes,
+          qualificationData: qualificationData || undefined,
           assignedToId,
           formSubmittedAt: meetingPreferredDate ? new Date() : undefined,
           status: meetingPreferredDate ? 'Form Submitted' : 'New Lead'
@@ -280,7 +282,10 @@ async function updateMeetingPreference(req, res) {
       meetingPreferredDate,
       meetingPreferredTime,
       meetingPreferredLanguage,
-      meetingNotes
+      meetingNotes,
+      qualificationData,
+      serviceType,
+      serviceId
     } = req.body;
 
     const lead = await prisma.lead.update({
@@ -295,6 +300,8 @@ async function updateMeetingPreference(req, res) {
         meetingPreferredTime,
         meetingPreferredLanguage,
         meetingNotes,
+        qualificationData: qualificationData || undefined,
+        serviceType: serviceType || serviceId || undefined,
         formSubmittedAt: new Date(),
         status: 'Form Submitted'
       }
