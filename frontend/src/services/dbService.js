@@ -159,6 +159,14 @@ export const dbService = {
     const res = await apiClient.patch(`/payments/${paymentId}/status`, { status, paymentMethod, transactionId });
     return res.data;
   },
+  createCheckoutSession: async ({ packageId, amount, discount }) => {
+    const res = await apiClient.post('/payments/create-checkout-session', { packageId, amount, discount });
+    return res.data;
+  },
+  verifyCheckoutSession: async (sessionId) => {
+    const res = await apiClient.post('/payments/verify-checkout-session', { sessionId });
+    return res.data;
+  },
 
   // DOCUMENTS
   getDocuments: async () => {
