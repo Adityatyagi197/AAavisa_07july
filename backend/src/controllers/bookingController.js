@@ -414,25 +414,62 @@ exports.checkoutTranslationDocument = async (req, res) => {
 
     // 4. Create Payment Record
     const finalPrice = calculateSwornTranslationPrice(Number(wordCount) || 0, sourceLanguage || 'English');
+    
+    // Check if Stripe is configured
+    const stripeSecret = process.env.STRIPE_SECRET_KEY;
+    const isRealStripe = stripeSecret && !stripeSecret.includes('your_stripe');
+
     const payment = await prisma.payment.create({
       data: {
         clientId: client.id,
         applicationId: applicationCycle.id,
         amount: finalPrice,
-        totalPaid: finalPrice,
-        status: 'Paid',
-        paymentMethod: 'Stripe Mock Auto',
+        totalPaid: isRealStripe ? 0 : finalPrice, // 0 paid initially for real Stripe
+        status: isRealStripe ? 'Pending' : 'Paid',
+        paymentMethod: isRealStripe ? 'Stripe' : 'Stripe Mock Auto',
         dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
       }
     });
 
-    // 5. Generate Stripe Mock Link (Direct portal redirect for local testing)
-    const paymentUrl = `http://localhost:5173/#/portal/login?success=true&clientId=${client.id}&tempPassword=${generatedPassword || 'Pre-existing'}`;
+    let paymentUrl = `http://localhost:5173/#/portal/login?success=true&clientId=${client.id}&tempPassword=${generatedPassword || 'Pre-existing'}`;
+    let gatewayId = `sess_${payment.id}`;
 
-    // Update payment record with mock gateway details
+    if (isRealStripe) {
+      try {
+        const stripe = require('stripe')(stripeSecret);
+        const session = await stripe.checkout.sessions.create({
+          payment_method_types: ['card'],
+          line_items: [{
+            price_data: {
+              currency: 'eur',
+              product_data: {
+                name: 'Spanish Sworn Translation Certification',
+                description: `Sworn translation of documents. Source: ${sourceLanguage || 'English'}. Words: ${wordCount || 0}. (5% VAT Included)`,
+              },
+              unit_amount: Math.round(finalPrice * 100), // finalPrice already includes 5% VAT
+            },
+            quantity: 1,
+          }],
+          mode: 'payment',
+          success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/#/portal/login?success=true&clientId=${client.id}&tempPassword=${generatedPassword || 'Pre-existing'}&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/#/public/translation?cancel=true`,
+          metadata: {
+            clientId: client.id,
+            paymentId: payment.id,
+            serviceType: 'sworn_translation'
+          }
+        });
+        paymentUrl = session.url;
+        gatewayId = session.id;
+      } catch (stripeErr) {
+        console.error('Failed to create Stripe Session for Translation Checkout:', stripeErr);
+      }
+    }
+
+    // Update payment record with gateway details
     await prisma.payment.update({
       where: { id: payment.id },
-      data: { gatewayId: `sess_${payment.id}` }
+      data: { gatewayId }
     });
 
     return res.status(201).json({

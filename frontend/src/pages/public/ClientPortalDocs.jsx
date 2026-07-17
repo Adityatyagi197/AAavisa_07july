@@ -703,6 +703,42 @@ export const ClientPortalDocs = () => {
     }
   }, [clientId, client, allPayments]);
 
+  useEffect(() => {
+    const queryParams = new URLSearchParams(window.location.hash.split('?')[1] || window.location.search);
+    const success = queryParams.get('success');
+    const sessionId = queryParams.get('session_id');
+
+    if (success === 'true') {
+      const verifySession = async () => {
+        try {
+          if (sessionId && sessionId !== 'mock_session_id') {
+            const res = await dbService.verifyCheckoutSession(sessionId);
+            if (!res.success) {
+              showAlert('Failed to verify payment session with Stripe.', 'error');
+              return;
+            }
+          }
+          
+          showAlert('Payment completed! Document Center is now unlocked. 🎉', 'success');
+          
+          // Invalidate queries to reload client profile and unlock the UI
+          queryClient.invalidateQueries({ queryKey: ['clientProfile'] });
+          queryClient.invalidateQueries({ queryKey: ['clients'] });
+          queryClient.invalidateQueries({ queryKey: ['payments'] });
+          queryClient.invalidateQueries({ queryKey: ['documents'] });
+
+          // Clean URL query parameters
+          const cleanUrl = window.location.hash.split('?')[0];
+          navigate(cleanUrl, { replace: true });
+        } catch (err) {
+          console.error('Session verification failed:', err);
+          showAlert('Failed to verify payment session.', 'error');
+        }
+      };
+      verifySession();
+    }
+  }, [clientId, navigate, queryClient]);
+
   // Mutations
   const uploadDocMutation = useMutation({
     mutationFn: dbService.uploadDocument,
@@ -752,38 +788,15 @@ export const ClientPortalDocs = () => {
 
   const selectAndPayPackageMutation = useMutation({
     mutationFn: async ({ packageId, amount, discount }) => {
-      // 1. Call real backend API — sets documentUploadAllowed: true in DB
-      await dbService.selectPackage(client.id, packageId);
-
-      // 2. Create invoice record in backend payments
-      const payments = JSON.parse(localStorage.getItem('crm-payments') || '[]');
-      const newInvoice = {
-        id: 'INV-2026-' + String(payments.length + 1).padStart(3, '0'),
-        clientId: client.id,
-        clientName: `${client.firstName} ${client.lastName}`,
-        serviceId: client.serviceId,
-        packageId,
-        amount,
-        discount,
-        status: 'Paid',
-        billingDate: new Date().toISOString().split('T')[0],
-        dueDate: new Date().toISOString().split('T')[0],
-        paymentMethod: billingPaymentMethod === 'card' ? 'Credit Card' : (billingPaymentMethod === 'apple' ? 'Apple Pay / Google Pay' : 'Link Wallet'),
-        transactionId: 'TXN_' + Math.floor(Math.random() * 1000000000)
-      };
-      payments.unshift(newInvoice);
-      localStorage.setItem('crm-payments', JSON.stringify(payments));
-
-      return newInvoice;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
-      showAlert('Payment completed! Document Center is now unlocked. 🎉', 'success');
-      setTabValue(0); // Switch to Document Center tab
+      const res = await dbService.createCheckoutSession({ packageId, amount, discount });
+      if (res.success && res.url) {
+        window.location.href = res.url;
+      } else {
+        throw new Error(res.message || 'Failed to initialize payment checkout session');
+      }
     },
     onError: (err) => {
-      showAlert(err?.response?.data?.message || 'Payment failed. Please try again.', 'error');
+      showAlert(err?.message || 'Payment failed. Please try again.', 'error');
     }
   });
 
