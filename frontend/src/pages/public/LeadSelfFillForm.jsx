@@ -4,19 +4,7 @@ import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || "https://aaa-consultancy-production.up.railway.app/api/v1";
 
-const TIME_SLOTS = [
-  { value: "9-10", label: "🌅 09:00 AM – 10:00 AM" },
-  { value: "10-11", label: "🌅 10:00 AM – 11:00 AM" },
-  { value: "11-12", label: "🌅 11:00 AM – 12:00 PM" },
-  { value: "12-13", label: "☀️ 12:00 PM – 01:00 PM" },
-  { value: "13-14", label: "☀️ 01:00 PM – 02:00 PM" },
-  { value: "14-15", label: "☀️ 02:00 PM – 03:00 PM" },
-  { value: "15-16", label: "☀️ 03:00 PM – 04:00 PM" },
-  { value: "16-17", label: "☀️ 04:00 PM – 05:00 PM" },
-  { value: "17-18", label: "🌙 05:00 PM – 06:00 PM" },
-  { value: "18-19", label: "🌙 06:00 PM – 07:00 PM" },
-  { value: "19-20", label: "🌙 07:00 PM – 08:00 PM" }
-];
+
 
 const LANGUAGES = ["English", "Arabic", "Urdu", "Spanish", "French", "German"];
 
@@ -414,7 +402,7 @@ export const LeadSelfFillForm = () => {
                 letterSpacing: "-0.5px",
               }}
             >
-              AAA Visa
+              AAA Consultancy Services 
             </span>
           </div>
           <p
