@@ -75,6 +75,10 @@ export const dbService = {
     const res = await apiClient.get('/clients');
     return res.data;
   },
+  getClientProfile: async () => {
+    const res = await apiClient.get('/clients/profile/me');
+    return res.data;
+  },
   createClient: async (client) => {
     const res = await apiClient.post('/clients', client);
     return res.data;
@@ -175,6 +179,14 @@ export const dbService = {
   },
   reviewDocument: async (documentId, status, comment) => {
     const res = await apiClient.patch(`/documents/${documentId}/verify`, { status, feedbackComment: comment });
+    return res.data;
+  },
+  uploadTranslatedDocument: async (documentId, file) => {
+    const formData = new FormData();
+    formData.append('translatedFile', file);
+    const res = await apiClient.patch(`/documents/${documentId}/translated`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
     return res.data;
   },
 

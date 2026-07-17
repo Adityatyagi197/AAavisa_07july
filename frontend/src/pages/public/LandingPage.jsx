@@ -162,8 +162,7 @@ export const LandingPage = () => {
     {
       title: 'Spanish Sworn Translation',
       desc: 'Certified translation of official documents (PCC, Birth Certificate, Bank Statements) from English, Arabic, Urdu, or French to Spanish by Ministry-approved sworn translators.',
-      icon: <TranslateIcon className="text-brand-gold text-3xl" />,
-      link: '/public/translation'
+      icon: <TranslateIcon className="text-brand-gold text-3xl" />
     }
   ];
 
@@ -457,7 +456,7 @@ export const LandingPage = () => {
                 Your trusted partner for a better future in Spain. We simplify your immigration journey with personalized visa strategies, secure document verification, and end-to-end relocation assistance.
               </p>
 
-              <div className="flex justify-center lg:justify-start pt-4">
+              <div className="flex flex-wrap justify-center lg:justify-start gap-3 pt-4">
                 <a
                   href="#contact"
                   onClick={(e) => handleScroll(e, 'contact')}
@@ -466,6 +465,12 @@ export const LandingPage = () => {
                   <span>Contact Corporate Offices</span>
                   <ArrowForwardIcon className="text-sm!" />
                 </a>
+                <button
+                  onClick={() => navigate('/public/translation')}
+                  className="bg-transparent border-2 border-brand-gold text-brand-gold hover:bg-brand-gold hover:text-brand-navy font-bold px-8 py-4 rounded-xl transition-all flex items-center justify-center space-x-2 text-sm transform hover:-translate-y-0.5"
+                >
+                  <span>🇪🇸 Spain Sworn Translation</span>
+                </button>
               </div>
 
               {/* Trust Indicators */}

@@ -95,6 +95,7 @@ export const SuperAdminDocumentVerificationDashboard = () => {
   }, [intakeClients, selectedClientId]);
 
   const selectedClient = clients.find(c => c && c.id === selectedClientId);
+  const isTranslationClient = selectedClient && (selectedClient.serviceId === 'Spanish Sworn Translation' || selectedClient.serviceId === 'sworn_translation' || selectedClient.serviceId === 'translation');
   const clientDocs = documents.filter(d => d && d.clientId === selectedClientId);
 
   const generateCredentialsAction = async () => {
@@ -858,6 +859,38 @@ export const SuperAdminDocumentVerificationDashboard = () => {
 
                         {/* Action Buttons */}
                         <Stack direction="row" spacing={1} justifyContent="flex-end">
+                          {isTranslationClient && (
+                            <>
+                              <input
+                                type="file"
+                                id={`translated-file-input-${doc.id}`}
+                                accept="application/pdf"
+                                style={{ display: 'none' }}
+                                onChange={async (e) => {
+                                  if (e.target.files && e.target.files[0]) {
+                                    try {
+                                      await dbService.uploadTranslatedDocument(doc.id, e.target.files[0]);
+                                      queryClient.invalidateQueries({ queryKey: ['documents'] });
+                                      queryClient.invalidateQueries({ queryKey: ['clients'] });
+                                      showAlert('Translated document uploaded successfully and client notified!', 'success');
+                                    } catch (err) {
+                                      console.error(err);
+                                      showAlert('Failed to upload translated document.', 'error');
+                                    }
+                                  }
+                                }}
+                              />
+                              <Button
+                                variant="contained"
+                                color="warning"
+                                size="small"
+                                onClick={() => document.getElementById(`translated-file-input-${doc.id}`).click()}
+                                sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 700 }}
+                              >
+                                {doc.translatedUrl ? 'Re-upload Trans.' : 'Upload Trans.'}
+                              </Button>
+                            </>
+                          )}
                           <Button
                             variant="outlined"
                             color="secondary"
