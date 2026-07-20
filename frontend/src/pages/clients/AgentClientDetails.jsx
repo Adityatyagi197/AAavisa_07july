@@ -21,6 +21,9 @@ import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import PostAddIcon from '@mui/icons-material/PostAdd';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
 
 // Components & Services
 import { dbService } from '../../services/dbService';
@@ -239,21 +242,21 @@ export const AgentClientDetails = () => {
         }
       />
 
-      <Box className="grid grid-cols-12 gap-2">
+      <Box className="grid grid-cols-12 gap-4" sx={{ mb: 3, alignItems: 'stretch' }}>
         {/* Left pane */}
-        <Box className="col-span-12" md={3.5}>
-          <Paper sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none' }}>
-            <Box sx={{ textAlign: 'center', mb: 3 }}>
+        <Box className="col-span-12 md:col-span-3">
+          <Paper sx={{ p: 2.5, borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ textAlign: 'center', mb: 2 }}>
               <Avatar
                 sx={{ width: 72, height: 72, mx: 'auto', mb: 1.5, bgcolor: 'secondary.main', fontSize: '1.8rem', fontWeight: 600 }}
               >
                 {client.firstName[0]}
                 {client.lastName[0]}
               </Avatar>
-              <Typography variant="h5" sx={{ fontWeight: 700 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
                 {client.firstName} {client.lastName}
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: 'block', wordBreak: 'break-all' }}>
                 {client.email}
               </Typography>
               <Stack direction="column" spacing={1} alignItems="center">
@@ -268,9 +271,9 @@ export const AgentClientDetails = () => {
               </Stack>
             </Box>
 
-            <Divider sx={{ my: 2.5 }} />
+            <Divider sx={{ my: 2 }} />
 
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
               <Box>
                 <Typography variant="caption" color="text.secondary" display="block">Target Service Pathway</Typography>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{serviceObj?.name || client.serviceId}</Typography>
@@ -327,8 +330,8 @@ export const AgentClientDetails = () => {
         </Box>
 
         {/* Right pane */}
-        <Box className="col-span-12" md={8.5}>
-          <AppCard noPadding>
+        <Box className="col-span-12 md:col-span-9" sx={{ display: 'flex', flexDirection: 'column' }}>
+          <AppCard noPadding sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <Tabs
               value={activeTab}
               onChange={(e, newTab) => setActiveTab(newTab)}
@@ -723,34 +726,40 @@ export const AgentClientDetails = () => {
           </>
         }
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-          <TextField
-            select
-            value={selectedVisaStatus}
-            onChange={(e) => setSelectedVisaStatus(e.target.value)}
-            label="Spain Visa Progression"
-            fullWidth
-          >
-            {visaStatuses.map((st) => (
-              <MenuItem key={st} value={st}>
-                {st}
-              </MenuItem>
-            ))}
-          </TextField>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, pt: 1 }}>
+          <FormControl fullWidth size="small">
+            <InputLabel id="agent-visa-status-select-label">Spain Visa Progression</InputLabel>
+            <Select
+              labelId="agent-visa-status-select-label"
+              value={selectedVisaStatus || ''}
+              onChange={(e) => setSelectedVisaStatus(e.target.value)}
+              label="Spain Visa Progression"
+              sx={{ borderRadius: 2 }}
+            >
+              {visaStatuses.map((st) => (
+                <MenuItem key={st} value={st}>
+                  {st}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
 
-          <TextField
-            select
-            value={selectedBillingStatus}
-            onChange={(e) => setSelectedBillingStatus(e.target.value)}
-            label="Billing Status"
-            fullWidth
-          >
-            {billingStatuses.map((st) => (
-              <MenuItem key={st} value={st}>
-                {st}
-              </MenuItem>
-            ))}
-          </TextField>
+          <FormControl fullWidth size="small">
+            <InputLabel id="agent-billing-status-select-label">Billing Status</InputLabel>
+            <Select
+              labelId="agent-billing-status-select-label"
+              value={selectedBillingStatus || ''}
+              onChange={(e) => setSelectedBillingStatus(e.target.value)}
+              label="Billing Status"
+              sx={{ borderRadius: 2 }}
+            >
+              {billingStatuses.map((st) => (
+                <MenuItem key={st} value={st}>
+                  {st}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </Box>
       </AppModal>
       <CredentialsModal

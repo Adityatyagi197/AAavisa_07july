@@ -58,18 +58,19 @@ const uploadDocument = async (req, res) => {
         category: category || 'General',
         url: req.file.location || `/uploads/${req.file.filename}`,
         size: `${(req.file.size / 1024 / 1024).toFixed(2)} MB`,
-        status: 'Pending Verification',
+        status: req.body.status || 'Pending Verification',
         belongsTo: belongsTo || 'Main Applicant',
         wordCount
       }
     });
 
-    // 2. Find the client to get their name and assigned operator
+    // 2. Find the client to get their name, email and assigned operator
     let client = await prisma.client.findUnique({
       where: { id: clientId },
       select: { 
         firstName: true, 
         lastName: true, 
+        email: true,
         assignedToId: true,
         assignedTo: {
           select: { email: true, hotlineNumber: true }
@@ -81,6 +82,29 @@ const uploadDocument = async (req, res) => {
       const clientName = `${client.firstName} ${client.lastName}`;
       const fileNameLower = (req.file.originalname || '').toLowerCase();
       const isTranslationDoc = (category || '').toLowerCase().includes('translation') || fileNameLower.includes('translation') || fileNameLower.includes('sworn');
+
+      // Check if uploaded by staff/agent for the client -> Send client email notification
+      if (req.body.uploadedByRole === 'agent' || category === 'Official Sworn Output' || belongsTo === 'Staff Upload') {
+        if (client.email) {
+          const { sendEmail } = require('../services/emailService');
+          try {
+            await sendEmail({
+              to: client.email,
+              subject: `[COMPLETED] Your Official Sworn Translation is Ready! 📜`,
+              html: `
+                <h3>Hello ${clientName},</h3>
+                <p>Great news! Your official Spanish Sworn Translation document <b>${req.file.originalname}</b> has been completed and uploaded by our operations team.</p>
+                <p>It is now available for direct download on your <b>Client Portal</b> under your documents section.</p>
+                <br/>
+                <p>Best regards,<br/><b>AAA Immigration Services LLC</b></p>
+              `
+            });
+            console.log(`[Sworn Delivery] Client notification email sent to ${client.email}`);
+          } catch (e) {
+            console.error('Failed to notify client via email:', e.message);
+          }
+        }
+      }
       
       // Simulate classification check: handwritten/unreadable names trigger the routing override
       const isHandwritten = fileNameLower.includes('handwritten') || fileNameLower.includes('blurry') || fileNameLower.includes('draft');

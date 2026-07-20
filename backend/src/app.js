@@ -83,6 +83,16 @@ startReminderScheduler();
 
 // Start Server
 const PORT = process.env.PORT || 5000;
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`[Server Error] Port ${PORT} is already in use. Please kill existing process or wait...`);
+    process.exit(1);
+  } else {
+    console.error('[Server Error]', err);
+  }
+});
+
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });

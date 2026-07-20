@@ -179,8 +179,10 @@ export const dbService = {
     const formData = new FormData();
     formData.append('file', doc.file);
     formData.append('clientId', doc.clientId);
-    formData.append('category', doc.category);
+    formData.append('category', doc.category || 'General');
     if (doc.belongsTo) formData.append('belongsTo', doc.belongsTo);
+    if (doc.status) formData.append('status', doc.status);
+    if (doc.uploadedByRole) formData.append('uploadedByRole', doc.uploadedByRole);
 
     const res = await apiClient.post('/documents/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
