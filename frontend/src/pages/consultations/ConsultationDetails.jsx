@@ -395,12 +395,14 @@ export const ConsultationDetails = () => {
                     </Box>
                   )
                 ) : (
-                  /* Recording processing state */
+                  /* No recording available fallback */
                   <Box sx={{ p: 3, textAlign: 'center', bgcolor: 'background.neutral', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Automated cloud recording is currently processing on Zoom Cloud. Please wait...
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                      No Meeting Recording Logged
                     </Typography>
-                    <CircularProgress size={24} sx={{ mt: 2, color: 'secondary.main' }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                      If this consultation was conducted manually (e.g. phone or WhatsApp call), no recording is captured. If it was a Zoom meeting, the recording may still be processing on Zoom Cloud.
+                    </Typography>
                   </Box>
                 )}
               </AppCard>

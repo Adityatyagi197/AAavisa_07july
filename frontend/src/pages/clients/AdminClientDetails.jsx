@@ -416,34 +416,24 @@ export const AdminClientDetails = () => {
                     </Typography>
                     <Paper sx={{ p: 2.5, border: '1px solid', borderColor: 'divider', borderRadius: 3, boxShadow: 'none' }}>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                          <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'error.main', mt: 0.7 }} />
-                          <Box>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Cycle #1: Original Visa Submission (Refused)</Typography>
-                            <Typography variant="caption" color="text.secondary">Submitted: 2026-06-05 | Decision: 2026-06-18</Typography>
-                            <Typography variant="body2" sx={{ mt: 0.5, fontStyle: 'italic', color: 'text.secondary' }}>Reason: Financial passive income statements lacked Spanish sworn translation certifications.</Typography>
-                          </Box>
-                        </Box>
-                        {(client.visaStatus === 'Appeal in Progress' || client.visaStatus === 'Appeal Approved' || client.visaStatus === 'Appeal Refused') && (
-                          <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', borderTop: '1px solid', borderColor: 'divider', pt: 2 }}>
-                            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'warning.main', mt: 0.7 }} />
-                            <Box>
-                              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Cycle #2: Legal Appeal ({client.visaStatus})</Typography>
-                              <Typography variant="caption" color="text.secondary">Initiated: 2026-06-19 | Deadline: {appealDeadline}</Typography>
-                              <Typography variant="body2" sx={{ mt: 0.5 }}><strong>Reason:</strong> {refusalReason}</Typography>
-                              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>Assigned Advocate: {assignedLawyer === 'c1' ? 'Sofia Rodriguez' : 'Lucas Gomez'}</Typography>
+                        {client.applicationCycles && client.applicationCycles.length > 0 ? (
+                          client.applicationCycles.map((cycle, index) => (
+                            <Box key={cycle.id || index} sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', borderTop: index > 0 ? '1px solid' : 'none', borderColor: 'divider', pt: index > 0 ? 2 : 0 }}>
+                              <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: cycle.status.toLowerCase().includes('refused') || cycle.status.toLowerCase().includes('rejected') ? 'error.main' : 'primary.main', mt: 0.7 }} />
+                              <Box sx={{ width: '100%' }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, textTransform: 'capitalize' }}>
+                                  Cycle #{index + 1}: {cycle.serviceType.replace('_', ' ').toUpperCase()} ({cycle.status})
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Started: {new Date(cycle.createdAt).toLocaleDateString()}
+                                </Typography>
+                              </Box>
                             </Box>
-                          </Box>
-                        )}
-                        {(client.visaStatus === 'Resubmission in Progress' || client.visaStatus === 'Ready for Resubmission' || client.visaStatus === 'Resubmitted') && (
-                          <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', borderTop: '1px solid', borderColor: 'divider', pt: 2 }}>
-                            <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: 'warning.main', mt: 0.7 }} />
-                            <Box>
-                              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Cycle #2: Resubmission ({client.visaStatus})</Typography>
-                              <Typography variant="caption" color="text.secondary">Initiated: 2026-06-19</Typography>
-                              <Typography variant="body2" sx={{ mt: 0.5 }}><strong>Correction Notes:</strong> {refusalReason}</Typography>
-                            </Box>
-                          </Box>
+                          ))
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            No active visa processing cycles registered for this client.
+                          </Typography>
                         )}
                       </Box>
                     </Paper>

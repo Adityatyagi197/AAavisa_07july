@@ -790,7 +790,12 @@ export const ClientPortalDocs = () => {
 
   const selectAndPayPackageMutation = useMutation({
     mutationFn: async ({ packageId, amount, discount }) => {
-      const res = await dbService.createCheckoutSession({ packageId, amount, discount });
+      const res = await dbService.createCheckoutSession({ 
+        packageId, 
+        amount, 
+        discount,
+        paymentMethod: billingPaymentMethod 
+      });
       if (res.success && res.url) {
         window.location.href = res.url;
       } else {
@@ -2131,18 +2136,36 @@ export const ClientPortalDocs = () => {
         )}
 
         {tabValue === 1 && client && client.serviceId !== 'sworn_translation' && client.serviceId !== 'translation' && client.serviceId !== 'sworn' && client.serviceType !== 'Spanish Sworn Translation' && (() => {
-          const baseServicePrice = SERVICES.find(s => s.id === client.serviceId)?.basePrice || 1500;
-          const numApplicants = client.applicantsCount || 1;
+          const getApplicantsCount = (countStr) => {
+            if (!countStr || countStr === 'Main Only') return 1;
+            const numericVal = parseInt(countStr, 10);
+            if (!isNaN(numericVal) && String(numericVal) === countStr.trim()) {
+              return numericVal;
+            }
+            const match = countStr.match(/Main\s*\+\s*(\d+)/i);
+            if (match) {
+              return 1 + parseInt(match[1], 10);
+            }
+            return 1;
+          };
 
-          const optionAPrice = baseServicePrice;
-          const optionBPrice = baseServicePrice + 700;
-          
-          let optionBDiscount = 0;
-          if (numApplicants >= 1) optionBDiscount += 500;
-          if (numApplicants > 1) optionBDiscount += (numApplicants - 1) * 250;
+          const totalApplicants = getApplicantsCount(client.applicantsCount);
+          const addApplicants = totalApplicants - 1;
 
-          const optionCPrice = 700;
-          const schengenPrice = 400;
+          // Option A: Full Processing (base €3500, additional €500)
+          const optionAPrice = 3500 + (addApplicants * 500);
+
+          // Option B: Premium (base €4750, additional €750)
+          const optionBPrice = 4750 + (addApplicants * 750);
+          const optionBDiscount = 0;
+
+          // Option C: Administrative Relocation (base €1750, additional €500)
+          const optionCPrice = 1750 + (addApplicants * 500);
+
+          // Tourist Schengen Visa (base €500, additional €250)
+          const schengenPrice = 500 + (addApplicants * 250);
+
+          const baseServicePrice = optionAPrice;
 
           return (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>

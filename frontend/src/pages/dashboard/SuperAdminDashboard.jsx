@@ -71,56 +71,34 @@ export const SuperAdminDashboard = () => {
   const [toFocused, setToFocused] = useState(false);
   const [showCustomDate, setShowCustomDate] = useState(false);
 
-  const mockToday = '2026-06-18'; // Mock current date
+  const mockToday = new Date().toISOString().split('T')[0]; // Real current date
 
   const applyPreset = (preset) => {
+    const now = new Date();
+    const fmt = (d) => d.toISOString().split('T')[0];
     if (preset === 'today') {
-      setStartDate(mockToday);
-      setEndDate(mockToday);
+      setStartDate(fmt(now));
+      setEndDate(fmt(now));
     } else if (preset === '7d') {
-      setStartDate('2026-06-12');
-      setEndDate(mockToday);
+      const d7 = new Date(now); d7.setDate(now.getDate() - 7);
+      setStartDate(fmt(d7));
+      setEndDate(fmt(now));
     } else if (preset === '30d') {
-      setStartDate('2026-05-20');
-      setEndDate(mockToday);
+      const d30 = new Date(now); d30.setDate(now.getDate() - 30);
+      setStartDate(fmt(d30));
+      setEndDate(fmt(now));
     } else if (preset === 'all') {
       setStartDate('');
       setEndDate('');
     }
   };
 
-  // REVENUE DASHBOARD
-  const revenueStats = [
-    { title: 'Total Revenue', value: '€2,450,000', icon: <AccountBalanceWalletIcon />, color: '#3F51B5', trend: '15%' },
-    { title: 'Revenue Today', value: '€12,500', icon: <TrendingUpIcon />, color: '#14B8A6', trend: '8%' },
-    { title: 'Outstanding Revenue', value: '€145,000', icon: <AccountBalanceWalletIcon />, color: '#F59E0B', trend: '-2%' },
-    { title: 'Refunded (50% Rejections)', value: '€45,000', icon: <CancelIcon />, color: '#EF4444', trend: '4%' },
-  ];
+  // REVENUE DASHBOARD — computed from real payment data
+  // (computed after payments query, defined inline in JSX below)
 
-  // LEAD SOURCE REVENUE TRACKING
-  const leadSourceData = [
-    { name: 'Google Ads', value: 400 },
-    { name: 'WhatsApp', value: 300 },
-    { name: 'Instagram Ads', value: 300 },
-    { name: 'Referrals', value: 200 },
-    { name: 'Website SEO', value: 100 },
-  ];
+  // LEAD SOURCE — computed from real leads data after query (defined after queries below)
 
-  // COMMISSION MANAGEMENT
-  const commissionData = [
-    { name: 'Sofia (10%)', earned: 15000, paid: 12000 },
-    { name: 'Carlos (5%)', earned: 8000, paid: 8000 },
-    { name: 'Elena (Custom)', earned: 20000, paid: 15000 },
-    { name: 'Marcus (10%)', earned: 18000, paid: 10000 },
-  ];
-
-  // PAYMENT STATUS & GATEWAYS
-  const gatewayData = [
-    { name: 'Stripe', revenue: 150000 },
-    { name: 'Apple Pay', revenue: 85000 },
-    { name: 'Tabby (Installments)', revenue: 45000 },
-    { name: 'Bank Transfer', revenue: 120000 },
-  ];
+  // COMMISSION MANAGEMENT — computed from real agents/payments (defined after queries)
 
   // CLIENT FINANCIAL VIEW TABLE
   const financialColumns = [
@@ -132,17 +110,7 @@ export const SuperAdminDashboard = () => {
     { id: 'balance', label: 'Balance' },
     { id: 'paymentStatus', label: 'Payment Status' },
   ];
-
-  const financialRows = [
-    { id: 1, client: 'John Doe', service: 'Spain DNV', consultant: 'Sofia R.', totalFee: '€8,000', paid: '€4,000', balance: '€4,000', paymentStatus: 'Partially Paid' },
-    { id: 2, client: 'Sarah Smith', service: 'Golden Visa', consultant: 'Marcus T.', totalFee: '€12,000', paid: '€12,000', balance: '€0', paymentStatus: 'Fully Paid' },
-    { id: 3, client: 'Ahmed Ali', service: 'Non-Lucrative', consultant: 'Carlos O.', totalFee: '€5,000', paid: '€0', balance: '€5,000', paymentStatus: 'Pending Payment' },
-    { id: 4, client: 'Emily Chen', service: 'Student Visa', consultant: 'Sofia R.', totalFee: '€3,000', paid: '€1,500', balance: '€1,500', paymentStatus: 'Refunded (50%)' },
-    { id: 5, client: 'Michael Brown', service: 'Spain DNV', consultant: 'Elena S.', totalFee: '€9,500', paid: '€9,500', balance: '€0', paymentStatus: 'Fully Paid' },
-    { id: 6, client: 'Sophia Garcia', service: 'Golden Visa', consultant: 'Marcus T.', totalFee: '€15,000', paid: '€5,000', balance: '€10,000', paymentStatus: 'Partially Paid' },
-    { id: 7, client: 'David Wilson', service: 'Non-Lucrative', consultant: 'Carlos O.', totalFee: '€6,000', paid: '€6,000', balance: '€0', paymentStatus: 'Fully Paid' },
-    { id: 8, client: 'Emma Watson', service: 'Student Visa', consultant: 'Sofia R.', totalFee: '€4,000', paid: '€2,000', balance: '€2,000', paymentStatus: 'Partially Paid' },
-  ];
+  // financialRows computed from real data after queries
 
 
   // Lead Ingestion Simulator State
@@ -238,7 +206,7 @@ export const SuperAdminDashboard = () => {
     return `${y}-${m}-${d}`;
   };
 
-  const todayDateStr = '2026-06-18'; // Mock current date
+  const todayDateStr = new Date().toISOString().split('T')[0]; // Real current date
   const revenueTotal = payments.filter(p => p.status === 'Paid').reduce((sum, p) => sum + (p.totalPaid || 0), 0);
 
   const getPeriodRange = (startStr, endStr) => {
@@ -443,31 +411,102 @@ export const SuperAdminDashboard = () => {
 
   const COLORS = ['#2563EB', '#14B8A6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#10B981', '#3B82F6'];
 
-  // CHART 2: Revenue Chart
-  const revenueData = [
-    { name: 'Jan', revenue: 12000, target: 10000 },
-    { name: 'Feb', revenue: 15500, target: 12000 },
-    { name: 'Mar', revenue: 19800, target: 15000 },
-    { name: 'Apr', revenue: 22000, target: 18000 },
-    { name: 'May', revenue: 31000, target: 22000 },
-    { name: 'Jun', revenue: revenueTotal, target: 25000 },
+  // CHART 2: Revenue Chart — computed from real payments grouped by month
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const revenueByMonth = payments
+    .filter(p => p.status === 'Paid' && (p.paymentDate || p.dueDate))
+    .reduce((acc, p) => {
+      const d = new Date(p.paymentDate || p.dueDate);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      if (!acc[key]) acc[key] = { name: `${monthNames[d.getMonth()]} ${d.getFullYear()}`, revenue: 0, target: 25000 };
+      acc[key].revenue += (p.totalPaid || p.amount || 0);
+      return acc;
+    }, {});
+  const revenueData = Object.values(revenueByMonth).slice(-6);
+  // Fallback if no payment data yet
+  const revenueDataFinal = revenueData.length > 0 ? revenueData : [
+    { name: 'Month 1', revenue: 0, target: 25000 }
   ];
 
-  // CHART 3: Monthly Conversion Chart
-  const conversionData = [
-    { name: 'Jan', rate: 45 },
-    { name: 'Feb', rate: 52 },
-    { name: 'Mar', rate: 58 },
-    { name: 'Apr', rate: 61 },
-    { name: 'May', rate: 68 },
-    { name: 'Jun', rate: 71 },
-  ];
+  // CHART 3: Monthly Conversion Chart — computed from real leads vs clients
+  const conversionByMonth = leads.reduce((acc, l) => {
+    if (!l.createdDate) return acc;
+    const d = new Date(l.createdDate);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    if (!acc[key]) acc[key] = { name: monthNames[d.getMonth()], total: 0, converted: 0 };
+    acc[key].total += 1;
+    if (l.clientId) acc[key].converted += 1;
+    return acc;
+  }, {});
+  const conversionData = Object.values(conversionByMonth).slice(-6).map(m => ({
+    name: m.name,
+    rate: m.total > 0 ? Math.round((m.converted / m.total) * 100) : 0
+  }));
 
-  // CHART 4: Consultant Performance Chart
+  // CHART 4: Consultant Performance Chart — from real agents
   const performanceData = agentsList.map((c) => ({
-    name: c.name.split(' ')[0],
+    name: (c.name || c.fullName || 'Agent').split(' ')[0],
     cases: c.casesCount || 0,
-    rate: c.conversionRate || 0 }));
+    rate: c.conversionRate || 0
+  }));
+
+  // REVENUE STATS — computed from real payments
+  const totalRevenue = payments.filter(p => p.status === 'Paid').reduce((s, p) => s + (p.totalPaid || p.amount || 0), 0);
+  const revenueToday = payments.filter(p => p.status === 'Paid' && (p.paymentDate || p.dueDate || '').startsWith(todayDateStr)).reduce((s, p) => s + (p.totalPaid || p.amount || 0), 0);
+  const outstandingRevenue = payments.filter(p => p.status === 'Pending').reduce((s, p) => s + (p.amount || 0), 0);
+  const refundedRevenue = payments.filter(p => p.status === 'Refunded').reduce((s, p) => s + (p.totalPaid || p.amount || 0), 0);
+  const revenueStats = [
+    { title: 'Total Revenue', value: `€${totalRevenue.toLocaleString()}`, icon: <AccountBalanceWalletIcon />, color: '#3F51B5', trend: null },
+    { title: 'Revenue Today', value: `€${revenueToday.toLocaleString()}`, icon: <TrendingUpIcon />, color: '#14B8A6', trend: null },
+    { title: 'Outstanding Revenue', value: `€${outstandingRevenue.toLocaleString()}`, icon: <AccountBalanceWalletIcon />, color: '#F59E0B', trend: null },
+    { title: 'Refunded (50% Rejections)', value: `€${refundedRevenue.toLocaleString()}`, icon: <CancelIcon />, color: '#EF4444', trend: null },
+  ];
+
+  // FINANCIAL TABLE — from real clients + payments
+  const financialRows = clients.slice(0, 10).map((c, i) => {
+    const clientPmts = payments.filter(p => p.clientId === c.id);
+    const totalFee = clientPmts.reduce((s, p) => s + (p.amount || 0), 0);
+    const paid = clientPmts.filter(p => p.status === 'Paid').reduce((s, p) => s + (p.totalPaid || p.amount || 0), 0);
+    const balance = Math.max(0, totalFee - paid);
+    const hasPending = clientPmts.some(p => p.status === 'Pending');
+    const hasRefund = clientPmts.some(p => p.status === 'Refunded');
+    const paymentStatus = paid === totalFee && totalFee > 0 ? 'Fully Paid' : hasRefund ? 'Refunded' : hasPending ? 'Pending Payment' : paid > 0 ? 'Partially Paid' : 'No Invoice';
+    return {
+      id: c.id || i,
+      client: `${c.firstName || ''} ${c.lastName || ''}`.trim(),
+      service: c.serviceType || c.serviceId || '—',
+      consultant: c.assignedTo?.fullName || '—',
+      totalFee: `€${totalFee.toLocaleString()}`,
+      paid: `€${paid.toLocaleString()}`,
+      balance: `€${balance.toLocaleString()}`,
+      paymentStatus
+    };
+  });
+
+  // GATEWAY DATA — from real payments grouped by method
+  const gatewayDataMap = payments.filter(p => p.status === 'Paid').reduce((acc, p) => {
+    const method = p.paymentMethod || p.gateway || 'Other';
+    if (!acc[method]) acc[method] = { name: method, revenue: 0 };
+    acc[method].revenue += (p.totalPaid || p.amount || 0);
+    return acc;
+  }, {});
+  const gatewayData = Object.values(gatewayDataMap).length > 0 ? Object.values(gatewayDataMap) : [{ name: 'No Data', revenue: 0 }];
+
+  // COMMISSION DATA — from real agents
+  const commissionData = agentsList.slice(0, 6).map(a => ({
+    name: `${(a.name || a.fullName || 'Agent').split(' ')[0]} (${a.commissionRate || 0}%)`,
+    earned: a.totalCommissionEarned || 0,
+    paid: a.totalCommissionPaid || 0
+  }));
+
+  // LEAD SOURCE — computed from real leads
+  const leadSourceData = leads.reduce((acc, l) => {
+    const src = l.source || 'Unknown';
+    const existing = acc.find(x => x.name === src);
+    if (existing) existing.value += 1;
+    else acc.push({ name: src, value: 1 });
+    return acc;
+  }, []);
 
   // Leads table configuration
   const recentLeads = leads.slice(0, 5);
@@ -514,9 +553,9 @@ export const SuperAdminDashboard = () => {
                   { label: 'All', key: 'all' },
                 ].map(preset => {
                   const isActive =
-                    preset.key === 'today' ? startDate === mockToday && endDate === mockToday :
-                    preset.key === '7d' ? startDate === '2026-06-12' && endDate === mockToday :
-                    preset.key === '30d' ? startDate === '2026-05-20' && endDate === mockToday :
+                    preset.key === 'today' ? startDate === endDate && startDate !== '' :
+                    preset.key === '7d' ? (startDate !== '' && endDate !== '' && startDate !== endDate && !(!startDate && !endDate)) && (() => { try { const diff = Math.round((new Date(endDate) - new Date(startDate)) / 86400000); return diff >= 6 && diff <= 8; } catch(e) { return false; } })() :
+                    preset.key === '30d' ? (startDate !== '' && endDate !== '' && startDate !== endDate) && (() => { try { const diff = Math.round((new Date(endDate) - new Date(startDate)) / 86400000); return diff >= 28 && diff <= 32; } catch(e) { return false; } })() :
                     preset.key === 'all' ? !startDate && !endDate : false;
                   return (
                     <Button
@@ -717,7 +756,7 @@ export const SuperAdminDashboard = () => {
         <Box className="col-span-1">
           <ChartCard title="Revenue Growth Trends" subheader="Target vs Actual monthly generated payments">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={revenueData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={revenueDataFinal} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#2563EB" stopOpacity={0.4} />

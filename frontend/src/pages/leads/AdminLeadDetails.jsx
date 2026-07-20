@@ -41,6 +41,7 @@ import { SERVICES, PACKAGES } from '../../constants/mockData';
 import ForumIcon from '@mui/icons-material/Forum';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import AiSummaryModal from '../../components/AiSummaryModal';
+import { CommunicationHistoryTab } from '../../components/CommunicationHistoryTab';
 
 export const AdminLeadDetails = () => {
   const { id } = useParams();
@@ -88,6 +89,8 @@ export const AdminLeadDetails = () => {
   const [convertModalOpen, setConvertModalOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [aiSummaryOpen, setAiSummaryOpen] = useState(false);
+  const [isCustomStatus, setIsCustomStatus] = useState(false);
+  const [customStatus, setCustomStatus] = useState('');
 
   // Convert lead state
   const [selectedPackageId, setSelectedPackageId] = useState('full_process');
@@ -278,11 +281,18 @@ export const AdminLeadDetails = () => {
 
   const handleOpenStatusModal = () => {
     setSelectedStatus(lead.status);
+    setCustomStatus('');
+    setIsCustomStatus(false);
     setStatusModalOpen(true);
   };
 
   const handleStatusSubmit = () => {
-    updateStatusMutation.mutate({ leadId: lead.id, status: selectedStatus });
+    const finalStatus = isCustomStatus ? customStatus.trim() : selectedStatus;
+    if (isCustomStatus && !customStatus.trim()) {
+      showAlert('Please enter a custom status name', 'warning');
+      return;
+    }
+    updateStatusMutation.mutate({ leadId: lead.id, status: finalStatus });
   };
 
   const handleConvertLead = () => {
@@ -565,6 +575,32 @@ export const AdminLeadDetails = () => {
                       )}
                     </Box>
                   </Box>
+
+                  {/* Property Investment Details — only for property service leads */}
+                  {(lead.serviceType || lead.serviceId || '').toLowerCase().includes('property') || (lead.serviceType || lead.serviceId || '').toLowerCase().includes('investment') ? (
+                    <Box className="col-span-12">
+                      <Divider sx={{ my: 2 }} />
+                      <Box sx={{ p: 2.5, borderRadius: 2, background: 'rgba(245, 158, 11, 0.06)', border: '1px solid rgba(245, 158, 11, 0.25)', mb: 2 }}>
+                        <Typography variant="h5" sx={{ fontWeight: 600, mb: 2 }}>
+                          🏠 Property Investment Details
+                        </Typography>
+                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+                          <Box>
+                            <Typography variant="caption" color="text.secondary">Preferable Area in Spain</Typography>
+                            <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                              📍 {lead.preferableArea || (lead.qualificationData?.preferableAreaInSpain) || '—'}
+                            </Typography>
+                          </Box>
+                          <Box>
+                            <Typography variant="caption" color="text.secondary">Investment Budget</Typography>
+                            <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                              💰 {lead.budget || (lead.qualificationData?.budget) || '—'}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Box>
+                    </Box>
+                  ) : null}
 
                   <Box className="col-span-12">
                     <Divider sx={{ my: 2 }} />
@@ -975,6 +1011,10 @@ export const AdminLeadDetails = () => {
                         </Paper>
                       </Box>
                     </Box>
+
+                    <Box sx={{ mt: 3 }}>
+                      <CommunicationHistoryTab clientId={lead.clientId} leadId={lead.id} />
+                    </Box>
                   </Box>
                 );
               })()}
@@ -1005,21 +1045,40 @@ export const AdminLeadDetails = () => {
         }
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <FormControl fullWidth size="small">
-            <InputLabel id="pipeline-status-label">Pipeline Status</InputLabel>
-            <Select
-              labelId="pipeline-status-label"
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              label="Pipeline Status"
-            >
-              {leadStatuses.map((st) => (
-                <MenuItem key={st} value={st}>
-                  {st}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          {!isCustomStatus ? (
+            <FormControl fullWidth size="small">
+              <InputLabel id="pipeline-status-label">Pipeline Status</InputLabel>
+              <Select
+                labelId="pipeline-status-label"
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                label="Pipeline Status"
+              >
+                {leadStatuses.map((st) => (
+                  <MenuItem key={st} value={st}>
+                    {st}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          ) : (
+            <TextField
+              label="Custom Pipeline Status *"
+              value={customStatus}
+              onChange={(e) => setCustomStatus(e.target.value)}
+              fullWidth
+              size="small"
+              placeholder="e.g. In Review, Warm Follow-up"
+            />
+          )}
+
+          <Button 
+            size="small" 
+            onClick={() => setIsCustomStatus(!isCustomStatus)}
+            sx={{ alignSelf: 'flex-start', textTransform: 'none' }}
+          >
+            {isCustomStatus ? "← Select from standard list" : "+ Create custom status name"}
+          </Button>
         </Box>
       </AppModal>
 

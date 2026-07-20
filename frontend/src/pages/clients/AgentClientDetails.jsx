@@ -406,6 +406,38 @@ export const AgentClientDetails = () => {
                     </Paper>
                   </Box>
 
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="h5" sx={{ fontWeight: 600, mb: 1.5 }}>
+                      Application History & Cycles
+                    </Typography>
+                    <Paper sx={{ p: 3, border: '1px solid', borderColor: 'divider', borderRadius: 3, boxShadow: 'none' }}>
+                      {client.applicationCycles && client.applicationCycles.length > 0 ? (
+                        <List disablePadding>
+                          {client.applicationCycles.map((cycle, index) => (
+                            <Paper key={cycle.id || index} sx={{ p: 2, mb: 2, bgcolor: 'background.neutral', boxShadow: 'none', borderLeft: '4px solid', borderColor: 'secondary.main' }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, textTransform: 'capitalize' }}>
+                                  Cycle #{index + 1}: {cycle.serviceType.replace('_', ' ').toUpperCase()} ({cycle.status})
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  Started: {new Date(cycle.createdAt).toLocaleDateString()}
+                                </Typography>
+                              </Box>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="body2" color="text.secondary">Current Progression Status:</Typography>
+                                <Chip label={cycle.status} color="primary" size="small" sx={{ fontWeight: 600 }} />
+                              </Box>
+                            </Paper>
+                          ))}
+                        </List>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          No active visa processing cycles registered for this client.
+                        </Typography>
+                      )}
+                    </Paper>
+                  </Box>
+
                   {originalLead && (
                     <Box sx={{ mt: 2 }}>
                       <Typography variant="h5" sx={{ fontWeight: 600, mb: 1.5 }}>

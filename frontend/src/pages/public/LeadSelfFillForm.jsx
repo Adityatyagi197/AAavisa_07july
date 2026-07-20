@@ -30,6 +30,28 @@ const NATIONALITIES = [
   "Other",
 ];
 
+const COUNTRIES = [
+  "United Arab Emirates",
+  "Spain",
+  "Pakistan",
+  "India",
+  "Saudi Arabia",
+  "United Kingdom",
+  "United States",
+  "Canada",
+  "Egypt",
+  "Morocco",
+  "Algerian",
+  "Bangladesh",
+  "Philippines",
+  "Indonesia",
+  "Syria",
+  "Lebanon",
+  "Jordan",
+  "Yemen",
+  "Other"
+];
+
 export const LeadSelfFillForm = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1); // 1: unified form, 2: success
@@ -49,7 +71,7 @@ export const LeadSelfFillForm = () => {
       .catch(err => console.error("Failed to load customization settings:", err));
   }, []);
 
-  const [serviceCategory, setServiceCategory] = useState("visa"); // visa, property, translation
+  const [serviceCategory, setServiceCategory] = useState("visa"); // visa, case_assessment, property, translation
 
   // Form fields
   const [form, setForm] = useState({
@@ -58,6 +80,7 @@ export const LeadSelfFillForm = () => {
     email: "",
     phone: "",
     nationality: "",
+    countryOfResidence: "",
     preferredLanguage: "English",
     serviceId: "dnv",
     applicantsCount: "Main Only",
@@ -69,9 +92,6 @@ export const LeadSelfFillForm = () => {
     preferableAreaInSpain: "",
     budget: "€100k - €250k"
   });
-
-  const [nationalitySearch, setNationalitySearch] = useState("");
-  const [showNationalityDropdown, setShowNationalityDropdown] = useState(false);
 
   // Parse URL query parameters on mount to auto-populate fields or load from ID
   useEffect(() => {
@@ -91,6 +111,8 @@ export const LeadSelfFillForm = () => {
         setServiceCategory("property");
       } else if (lowerSvc.includes("translation") || lowerSvc.includes("sworn") || lowerSvc === "4") {
         setServiceCategory("translation");
+      } else if (lowerSvc.includes("assessment") || lowerSvc === "2") {
+        setServiceCategory("case_assessment");
       } else {
         setServiceCategory("visa");
       }
@@ -107,6 +129,8 @@ export const LeadSelfFillForm = () => {
             setServiceCategory("property");
           } else if (serviceTypeLower.includes("translation") || serviceTypeLower.includes("sworn")) {
             setServiceCategory("translation");
+          } else if (serviceTypeLower.includes("assessment")) {
+            setServiceCategory("case_assessment");
           } else {
             setServiceCategory("visa");
           }
@@ -134,6 +158,7 @@ export const LeadSelfFillForm = () => {
               email: data.email || "",
               phone: data.phone || "",
               nationality: data.nationality || "",
+              countryOfResidence: data.countryOfResidence || "",
               preferredLanguage: data.preferredLanguage || "English",
               serviceId: data.serviceType || "dnv",
               applicantsCount: applicantsVal,
@@ -146,9 +171,6 @@ export const LeadSelfFillForm = () => {
               budget: qData.budget || "€100k - €250k"
             };
           });
-          if (data.nationality) {
-            setNationalitySearch(data.nationality);
-          }
           setIsExistingLead(true);
         })
         .catch((err) => {
@@ -174,11 +196,9 @@ export const LeadSelfFillForm = () => {
           applicantsCount: applicantsVal,
           dependentsDetails: initialDeps,
           nationality: nationalityParam ? decodeURIComponent(nationalityParam).trim() : prev.nationality,
+          countryOfResidence: prev.countryOfResidence
         };
       });
-      if (nationalityParam) {
-        setNationalitySearch(decodeURIComponent(nationalityParam).trim());
-      }
     }
   }, []);
 
@@ -199,6 +219,7 @@ export const LeadSelfFillForm = () => {
         phone: data.phone || prev.phone,
         email: data.email || prev.email,
         nationality: data.nationality || prev.nationality,
+        countryOfResidence: data.countryOfResidence || prev.countryOfResidence,
         preferredLanguage: data.preferredLanguage || prev.preferredLanguage,
         serviceId: data.serviceType || prev.serviceId,
         meetingPreferredDate: data.meetingPreferredDate || prev.meetingPreferredDate,
@@ -207,9 +228,6 @@ export const LeadSelfFillForm = () => {
           data.meetingPreferredLanguage || data.preferredLanguage || prev.meetingPreferredLanguage,
         meetingNotes: data.meetingNotes || prev.meetingNotes,
       }));
-      if (data.nationality) {
-        setNationalitySearch(data.nationality);
-      }
       setLookupOpen(false);
       setError("");
     } catch (err) {
@@ -263,7 +281,11 @@ export const LeadSelfFillForm = () => {
     setError("");
 
     // Prepare payload
-    const payload = { ...form };
+    const payload = { 
+      ...form,
+      preferableArea: serviceCategory === "property" ? form.preferableAreaInSpain : undefined,
+      budget: serviceCategory === "property" ? form.budget : undefined
+    };
     if (serviceCategory === "property") {
       payload.serviceType = "Property Investment Guidance";
       payload.serviceId = "property";
@@ -271,6 +293,9 @@ export const LeadSelfFillForm = () => {
         preferableAreaInSpain: form.preferableAreaInSpain,
         budget: form.budget
       };
+    } else if (serviceCategory === "case_assessment") {
+      payload.serviceType = "Professional Case Assessment Service";
+      payload.serviceId = form.serviceId;
     } else {
       payload.serviceType = form.serviceId;
     }
@@ -326,9 +351,7 @@ export const LeadSelfFillForm = () => {
   // Get minimum date (today)
   const today = new Date().toISOString().split("T")[0];
 
-  const filteredNationalities = NATIONALITIES.filter((n) =>
-    n.toLowerCase().includes(nationalitySearch.toLowerCase())
-  );
+
 
   const SERVICES = [
     { id: "dnv", name: "Digital Nomad Visa (DNV)" },
@@ -463,7 +486,8 @@ export const LeadSelfFillForm = () => {
                     onChange={(e) => setServiceCategory(e.target.value)}
                     style={{ ...inputStyle, color: "#fff", border: "1px solid rgba(102, 126, 234, 0.4)" }}
                   >
-                    <option value="visa" style={{ background: "#24243e" }}>✈️ Spain Visa & Residency Services / Case Assessment</option>
+                    <option value="visa" style={{ background: "#24243e" }}>✈️ Spain Visa & Residency Services</option>
+                    <option value="case_assessment" style={{ background: "#24243e" }}>🔍 Professional Case Assessment Service</option>
                     <option value="property" style={{ background: "#24243e" }}>🏠 Property Investment Guidance Service</option>
                     <option value="translation" style={{ background: "#24243e" }}>📄 Spanish Sworn Translation Services</option>
                   </select>
@@ -568,83 +592,65 @@ export const LeadSelfFillForm = () => {
                     display: "grid",
                     gridTemplateColumns: "1fr 1fr",
                     gap: "14px",
-                    marginBottom: "28px",
+                    marginBottom: "14px",
                   }}
                 >
-                  <div style={{ position: "relative" }}>
+                  <div>
                     <label style={labelStyle}>Nationality *</label>
-                    <input
-                      type="text"
+                    <select
                       required
-                      placeholder="Search nationality..."
                       value={form.nationality}
-                      onChange={(e) => {
-                        handleChange("nationality", e.target.value);
-                        setNationalitySearch(e.target.value);
-                        setShowNationalityDropdown(true);
-                      }}
-                      onFocus={() => !isExistingLead && setShowNationalityDropdown(true)}
-                      onBlur={() => {
-                        // Delay to allow onClick selection
-                        setTimeout(() => setShowNationalityDropdown(false), 250);
-                      }}
+                      onChange={(e) => handleChange("nationality", e.target.value)}
                       disabled={isExistingLead}
                       style={{
                         ...inputStyle,
                         background: isExistingLead ? "rgba(255, 255, 255, 0.03)" : inputStyle.background,
-                        color: isExistingLead ? "rgba(255, 255, 255, 0.4)" : inputStyle.color,
+                        color: isExistingLead ? "rgba(255, 255, 255, 0.4)" : "#fff",
                         border: isExistingLead ? "1px solid rgba(255, 255, 255, 0.08)" : inputStyle.border,
-                        cursor: isExistingLead ? "not-allowed" : "text"
+                        cursor: isExistingLead ? "not-allowed" : "pointer"
                       }}
-                    />
-                    {showNationalityDropdown && filteredNationalities.length > 0 && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: "100%",
-                          left: 0,
-                          right: 0,
-                          background: "#24243e",
-                          border: "1px solid rgba(255,255,255,0.15)",
-                          borderRadius: "10px",
-                          maxHeight: "200px",
-                          overflowY: "auto",
-                          zIndex: 1000,
-                          marginTop: "4px",
-                          boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
-                        }}
-                      >
-                        {filteredNationalities.map((n) => (
-                          <div
-                            key={n}
-                            onClick={() => {
-                              handleChange("nationality", n);
-                              setNationalitySearch(n);
-                              setShowNationalityDropdown(false);
-                            }}
-                            style={{
-                              padding: "10px 14px",
-                              color: "#fff",
-                              cursor: "pointer",
-                              fontSize: "14px",
-                              borderBottom: "1px solid rgba(255,255,255,0.05)",
-                              textAlign: "left",
-                              transition: "background 0.2s ease"
-                            }}
-                            onMouseDown={() => {
-                              handleChange("nationality", n);
-                              setNationalitySearch(n);
-                              setShowNationalityDropdown(false);
-                            }}
-                            onMouseEnter={(e) => e.target.style.background = "rgba(255,255,255,0.08)"}
-                            onMouseLeave={(e) => e.target.style.background = "transparent"}
-                          >
-                            {n}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    >
+                      <option value="" style={{ background: "#24243e" }}>Select Nationality</option>
+                      {NATIONALITIES.map((n) => (
+                        <option key={n} value={n} style={{ background: "#24243e", color: "#fff" }}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+                  <div>
+                    <label style={labelStyle}>Country of Residence *</label>
+                    <select
+                      required
+                      value={form.countryOfResidence || ""}
+                      onChange={(e) => handleChange("countryOfResidence", e.target.value)}
+                      disabled={isExistingLead}
+                      style={{
+                        ...inputStyle,
+                        background: isExistingLead ? "rgba(255, 255, 255, 0.03)" : inputStyle.background,
+                        color: isExistingLead ? "rgba(255, 255, 255, 0.4)" : "#fff",
+                        border: isExistingLead ? "1px solid rgba(255, 255, 255, 0.08)" : inputStyle.border,
+                        cursor: isExistingLead ? "not-allowed" : "pointer"
+                      }}
+                    >
+                      <option value="" style={{ background: "#24243e" }}>Select Country</option>
+                      {COUNTRIES.map((c) => (
+                        <option key={c} value={c} style={{ background: "#24243e", color: "#fff" }}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr",
+                    gap: "14px",
+                    marginBottom: "28px",
+                  }}
+                >
                   <div>
                     <label style={labelStyle}>Your Language</label>
                     <select
@@ -663,8 +669,8 @@ export const LeadSelfFillForm = () => {
                   </div>
                 </div>
 
-                {/* Section: Visa Program (only for visa category) */}
-                {serviceCategory === 'visa' && (
+                {/* Section: Visa Program (only for visa or case assessment category) */}
+                {(serviceCategory === 'visa' || serviceCategory === 'case_assessment') && (
                   <>
                     <div style={sectionHeaderStyle}>✈️ Relocation Details</div>
 
@@ -815,13 +821,24 @@ export const LeadSelfFillForm = () => {
                     >
                       <div>
                         <label style={labelStyle}>Preferable Area in Spain *</label>
-                        <input
+                        <select
                           required={serviceCategory === 'property'}
                           value={form.preferableAreaInSpain}
                           onChange={(e) => handleChange("preferableAreaInSpain", e.target.value)}
-                          placeholder="e.g. Madrid, Malaga, Barcelona"
-                          style={inputStyle}
-                        />
+                          style={{ ...inputStyle, color: "#fff" }}
+                        >
+                          <option value="" disabled style={{ background: "#24243e" }}>Select Area in Spain</option>
+                          <option value="Madrid" style={{ background: "#24243e" }}>Madrid</option>
+                          <option value="Barcelona" style={{ background: "#24243e" }}>Barcelona</option>
+                          <option value="Malaga" style={{ background: "#24243e" }}>Malaga & Costa del Sol</option>
+                          <option value="Valencia" style={{ background: "#24243e" }}>Valencia</option>
+                          <option value="Alicante" style={{ background: "#24243e" }}>Alicante & Costa Blanca</option>
+                          <option value="Balearic Islands" style={{ background: "#24243e" }}>Balearic Islands (Mallorca, Ibiza)</option>
+                          <option value="Canary Islands" style={{ background: "#24243e" }}>Canary Islands</option>
+                          <option value="Costa Brava" style={{ background: "#24243e" }}>Costa Brava (Girona)</option>
+                          <option value="Marbella" style={{ background: "#24243e" }}>Marbella & Andalusia</option>
+                          <option value="Other" style={{ background: "#24243e" }}>Other / Not Decided</option>
+                        </select>
                       </div>
                       <div>
                         <label style={labelStyle}>Investment Budget *</label>
@@ -889,7 +906,7 @@ export const LeadSelfFillForm = () => {
                       />
                     </div>
 
-                    {serviceCategory === "visa" && (
+                    {(serviceCategory === "visa" || serviceCategory === "case_assessment") && (
                       <div style={{
                         background: "rgba(239, 68, 68, 0.1)",
                         border: "1px solid rgba(239, 68, 68, 0.2)",
@@ -959,6 +976,8 @@ export const LeadSelfFillForm = () => {
                     ? "✅ Proceed to Sworn Translation Tool"
                     : serviceCategory === "property"
                     ? "✅ Book Free Consultation"
+                    : serviceCategory === "case_assessment"
+                    ? "✅ Book Free Case Assessment"
                     : "✅ Book Free Eligibility Assessment"}
                 </button>
               </form>

@@ -117,6 +117,14 @@ export const AdminLeadList = () => {
     return savedCardInfoStr ? JSON.parse(savedCardInfoStr) : null;
   });
 
+  const filterByDate = (dateStr, start, end) => {
+    if (!start && !end) return true;
+    if (!dateStr) return false;
+    const formatted = dateStr.substring(0, 10);
+    if (start && !end) return formatted === start;
+    return formatted >= start && formatted <= end;
+  };
+
   useEffect(() => {
     if (location.state) {
       if (
@@ -758,11 +766,51 @@ export const AdminLeadList = () => {
                 )}
               </FormControl>
 
+              {watchServiceId === 'property' && (
+                <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel id="preferable-area-label">Preferable Area in Spain</InputLabel>
+                    <Select
+                      labelId="preferable-area-label"
+                      {...register('preferableArea')}
+                      defaultValue=""
+                      label="Preferable Area in Spain"
+                    >
+                      <MenuItem value="Madrid">Madrid</MenuItem>
+                      <MenuItem value="Barcelona">Barcelona</MenuItem>
+                      <MenuItem value="Malaga">Malaga & Costa del Sol</MenuItem>
+                      <MenuItem value="Valencia">Valencia</MenuItem>
+                      <MenuItem value="Alicante">Alicante & Costa Blanca</MenuItem>
+                      <MenuItem value="Balearic Islands">Balearic Islands (Mallorca, Ibiza)</MenuItem>
+                      <MenuItem value="Canary Islands">Canary Islands</MenuItem>
+                      <MenuItem value="Costa Brava">Costa Brava (Girona)</MenuItem>
+                      <MenuItem value="Marbella">Marbella & Andalusia</MenuItem>
+                      <MenuItem value="Other">Other / Not Decided</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <FormControl fullWidth size="small">
+                    <InputLabel id="budget-label">Investment Budget</InputLabel>
+                    <Select
+                      labelId="budget-label"
+                      {...register('budget')}
+                      defaultValue="€100k - €250k"
+                      label="Investment Budget"
+                    >
+                      <MenuItem value="€100k - €250k">€100,000 – €250,000</MenuItem>
+                      <MenuItem value="€250k - €500k">€250,000 – €500,000</MenuItem>
+                      <MenuItem value="€500k+ (Golden Visa)">€500,000+ (Golden Visa)</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Box>
+              )}
+
               <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, alignItems: 'flex-start' }}>
                 <TextField
                   {...register('applicantsCount')}
                   type="number"
                   label="Number of Applicants"
+                  slotProps={{ htmlInput: { min: 1 } }}
+                  inputProps={{ min: 1 }}
                   error={!!errors.applicantsCount}
                   helperText={errors.applicantsCount?.message}
                   sx={{ flex: 1 }}
