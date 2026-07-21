@@ -71,6 +71,7 @@ const AVAILABLE_MENUS = [
   'Active Cases',
   'Doc Verification',
   'Finance',
+  'Refunds & Commissions',
   'Closed Cases',
   'Clients',
   'Leads',
@@ -149,6 +150,8 @@ const DEFAULT_ACTIONS = {
   },
   calendar: { canAssignAgent: true, canScheduleSession: true },
   finance: { canGeneratePaymentLink: true, canUpdatePaymentStatus: true },
+  refunds: { canProcessStripeRefund: true, canProcessBankPayout: true, requireDoubleConfirmation: true },
+  commissions: { canEditCommissionRates: true, canGeneratePayoutReports: true },
   marketing: { canUpdateMarketingSpend: true },
   agents: { canCreateAgent: true, canEditAgent: true, canDeleteAgent: true }
 };
@@ -177,7 +180,7 @@ const DEFAULT_CUSTOMIZATION = {
     columns: JSON.parse(JSON.stringify(DEFAULT_COLUMNS))
   },
   finance: {
-    menus: ['Dashboard', 'Finance'],
+    menus: ['Dashboard', 'Finance', 'Refunds & Commissions'],
     cards: ['Total Revenue', 'Pending Payments'],
     viewOnlyMenus: [],
     features: [],
@@ -935,6 +938,106 @@ export const SuperAdminCustomization = () => {
           </Box>
         );
 
+      case 'Refunds & Commissions':
+        return (
+          <Box sx={{ mt: 1, p: 1.5, borderRadius: 1.5, bgcolor: '#FAF6ED', border: '1px solid rgba(197, 155, 39, 0.4)' }}>
+            <Typography variant="caption" sx={{ fontWeight: 800, color: '#A37E1C', display: 'block', mb: 1 }}>
+              🛡️ Master Financial & Refund Guarantee Rules
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <TextField
+                size="small"
+                type="number"
+                label="Visa Rejection Auto-Refund Rate (%)"
+                value={localSettings.refundGuaranteePercentage ?? 50}
+                onChange={(e) => setLocalSettings(prev => ({ ...prev, refundGuaranteePercentage: Number(e.target.value) }))}
+                inputProps={{ min: 0, max: 100 }}
+                sx={{ bgcolor: 'white', borderRadius: 1, maxWidth: 280 }}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={localSettings.lockClientRefundTab !== false}
+                    onChange={(e) => setLocalSettings(prev => ({ ...prev, lockClientRefundTab: e.target.checked }))}
+                    color="warning"
+                  />
+                }
+                label={<Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>Lock Client Portal Refund Tab Until Paid</Typography>}
+              />
+              <Divider sx={{ my: 0.5 }} />
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={roleActions?.refunds?.canProcessStripeRefund !== false}
+                    onChange={() => handleToggleAction('refunds', 'canProcessStripeRefund')}
+                  />
+                }
+                label={<Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>Enable 1-Click Stripe Auto-Pay</Typography>}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={roleActions?.refunds?.canProcessBankPayout !== false}
+                    onChange={() => handleToggleAction('refunds', 'canProcessBankPayout')}
+                  />
+                }
+                label={<Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>Enable Manual Bank Wire Payout Form</Typography>}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={roleActions?.refunds?.requireDoubleConfirmation !== false}
+                    onChange={() => handleToggleAction('refunds', 'requireDoubleConfirmation')}
+                  />
+                }
+                label={<Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>Require Security Double Confirmation Dialog</Typography>}
+              />
+
+              <Divider sx={{ my: 1 }} />
+
+              <Typography variant="caption" sx={{ fontWeight: 800, color: '#A37E1C', display: 'block', mb: 0.5 }}>
+                💼 Agent Commission Management Rules
+              </Typography>
+              <TextField
+                size="small"
+                type="number"
+                label="Default Agent Commission Rate (%)"
+                value={localSettings.defaultCommissionRate ?? 10}
+                onChange={(e) => setLocalSettings(prev => ({ ...prev, defaultCommissionRate: Number(e.target.value) }))}
+                inputProps={{ min: 0, max: 100 }}
+                sx={{ bgcolor: 'white', borderRadius: 1, maxWidth: 280 }}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={roleActions?.commissions?.canEditCommissionRates !== false}
+                    onChange={() => handleToggleAction('commissions', 'canEditCommissionRates')}
+                    color="primary"
+                  />
+                }
+                label={<Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>Allow Editing Agent Commission Percentages</Typography>}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={roleActions?.commissions?.canGeneratePayoutReports !== false}
+                    onChange={() => handleToggleAction('commissions', 'canGeneratePayoutReports')}
+                    color="primary"
+                  />
+                }
+                label={<Typography sx={{ fontSize: '0.8rem', fontWeight: 600 }}>Allow Generating Monthly Payout & Commission Reports</Typography>}
+              />
+            </Box>
+            {renderMenuActionButtons()}
+          </Box>
+        );
+
       case 'Marketing':
         return (
           <Box sx={{ mt: 1, p: 1.5, borderRadius: 1.5, bgcolor: 'action.hover', border: '1px solid', borderColor: 'divider' }}>
@@ -1157,75 +1260,147 @@ export const SuperAdminCustomization = () => {
                 </Typography>
                 <Divider sx={{ mb: 2.5 }} />
 
-                <Box className="grid grid-cols-12 gap-2">
-                  {AVAILABLE_MENUS.map((menu) => {
-                    const isExpanded = !!expandedMenus[menu];
-                    const hasSubsettings = ['Dashboard', 'Leads', 'Clients', 'Calendar', 'Finance', 'Marketing', 'Agents'].includes(menu);
+                {/* 2-Column Masonry-style Layout for Zero Vertical Spacing */}
+                <Box className="grid grid-cols-12 gap-3 items-start">
+                  {/* LEFT COLUMN */}
+                  <Box className="col-span-12 md:col-span-6 flex flex-col gap-2">
+                    {AVAILABLE_MENUS.filter((_, idx) => idx % 2 === 0).map((menu) => {
+                      const isExpanded = !!expandedMenus[menu];
+                      const hasSubsettings = ['Dashboard', 'Leads', 'Clients', 'Calendar', 'Finance', 'Refunds & Commissions', 'Marketing', 'Agents'].includes(menu);
 
-                    return (
-                      <Box
-                        key={menu}
-                        className="col-span-12 md:col-span-6"
-                        sx={{
-                          p: 1,
-                          borderRadius: 2,
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          bgcolor: isExpanded ? 'action.hover' : 'transparent',
-                          transition: 'all 0.2s',
-                          alignSelf: 'start'
-                        }}
-                      >
+                      return (
                         <Box
-                          sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', cursor: hasSubsettings ? 'pointer' : 'default' }}
-                          onClick={() => hasSubsettings && toggleMenuExpanded(menu)}
+                          key={menu}
+                          sx={{
+                            p: 1,
+                            borderRadius: 2,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            bgcolor: isExpanded ? 'action.hover' : 'transparent',
+                            transition: 'all 0.2s'
+                          }}
                         >
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }} onClick={(e) => e.stopPropagation()}>
-                            <FormControlLabel
-                              control={
-                                <Checkbox
-                                  checked={roleMenus.includes(menu)}
-                                  onChange={() => handleToggleMenu(menu)}
-                                  color="secondary"
-                                  size="small"
-                                  sx={{ p: 0.5 }}
-                                />
-                              }
-                              label={<Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: 'text.primary' }}>{menu}</Typography>}
-                            />
-                            {roleMenus.includes(menu) && (
+                          <Box
+                            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', cursor: hasSubsettings ? 'pointer' : 'default' }}
+                            onClick={() => hasSubsettings && toggleMenuExpanded(menu)}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }} onClick={(e) => e.stopPropagation()}>
                               <FormControlLabel
                                 control={
-                                  <Switch
-                                    checked={localSettings[currentTargetKey]?.viewOnlyMenus?.includes(menu) || false}
-                                    onChange={() => handleToggleViewOnly(menu)}
-                                    color="warning"
+                                  <Checkbox
+                                    checked={roleMenus.includes(menu)}
+                                    onChange={() => handleToggleMenu(menu)}
+                                    color="secondary"
                                     size="small"
+                                    sx={{ p: 0.5 }}
                                   />
                                 }
-                                label={<Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'warning.main' }}>View Only</Typography>}
-                                sx={{ ml: 1 }}
+                                label={<Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: 'text.primary' }}>{menu}</Typography>}
                               />
+                              {roleMenus.includes(menu) && (
+                                <FormControlLabel
+                                  control={
+                                    <Switch
+                                      checked={localSettings[currentTargetKey]?.viewOnlyMenus?.includes(menu) || false}
+                                      onChange={() => handleToggleViewOnly(menu)}
+                                      color="warning"
+                                      size="small"
+                                    />
+                                  }
+                                  label={<Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'warning.main' }}>View Only</Typography>}
+                                  sx={{ ml: 1 }}
+                                />
+                              )}
+                            </Box>
+
+                            {hasSubsettings && (
+                              <IconButton
+                                size="small"
+                                onClick={(e) => { e.stopPropagation(); toggleMenuExpanded(menu); }}
+                                sx={{ color: 'text.secondary', p: 0.5 }}
+                              >
+                                {isExpanded ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
+                              </IconButton>
                             )}
                           </Box>
 
-                          {hasSubsettings && (
-                            <IconButton
-                              size="small"
-                              onClick={(e) => { e.stopPropagation(); toggleMenuExpanded(menu); }}
-                              sx={{ color: 'text.secondary', p: 0.5 }}
-                            >
-                              {isExpanded ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-                            </IconButton>
-                          )}
+                          <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                            {getMenuDetails(menu)}
+                          </Collapse>
                         </Box>
+                      );
+                    })}
+                  </Box>
 
-                        <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-                          {getMenuDetails(menu)}
-                        </Collapse>
-                      </Box>
-                    );
-                  })}
+                  {/* RIGHT COLUMN */}
+                  <Box className="col-span-12 md:col-span-6 flex flex-col gap-2">
+                    {AVAILABLE_MENUS.filter((_, idx) => idx % 2 === 1).map((menu) => {
+                      const isExpanded = !!expandedMenus[menu];
+                      const hasSubsettings = ['Dashboard', 'Leads', 'Clients', 'Calendar', 'Finance', 'Refunds & Commissions', 'Marketing', 'Agents'].includes(menu);
+
+                      return (
+                        <Box
+                          key={menu}
+                          sx={{
+                            p: 1,
+                            borderRadius: 2,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            bgcolor: isExpanded ? 'action.hover' : 'transparent',
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          <Box
+                            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', cursor: hasSubsettings ? 'pointer' : 'default' }}
+                            onClick={() => hasSubsettings && toggleMenuExpanded(menu)}
+                          >
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }} onClick={(e) => e.stopPropagation()}>
+                              <FormControlLabel
+                                control={
+                                  <Checkbox
+                                    checked={roleMenus.includes(menu)}
+                                    onChange={() => handleToggleMenu(menu)}
+                                    color="secondary"
+                                    size="small"
+                                    sx={{ p: 0.5 }}
+                                  />
+                                }
+                                label={<Typography sx={{ fontSize: '0.85rem', fontWeight: 700, color: 'text.primary' }}>{menu}</Typography>}
+                              />
+                              {roleMenus.includes(menu) && (
+                                <FormControlLabel
+                                  control={
+                                    <Switch
+                                      checked={localSettings[currentTargetKey]?.viewOnlyMenus?.includes(menu) || false}
+                                      onChange={() => handleToggleViewOnly(menu)}
+                                      color="warning"
+                                      size="small"
+                                    />
+                                  }
+                                  label={<Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'warning.main' }}>View Only</Typography>}
+                                  sx={{ ml: 1 }}
+                                />
+                              )}
+                            </Box>
+
+                            {hasSubsettings && (
+                              <IconButton
+                                size="small"
+                                onClick={(e) => { e.stopPropagation(); toggleMenuExpanded(menu); }}
+                                sx={{ color: 'text.secondary', p: 0.5 }}
+                              >
+                                {isExpanded ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
+                              </IconButton>
+                            )}
+                          </Box>
+
+                          <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                            {getMenuDetails(menu)}
+                          </Collapse>
+                        </Box>
+                      );
+                    })}
+                  </Box>
                 </Box>
 
                 <Divider sx={{ my: 3 }} />

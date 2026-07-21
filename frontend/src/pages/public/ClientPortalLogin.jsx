@@ -150,12 +150,18 @@ export const ClientPortalLogin = () => {
     }
   };
 
-  const handleQuickLogin = async (clientId) => {
-    setUsername(clientId);
-    setPassword('password123');
+  const handleQuickLogin = async (requestedId) => {
     setIsLoading(true);
+    let targetId = requestedId;
+    
+    // If dummy ID passed, map to existing DB client email/ID
+    if (requestedId === 'CL2001') targetId = 'radhee@gmail.com';
+    if (requestedId === 'CL2002') targetId = 'chloe@gmail.com';
+
+    setUsername(targetId);
+    setPassword('password123');
     try {
-      const res = await dbService.clientLogin(clientId, 'password123');
+      const res = await dbService.clientLogin(targetId, 'password123');
       localStorage.setItem('clientToken', res.token);
       localStorage.setItem('clientData', JSON.stringify(res.client));
       showAlert('Login successful! Welcome to the Client Portal.', 'success');

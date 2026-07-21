@@ -182,8 +182,8 @@ export const SuperAdminPaymentDashboard = () => {
         if (new Date(pDate) >= new Date('2026-06-20')) {
           revenueThisWeek += p.totalPaid;
         }
-      } else if (p.status === 'Refunded (50%)') {
-        totalRefunded += Math.abs(p.totalPaid);
+      } else if (p.status === 'Refunded (50%)' || p.status === 'Refunded') {
+        totalRefunded += Math.abs(p.totalPaid || p.amount);
       } else if (p.status === 'Pending' || p.status === 'Pending Payment' || p.status === 'Overdue') {
         totalOutstanding += amt;
       }

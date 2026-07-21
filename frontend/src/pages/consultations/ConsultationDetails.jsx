@@ -263,8 +263,8 @@ export const ConsultationDetails = () => {
 
       <Box className="grid grid-cols-12 gap-2">
         {/* Left pane: Details */}
-        <Box className="col-span-12 md:col-span-7">
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Box className="col-span-12 md:col-span-7 flex flex-col h-full">
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, height: '100%' }}>
             {/* Session Info */}
             <AppCard title="Session Details">
               <Box className="grid grid-cols-12 gap-2">
@@ -438,7 +438,7 @@ export const ConsultationDetails = () => {
         </Box>
 
         {/* Right pane: Host profile */}
-        <Box className="col-span-12 md:col-span-5">
+        <Box className="col-span-12 md:col-span-5 flex flex-col h-full">
           <AppCard title="Assigned Spain Visa Expert">
             {consultant ? (
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', py: 2, minWidth: 0, width: '100%' }}>

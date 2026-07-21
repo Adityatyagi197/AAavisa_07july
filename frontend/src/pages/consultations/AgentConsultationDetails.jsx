@@ -308,16 +308,16 @@ export const AgentConsultationDetails = () => {
 
       <Box className="grid grid-cols-12 gap-2">
         {/* Left pane: Details */}
-        <Box className="col-span-12 md:col-span-7">
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Box className="col-span-12 md:col-span-7 flex flex-col h-full">
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, height: '100%' }}>
             {/* Session Info */}
             <AppCard title="Session Details">
               <Box className="grid grid-cols-12 gap-2">
-                <Box className="col-span-6">
+                <Box className="col-span-12 sm:col-span-6">
                   <Typography variant="caption" color="text.secondary">Client / Lead Name</Typography>
                   <Typography variant="body1" sx={{ fontWeight: 600 }}>{cons.clientName}</Typography>
                 </Box>
-                <Box className="col-span-6">
+                <Box className="col-span-12 sm:col-span-6">
                   <Typography variant="caption" color="text.secondary">Meeting Link</Typography>
                   <Box>
                     {cons.status === 'Pending Acceptance' ? (
@@ -347,17 +347,17 @@ export const AgentConsultationDetails = () => {
                     )}
                   </Box>
                 </Box>
-                <Box className="col-span-6">
+                <Box className="col-span-12 sm:col-span-6">
                   <Typography variant="caption" color="text.secondary">Date & Time</Typography>
                   <Typography variant="body1" sx={{ fontWeight: 600 }}>
                     {cons.meetingDate ? `${cons.meetingDate} at ${cons.meetingTime}` : 'Pending Lead Submission'}
                   </Typography>
                 </Box>
-                <Box className="col-span-6">
+                <Box className="col-span-12 sm:col-span-6">
                   <Typography variant="caption" color="text.secondary">Duration</Typography>
                   <Typography variant="body1" sx={{ fontWeight: 600 }}>{cons.durationMinutes} Minutes</Typography>
                 </Box>
-                <Box className="col-span-6">
+                <Box className="col-span-12 sm:col-span-6">
                   <Typography variant="caption" color="text.secondary">Meeting Status</Typography>
                   <Box sx={{ mt: 0.5 }}>
                     <StatusBadge status={cons.status} />
@@ -507,18 +507,18 @@ export const AgentConsultationDetails = () => {
         </Box>
 
         {/* Right pane: Host profile */}
-        <Box className="col-span-12 md:col-span-5">
+        <Box className="col-span-12 md:col-span-5 flex flex-col h-full">
           <AppCard title="Assigned Spain Visa Expert">
             {consultant ? (
-              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', py: 2, minWidth: 0, width: '100%' }}>
-                <Avatar src={consultant.avatar} sx={{ width: 72, height: 72, mb: 2, flexShrink: 0 }} />
-                <Typography variant="h5" sx={{ fontWeight: 700, width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{consultant.name}</Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', py: 1, minWidth: 0, width: '100%' }}>
+                <Avatar src={consultant.avatar} sx={{ width: 64, height: 64, mb: 1, flexShrink: 0 }} />
+                <Typography variant="subtitle1" sx={{ fontWeight: 700, width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{consultant.name}</Typography>
                 <Typography
                   variant="body2"
                   color="text.secondary"
                   title={consultant.email}
                   sx={{
-                    mb: 2,
+                    mb: 1,
                     width: '100%',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -529,8 +529,8 @@ export const AgentConsultationDetails = () => {
                 >
                   {consultant.email}
                 </Typography>
-                <Divider sx={{ width: '100%', my: 2 }} />
-                <Box sx={{ width: '100%', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                <Divider sx={{ width: '100%', my: 1.5 }} />
+                <Box sx={{ width: '100%', textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 1 }}>
                   <Box>
                     <Typography variant="caption" color="text.secondary">Language Proficiencies</Typography>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>{(consultant.languages || []).join(', ')}</Typography>
