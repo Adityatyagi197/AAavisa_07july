@@ -263,8 +263,8 @@ export const ConsultationDetails = () => {
 
       <Box className="grid grid-cols-12 gap-2">
         {/* Left pane: Details */}
-        <Box className="col-span-12 md:col-span-7">
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Box className="col-span-12 md:col-span-7 flex flex-col h-full">
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, height: '100%' }}>
             {/* Session Info */}
             <AppCard title="Session Details">
               <Box className="grid grid-cols-12 gap-2">
@@ -395,12 +395,14 @@ export const ConsultationDetails = () => {
                     </Box>
                   )
                 ) : (
-                  /* Recording processing state */
+                  /* No recording available fallback */
                   <Box sx={{ p: 3, textAlign: 'center', bgcolor: 'background.neutral', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Automated cloud recording is currently processing on Zoom Cloud. Please wait...
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                      No Meeting Recording Logged
                     </Typography>
-                    <CircularProgress size={24} sx={{ mt: 2, color: 'secondary.main' }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                      If this consultation was conducted manually (e.g. phone or WhatsApp call), no recording is captured. If it was a Zoom meeting, the recording may still be processing on Zoom Cloud.
+                    </Typography>
                   </Box>
                 )}
               </AppCard>
@@ -436,7 +438,7 @@ export const ConsultationDetails = () => {
         </Box>
 
         {/* Right pane: Host profile */}
-        <Box className="col-span-12 md:col-span-5">
+        <Box className="col-span-12 md:col-span-5 flex flex-col h-full">
           <AppCard title="Assigned Spain Visa Expert">
             {consultant ? (
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', py: 2, minWidth: 0, width: '100%' }}>

@@ -129,11 +129,13 @@ export const dbService = {
     const res = await apiClient.patch(`/consultations/${consultationId}/outcome`, { status });
     return res.data;
   },
-  completeConsultation: async (consultationId, outcome, notes) => {
+  completeConsultation: async (consultationId, outcome, notes, recommendedService, recommendedPackageId) => {
     const res = await apiClient.patch(`/consultations/${consultationId}/outcome`, { 
       status: 'Completed', 
       eligibility: outcome, 
-      internalNotes: notes 
+      internalNotes: notes,
+      recommendedService,
+      recommendedPackageId
     });
     return res.data;
   },
@@ -177,8 +179,10 @@ export const dbService = {
     const formData = new FormData();
     formData.append('file', doc.file);
     formData.append('clientId', doc.clientId);
-    formData.append('category', doc.category);
+    formData.append('category', doc.category || 'General');
     if (doc.belongsTo) formData.append('belongsTo', doc.belongsTo);
+    if (doc.status) formData.append('status', doc.status);
+    if (doc.uploadedByRole) formData.append('uploadedByRole', doc.uploadedByRole);
 
     const res = await apiClient.post('/documents/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
@@ -423,8 +427,8 @@ export const dbService = {
     const res = await apiClient.post('/payments/refunds', data);
     return res.data;
   },
-  updateRefundStatus: async (refundId, status) => {
-    const res = await apiClient.patch(`/payments/refunds/${refundId}/status`, { status });
+  updateRefundStatus: async (refundId, status, payoutMethod, transactionRef, adminNotes) => {
+    const res = await apiClient.patch(`/payments/refunds/${refundId}/status`, { status, payoutMethod, transactionRef, adminNotes });
     return res.data;
   },
   getBackupLogs: async () => [],
@@ -444,6 +448,33 @@ export const dbService = {
   },
   markAllNotificationsRead: async () => {
     const res = await apiClient.patch('/notifications/read-all');
+    return res.data;
+  },
+
+  // ─── Communications ───────────────────────────────────────────────────
+  getCommunications: async ({ clientId, leadId }) => {
+    const params = new URLSearchParams();
+    if (clientId) params.append('clientId', clientId);
+    if (leadId) params.append('leadId', leadId);
+    const res = await apiClient.get(`/communications?${params.toString()}`);
+    return res.data;
+  },
+  createCommunicationLog: async (data) => {
+    const res = await apiClient.post('/communications', data);
+    return res.data;
+  },
+
+  // ─── Application Cycles (Resubmission & Appeal) ────────────────────────
+  getApplicationCycles: async (clientId) => {
+    const res = await apiClient.get(`/cases/cycles/${clientId}`);
+    return res.data;
+  },
+  createApplicationCycle: async (data) => {
+    const res = await apiClient.post('/cases/cycles', data);
+    return res.data;
+  },
+  updateApplicationCycle: async (id, data) => {
+    const res = await apiClient.patch(`/cases/cycles/${id}`, data);
     return res.data;
   },
 };

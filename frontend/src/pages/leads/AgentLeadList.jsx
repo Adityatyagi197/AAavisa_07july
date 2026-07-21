@@ -750,6 +750,8 @@ export const AgentLeadList = () => {
                   {...register('applicantsCount')}
                   type="number"
                   label="Number of Applicants"
+                  slotProps={{ htmlInput: { min: 1 } }}
+                  inputProps={{ min: 1 }}
                   error={!!errors.applicantsCount}
                   helperText={errors.applicantsCount?.message}
                   sx={{ flex: 1 }}

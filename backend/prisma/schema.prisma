@@ -21,6 +21,13 @@ model User {
   commissionPaid   Float?   @default(0)
   immigrationBio   String?  @db.Text
   customPermissions Json?   // e.g. { canViewFinance: true }
+  visaExpertise    Json?    // Array of strings, e.g. ["DNV", "NLV"]
+  isPropertySpecialist Boolean @default(false)
+  languages        Json?
+  specialties      Json?
+  isSenior         Boolean  @default(false)
+  maxCapacity      Int      @default(20)
+  avatar           String?  @db.Text
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -31,6 +38,7 @@ model User {
   assignedLeads    Lead[]   @relation("AgentLeads")
   assignedClients  Client[] @relation("AgentClients")
   consultations    Consultation[] @relation("AgentConsultations")
+  communicationLogs CommunicationLog[] @relation("AgentCommunications")
 
   @@map("users")
 }
@@ -59,6 +67,16 @@ model Lead {
   meetingPreferredLanguage String?
   meetingNotes             String?   @db.Text
   formSubmittedAt          DateTime?
+  // Property Investment Service Fields
+  preferableArea   String?
+  budget           String?
+  // Translation Service Lead Fields
+  sourceLanguage   String?
+  targetLanguage   String?
+  wordCount        Int?
+  aiNotes          String?  @db.Text
+  isAiFlagged      Boolean  @default(false)
+  flagReason       String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -101,6 +119,12 @@ model Client {
   deviceFingerprint String?
   isBlocked         Boolean  @default(false)
 
+  // Property Investment Service Fields
+  preferableArea   String?
+  budget           String?
+  aiNotes          String?  @db.Text
+  isAiFlagged      Boolean  @default(false)
+  flagReason       String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -113,6 +137,7 @@ model Client {
   applicationCycles ApplicationCycle[]
   refundRequests   RefundRequest[]
   communications   CommunicationLog[]
+  discountCodes    DiscountCode[]
 
   @@map("clients")
 }
@@ -131,6 +156,7 @@ model Consultation {
   recommendedPackageId String?
   internalNotes    String?  @db.Text
 
+  type             String   @default("eligibility") // eligibility, property_guidance, general
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -156,6 +182,8 @@ model ApplicationCycle {
   appealDeadline   DateTime?
   status           String   @default("Resubmission in Progress")
   serviceType      String?
+  type             String?  @default("resubmission") // resubmission, appeal
+  appealDocuments  Json?
   
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -208,41 +236,60 @@ model Document {
   uploadedDate     DateTime @default(now())
   updatedAt        DateTime @updatedAt
   belongsTo        String?  // e.g. "Main Applicant", "Spouse", "Child 1"
+  wordCount        Int?     @default(0)
 
   @@map("documents")
 }
 
 model RefundRequest {
-  id          String   @id @default(uuid())
-  clientId    String
-  client      Client   @relation(fields: [clientId], references: [id])
+  id              String   @id @default(uuid())
+  clientId        String
+  client          Client   @relation(fields: [clientId], references: [id])
   
-  category    String
-  reason      String?  @db.Text
-  amount      Float
-  status      String   @default("Pending Review") // Pending Review, Approved, Processed, Rejected
+  category        String
+  reason          String?  @db.Text
+  amount          Float
+  status          String   @default("Pending Review") // Pending Review, Approved, Processed, Rejected
   
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  proofUrl        String?  // URL of uploaded rejection PDF/Image proof
+  bankAccountName String?  // Client Bank Account Holder Name
+  bankIban        String?  // IBAN / Account Number
+  bankSwift       String?  // SWIFT / BIC Code
+  payoutMethod    String?  // "Stripe Automatic" or "Manual Bank Transfer"
+  transactionRef  String?  // Stripe Refund ID or Bank UTR Number
+  adminNotes      String?  @db.Text
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@map("refund_requests")
 }
 
 model CompanySetting {
-  id                   String   @id @default(uuid())
-  companyName          String   @default("AAA Business Consultancy LLC")
-  phone                String   @default("+971 50 955 4142")
-  email                String   @default("info@aaabusinessconsultancy.com")
-  address              String   @default("Business Village, Block B, 4th Floor, Office F09, Deira, Dubai, UAE")
-  vatRate              Float    @default(5)
-  vatId                String   @default("VAT-AE-2026-9932")
-  website              String   @default("https://aaabusinessconsultancy.com")
-  incorporationDate    String   @default("2018-05-12")
-  autoAssignConsultant Boolean  @default(true)
-  recordingStorage     String   @default("cloud")
-  swornTranslationRates Json?
+  id                        String   @id @default(uuid())
+  companyName               String   @default("AAA Business Consultancy LLC")
+  phone                     String   @default("+971 50 955 4142")
+  email                     String   @default("info@aaabusinessconsultancy.com")
+  address                   String   @default("Business Village, Block B, 4th Floor, Office F09, Deira, Dubai, UAE")
+  vatRate                   Float    @default(5)
+  vatId                     String   @default("VAT-AE-2026-9932")
+  website                   String   @default("https://aaabusinessconsultancy.com")
+  incorporationDate         String   @default("2018-05-12")
+  autoAssignConsultant      Boolean  @default(true)
+  recordingStorage          String   @default("cloud")
+  swornTranslationRates      Json?
+  leadStages                Json?
   
-  updatedAt            DateTime @updatedAt
+  // Master Customization Settings
+  refundGuaranteePercentage Float    @default(50)
+  enableStripeRefunds       Boolean  @default(true)
+  enableManualBankPayouts   Boolean  @default(true)
+  lockClientRefundTab       Boolean  @default(true)
+  requireMeetingAcceptance  Boolean  @default(true)
+  customRefundTerms         String?  @db.Text
+  customizationSettings     Json?
+
+  updatedAt                 DateTime @updatedAt
 
   @@map("company_settings")
 }
@@ -292,6 +339,8 @@ model CommunicationLog {
   readStatus         Boolean  @default(false)
   failureReason      String?  @db.Text
   content            String   @db.Text
+  respondedByUserId  String?
+  respondedByUser    User?    @relation("AgentCommunications", fields: [respondedByUserId], references: [id])
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -345,5 +394,52 @@ model ChatSession {
   updatedAt        DateTime @updatedAt
 
   @@map("chat_sessions")
+}
+
+model DiscountCode {
+  id               String   @id @default(uuid())
+  code             String   @unique
+  discountPercent  Float    @default(10)
+  expiryDate       DateTime
+  isUsed           Boolean  @default(false)
+  clientId         String
+  client           Client   @relation(fields: [clientId], references: [id])
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("discount_codes")
+}
+
+model AgentSchedule {
+  id               String   @id @default(uuid())
+  agentId          String
+  dayOfWeek        Int      // 0 (Sunday) to 6 (Saturday)
+  startTime        String   // e.g. "09:00"
+  endTime          String   // e.g. "17:00"
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("agent_schedules")
+}
+
+model ReminderLog {
+  id               String   @id @default(uuid())
+  clientId         String
+  type             String   // '2h' | '24h' | '2d' | '5d'
+  sentAt           DateTime @default(now())
+
+  @@map("reminder_logs")
+}
+
+model BlacklistedClient {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  name             String
+  phone            String   @unique
+  createdAt        DateTime @default(now())
+
+  @@map("blacklisted_clients")
 }
 

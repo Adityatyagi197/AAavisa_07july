@@ -194,18 +194,22 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
           }
         }
       } else if (customizationSettings) {
-        // 2. Fall back to role-level customization settings
-        const roleSettings = (customizationSettings[currentUser.id] || customizationSettings[currentUser.role]);
-        if (roleSettings && roleSettings.menus) {
-          const allowedMenus = roleSettings.menus;
-          if (currentMenuLabel && !allowedMenus.includes(currentMenuLabel)) {
-            if (allowedMenus.length > 0) {
-              const firstAllowedLabel = allowedMenus[0];
-              const redirectPath = getDynamicRedirectPath(firstAllowedLabel, currentUser.role);
-              if (location.pathname !== redirectPath) {
-                return <Navigate to={redirectPath} replace />;
-              }
+        // 2. Fall back to role-level customization settings with Individual User Overrides merged
+        const roleDefaults = customizationSettings[currentUser.role] || {};
+        const userOverrides = customizationSettings[currentUser.id] || {};
+        const allowedMenus = userOverrides.menus || roleDefaults.menus || [];
+        
+        if (currentMenuLabel && !allowedMenus.includes(currentMenuLabel)) {
+          if (allowedMenus.length > 0) {
+            const firstAllowedLabel = allowedMenus[0];
+            const redirectPath = getDynamicRedirectPath(firstAllowedLabel, currentUser.role);
+            if (location.pathname !== redirectPath) {
+              return <Navigate to={redirectPath} replace />;
             }
+          } else {
+            // Default fallback if all menus are disabled
+            const rolePrefix = getPrefixForRole(currentUser.role);
+            return <Navigate to={`/${rolePrefix}/dashboard`} replace />;
           }
         }
       }
@@ -480,6 +484,30 @@ export const AppRoutes = () => {
           path="/super_admin/payments/refund-commission"
           element={
             <ProtectedRoute allowedRoles={['super_admin']}>
+              <SuperAdminRefundCommissionHub />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/payments/refund-commission"
+          element={
+            <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
+              <SuperAdminRefundCommissionHub />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/operations/payments/refund-commission"
+          element={
+            <ProtectedRoute allowedRoles={['operations', 'super_admin']}>
+              <SuperAdminRefundCommissionHub />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/finance/payments/refund-commission"
+          element={
+            <ProtectedRoute allowedRoles={['finance', 'super_admin']}>
               <SuperAdminRefundCommissionHub />
             </ProtectedRoute>
           }

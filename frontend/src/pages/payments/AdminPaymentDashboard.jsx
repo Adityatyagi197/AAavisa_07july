@@ -174,8 +174,8 @@ export const AdminPaymentDashboard = () => {
         if (new Date(pDate) >= new Date('2026-06-20')) {
           revenueThisWeek += p.totalPaid;
         }
-      } else if (p.status === 'Refunded (50%)') {
-        totalRefunded += Math.abs(p.totalPaid);
+      } else if (p.status === 'Refunded (50%)' || p.status === 'Refunded') {
+        totalRefunded += Math.abs(p.totalPaid || p.amount);
       } else if (p.status === 'Pending' || p.status === 'Pending Payment' || p.status === 'Overdue') {
         totalOutstanding += amt;
       }
@@ -378,34 +378,36 @@ export const AdminPaymentDashboard = () => {
             Track client payments, payment methods, transaction reference keys, and initiate receipts generation or cloud storage backup.
           </Typography>
 
-          <TableContainer>
+          <TableContainer sx={{ overflowX: 'auto' }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 700 }}>Invoice ID</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Client</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Service</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Due Amount</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Paid Amount</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Due Date</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Gateway Method</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>Actions</TableCell>
+                  <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Invoice ID</TableCell>
+                  <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Client</TableCell>
+                  <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Service</TableCell>
+                  <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Due Amount</TableCell>
+                  <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Paid Amount</TableCell>
+                  <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Due Date</TableCell>
+                  <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Gateway Method</TableCell>
+                  <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Status</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {payments.map((p) => {
                   const dueAmt = p.amount - (p.discount || 0);
+                  const formattedDueDate = p.dueDate ? (p.dueDate.includes('T') ? p.dueDate.split('T')[0] : p.dueDate) : 'N/A';
+                  const displayInvoiceId = p.id ? `INV-${p.id.slice(0, 8)}` : 'INV-00000000';
                   return (
                     <TableRow key={p.id}>
-                      <TableCell sx={{ fontWeight: 600 }}>{p.id}</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>{p.clientName}</TableCell>
-                      <TableCell sx={{ textTransform: 'uppercase' }}>{p.serviceId}</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>€{dueAmt.toLocaleString()}</TableCell>
-                      <TableCell sx={{ color: 'success.main', fontWeight: 600 }}>€{p.totalPaid.toLocaleString()}</TableCell>
-                      <TableCell>{p.dueDate}</TableCell>
-                      <TableCell sx={{ fontWeight: 700 }}>{p.paymentMethod}</TableCell>
-                      <TableCell>
+                      <TableCell sx={{ fontWeight: 700, color: '#4F46E5', whiteSpace: 'nowrap' }} title={p.id}>{displayInvoiceId}</TableCell>
+                      <TableCell sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{p.clientName}</TableCell>
+                      <TableCell sx={{ textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{p.serviceId}</TableCell>
+                      <TableCell sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>€{dueAmt.toLocaleString()}</TableCell>
+                      <TableCell sx={{ color: 'success.main', fontWeight: 600, whiteSpace: 'nowrap' }}>€{p.totalPaid.toLocaleString()}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap', color: '#475569', fontWeight: 500 }}>{formattedDueDate}</TableCell>
+                      <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{p.paymentMethod}</TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
                         <Chip
                           label={p.status}
                           size="small"
@@ -413,8 +415,8 @@ export const AdminPaymentDashboard = () => {
                           sx={{ fontWeight: 700 }}
                         />
                       </TableCell>
-                      <TableCell align="right">
-                        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                      <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
                           {!isViewOnly && p.status !== 'Paid' && p.status !== 'Refunded (50%)' && (
                             <Button size="small" variant="contained" color="success" onClick={() => updatePaymentStatusMutation.mutate({ id: p.id, status: 'Paid', method: 'Visa', txId: 'TXN-' + Date.now() })}>
                               Mark Paid
@@ -449,18 +451,18 @@ export const AdminPaymentDashboard = () => {
             Monitor consultant assignments, package scopes, fee metrics, paid limits, outstanding totals, and case statuses.
           </Typography>
 
-          <TableContainer>
+          <TableContainer sx={{ overflowX: 'auto' }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 700 }}>Client Name</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Service</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Consultant</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Package Type</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Total Fee</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Paid Amount</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Remaining Balance</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Case Status</TableCell>
+                  <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Client Name</TableCell>
+                  <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Service</TableCell>
+                  <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Consultant</TableCell>
+                  <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Package Type</TableCell>
+                  <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Total Fee</TableCell>
+                  <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Paid Amount</TableCell>
+                  <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Remaining Balance</TableCell>
+                  <TableCell sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>Case Status</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -473,16 +475,16 @@ export const AdminPaymentDashboard = () => {
 
                   return (
                     <TableRow key={c.id}>
-                      <TableCell sx={{ fontWeight: 600 }}>{c.firstName} {c.lastName}</TableCell>
-                      <TableCell sx={{ textTransform: 'uppercase' }}>{c.serviceId}</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>{agentName}</TableCell>
-                      <TableCell sx={{ textTransform: 'capitalize' }}>{c.packageId ? c.packageId.replace('_', ' ') : 'Standard'}</TableCell>
-                      <TableCell sx={{ fontWeight: 600 }}>€{totalFee.toLocaleString()}</TableCell>
-                      <TableCell sx={{ color: 'success.main', fontWeight: 600 }}>€{totalPaid.toLocaleString()}</TableCell>
-                      <TableCell sx={{ color: remaining > 0 ? 'warning.main' : 'text.primary', fontWeight: 700 }}>
+                      <TableCell sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{c.firstName} {c.lastName}</TableCell>
+                      <TableCell sx={{ textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{c.serviceId}</TableCell>
+                      <TableCell sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{agentName}</TableCell>
+                      <TableCell sx={{ textTransform: 'capitalize', whiteSpace: 'nowrap' }}>{c.packageId ? c.packageId.replace('_', ' ') : 'Standard'}</TableCell>
+                      <TableCell sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>€{totalFee.toLocaleString()}</TableCell>
+                      <TableCell sx={{ color: 'success.main', fontWeight: 600, whiteSpace: 'nowrap' }}>€{totalPaid.toLocaleString()}</TableCell>
+                      <TableCell sx={{ color: remaining > 0 ? 'warning.main' : 'text.primary', fontWeight: 700, whiteSpace: 'nowrap' }}>
                         €{remaining.toLocaleString()}
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
                         <Chip label={c.status} variant="outlined" size="small" />
                       </TableCell>
                     </TableRow>

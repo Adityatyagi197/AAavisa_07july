@@ -54,6 +54,8 @@ export const OperationsConsultationDetails = () => {
   const [clientRequested, setClientRequested] = useState('dnv');
   const [aaaRecommended, setAaaRecommended] = useState('dnv');
   const [outcomeNotes, setOutcomeNotes] = useState('');
+  const [eligibilityStatus, setEligibilityStatus] = useState('Eligible');
+  const [recommendedPackage, setRecommendedPackage] = useState('Option B');
 
   // Interactive Audio Player States (for legacy S3 playback)
   const [isPlaying, setIsPlaying] = useState(false);
@@ -150,7 +152,7 @@ export const OperationsConsultationDetails = () => {
   });
 
   const completeMutation = useMutation({
-    mutationFn: ({ id, outcome, notes }) => dbService.completeConsultation(id, outcome, notes),
+    mutationFn: ({ id, outcome, notes, recommendedService, recommendedPackageId }) => dbService.completeConsultation(id, outcome, notes, recommendedService, recommendedPackageId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['consultations'] });
       queryClient.invalidateQueries({ queryKey: ['leads'] });
@@ -190,10 +192,13 @@ export const OperationsConsultationDetails = () => {
     completeMutation.mutate({
       id: cons.id,
       outcome: {
+        eligibility: eligibilityStatus,
         clientRequestedService: requestedObj ? requestedObj.name : 'Digital Nomad Visa (DNV)',
         aaaRecommendedService: recommendedObj ? recommendedObj.name : 'Digital Nomad Visa (DNV)'
       },
-      notes: outcomeNotes
+      notes: outcomeNotes,
+      recommendedService: eligibilityStatus === 'Eligible' ? (recommendedObj ? recommendedObj.name : 'Digital Nomad Visa (DNV)') : null,
+      recommendedPackageId: eligibilityStatus === 'Eligible' ? recommendedPackage : null
     });
   };
 
@@ -263,8 +268,8 @@ export const OperationsConsultationDetails = () => {
 
       <Box className="grid grid-cols-12 gap-2">
         {/* Left pane: Details */}
-        <Box className="col-span-12 md:col-span-7">
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Box className="col-span-12 md:col-span-7 flex flex-col h-full">
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, height: '100%' }}>
             {/* Session Info */}
             <AppCard title="Session Details">
               <Box className="grid grid-cols-12 gap-2">
@@ -395,12 +400,14 @@ export const OperationsConsultationDetails = () => {
                     </Box>
                   )
                 ) : (
-                  /* Recording processing state */
+                  /* No recording available fallback */
                   <Box sx={{ p: 3, textAlign: 'center', bgcolor: 'background.neutral', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Automated cloud recording is currently processing on Zoom Cloud. Please wait...
+                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                      No Meeting Recording Logged
                     </Typography>
-                    <CircularProgress size={24} sx={{ mt: 2, color: 'secondary.main' }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                      If this consultation was conducted manually (e.g. phone or WhatsApp call), no recording is captured. If it was a Zoom meeting, the recording may still be processing on Zoom Cloud.
+                    </Typography>
                   </Box>
                 )}
               </AppCard>
@@ -436,7 +443,7 @@ export const OperationsConsultationDetails = () => {
         </Box>
 
         {/* Right pane: Host profile */}
-        <Box className="col-span-12 md:col-span-5">
+        <Box className="col-span-12 md:col-span-5 flex flex-col h-full">
           <AppCard title="Assigned Spain Visa Expert">
             {consultant ? (
               <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', py: 2, minWidth: 0, width: '100%' }}>
@@ -505,32 +512,63 @@ export const OperationsConsultationDetails = () => {
 
           <TextField
             select
-            value={clientRequested}
-            onChange={(e) => setClientRequested(e.target.value)}
-            label="Client Requested Service (Assessment Start)"
+            value={eligibilityStatus}
+            onChange={(e) => setEligibilityStatus(e.target.value)}
+            label="Eligibility Status *"
             fullWidth
             sx={{ mb: 2 }}
           >
-            {SERVICES.map((s) => (
-              <MenuItem key={s.id} value={s.id}>
-                {s.name}
-              </MenuItem>
-            ))}
+            <MenuItem value="Eligible">Eligible</MenuItem>
+            <MenuItem value="Not Eligible">Not Eligible</MenuItem>
           </TextField>
 
-          <TextField
-            select
-            value={aaaRecommended}
-            onChange={(e) => setAaaRecommended(e.target.value)}
-            label="Recommended Spain Visa Pathway"
-            fullWidth
-          >
-            {SERVICES.map((s) => (
-              <MenuItem key={s.id} value={s.id}>
-                {s.name} (Base fee: €{s.basePrice})
-              </MenuItem>
-            ))}
-          </TextField>
+          {eligibilityStatus === 'Eligible' && (
+            <>
+              <TextField
+                select
+                value={clientRequested}
+                onChange={(e) => setClientRequested(e.target.value)}
+                label="Client Requested Service (Assessment Start)"
+                fullWidth
+                sx={{ mb: 2 }}
+              >
+                {SERVICES.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                select
+                value={aaaRecommended}
+                onChange={(e) => setAaaRecommended(e.target.value)}
+                label="Recommended Spain Visa Pathway"
+                fullWidth
+                sx={{ mb: 2 }}
+              >
+                {SERVICES.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.name} (Base fee: €{s.basePrice})
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                select
+                value={recommendedPackage}
+                onChange={(e) => setRecommendedPackage(e.target.value)}
+                label="Recommended Relocation Package *"
+                fullWidth
+                sx={{ mb: 2 }}
+              >
+                <MenuItem value="Option B">Option B: Full Processing (base €3,500)</MenuItem>
+                <MenuItem value="Option C">Option C: Premium Relocation (base €4,750)</MenuItem>
+                <MenuItem value="Option D">Option D: Administrative Relocation (base €1,750)</MenuItem>
+                <MenuItem value="Tourist Visa">Schengen Tourist Visa (base €500)</MenuItem>
+              </TextField>
+            </>
+          )}
 
           <TextField
             value={outcomeNotes}

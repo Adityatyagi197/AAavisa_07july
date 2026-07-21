@@ -43,6 +43,7 @@ export const FinanceDashboard = () => {
 
   const { data: allPayments = [] } = useQuery({ queryKey: ['payments'], queryFn: dbService.getPayments });
   const { data: notifications = [] } = useQuery({ queryKey: ['notifications'], queryFn: dbService.getNotifications });
+  const { data: agents = [] } = useQuery({ queryKey: ['agents'], queryFn: dbService.getAgents });
 
   // Compute key stats
   const completedPayments = allPayments.filter((p) => p.status === 'Paid');
@@ -51,6 +52,41 @@ export const FinanceDashboard = () => {
   const totalRevenue = completedPayments.reduce((sum, p) => sum + (p.totalPaid || 0), 0);
   const totalInvoiced = allPayments.reduce((sum, p) => sum + ((p.amount || 0) - (p.discount || 0)), 0);
   const totalPendingVal = pendingPayments.reduce((sum, p) => sum + ((p.amount || 0) - (p.discount || 0)), 0);
+
+  // Calculate Consultant Commission Data
+  const consultantCommissions = agents
+    .filter(a => a.role === 'consultant')
+    .map(agent => {
+      // Find all payments of clients assigned to this agent
+      const paidClientPayments = allPayments.filter(p => {
+        return p.status === 'Paid' && p.client?.assignedToId === agent.id;
+      });
+      
+      const totalClosedRevenue = paidClientPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+      const rate = agent.commissionRate || 10; // default 10%
+      const calculatedCommission = (totalClosedRevenue * rate) / 100;
+      const commissionPaid = agent.commissionPaid || 0;
+      const balance = calculatedCommission - commissionPaid;
+
+      return {
+        id: agent.id,
+        fullName: agent.fullName,
+        rate: `${rate}%`,
+        totalRevenue: `€${totalClosedRevenue.toLocaleString()}`,
+        earned: `€${calculatedCommission.toLocaleString()}`,
+        paid: `€${commissionPaid.toLocaleString()}`,
+        balance: `€${balance.toLocaleString()}`
+      };
+    });
+
+  const commissionColumns = [
+    { id: 'fullName', label: 'Consultant' },
+    { id: 'rate', label: 'Rate' },
+    { id: 'totalRevenue', label: 'Revenue Generated' },
+    { id: 'earned', label: 'Commission Earned' },
+    { id: 'paid', label: 'Paid Out' },
+    { id: 'balance', label: 'Payout Balance' }
+  ];
 
   // Render stats list
   const statsList = [
@@ -253,6 +289,27 @@ export const FinanceDashboard = () => {
             )}
           </AppCard>
         </Box>
+      </Box>
+
+      {/* Consultant Commissions & Payouts Log */}
+      <Box sx={{ mt: 3 }}>
+        <AppCard
+          title="Consultant Commissions & Payout Log"
+          subheader="Monitor closed deal values, calculated rates, and pending payout balances"
+          noPadding
+        >
+          {consultantCommissions.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+              No consultant data logged.
+            </Typography>
+          ) : (
+            <AppTable
+              columns={commissionColumns}
+              data={consultantCommissions}
+              onRowClick={(row) => navigate(`/finance/agents`)}
+            />
+          )}
+        </AppCard>
       </Box>
     </Box>
   );

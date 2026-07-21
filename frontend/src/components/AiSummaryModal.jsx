@@ -22,16 +22,58 @@ import ShieldAlertIcon from '@mui/icons-material/Shield';
 export const AiSummaryModal = ({ open, onClose, clientData, isLead = false }) => {
   if (!clientData) return null;
 
-  // Mocked AI Calculations based on client profile
-  const progressPercent = isLead ? 25 : (clientData.visaStatus === 'Approved' ? 100 : (clientData.visaStatus === 'Submitted - Pending Decision' ? 80 : 45));
-  const leadTemp = isLead ? (clientData.status === 'Waiting for Payment' ? 'Hot' : 'Warm') : 'Hot';
-  const priority = isLead ? 'Medium' : (clientData.visaStatus === 'Document Review' ? 'High' : 'Medium');
+  // Dynamic AI calculations based on client/lead profile
+  const getProgressPercent = () => {
+    if (isLead) {
+      if (clientData.status === 'Assessment Booked') return 35;
+      if (clientData.status === 'Under Assessment') return 50;
+      if (clientData.status === 'Eligible') return 60;
+      return 15; // New Lead
+    } else {
+      if (clientData.visaStatus === 'Visa Approved') return 100;
+      if (clientData.visaStatus === 'Under Government Review') return 85;
+      if (clientData.visaStatus === 'Application Submitted') return 75;
+      if (clientData.visaStatus === 'Ready to Submit') return 65;
+      if (clientData.visaStatus === 'Additional Documents Required') return 55;
+      if (clientData.visaStatus === 'Documents Under Review') return 45;
+      if (clientData.visaStatus === 'Documents Pending') return 30;
+      return 20; // Default Client Start
+    }
+  };
+
+  const getLeadTemp = () => {
+    const status = (clientData.status || '').toLowerCase();
+    if (status.includes('payment') || status.includes('eligible')) return 'Hot';
+    if (status.includes('cold') || status.includes('lost') || status.includes('no show')) return 'Cold';
+    return 'Warm';
+  };
+
+  const getPriority = () => {
+    const status = (clientData.status || '').toLowerCase();
+    const visaStatus = (clientData.visaStatus || '').toLowerCase();
+    if (status.includes('payment') || visaStatus.includes('additional') || visaStatus.includes('appeal')) return 'High';
+    if (status.includes('cold') || status.includes('lost')) return 'Low';
+    return 'Medium';
+  };
+
+  const getRecommendedPackage = () => {
+    const service = (clientData.serviceId || clientData.serviceType || '').toLowerCase();
+    if (service.includes('dnv') || service.includes('nomad')) return 'Option B (Full Processing)';
+    if (service.includes('nlv') || service.includes('lucrative')) return 'Option C (Premium Package)';
+    if (service.includes('tourist') || service.includes('schengen')) return 'Schengen Tourist Visa Package (€500)';
+    return 'Option D (Administrative Relocation)';
+  };
+
+  const progressPercent = getProgressPercent();
+  const leadTemp = getLeadTemp();
+  const priority = getPriority();
+  const recommendedPackage = getRecommendedPackage();
   
   // Custom success rate formula based on nationality & income
   let successProbability = 82;
   if (clientData.nationality === 'Russian' || clientData.nationality === 'Chinese') successProbability = 74;
-  if (clientData.serviceId === 'dnv') successProbability = 88;
-  if (clientData.serviceId === 'nlv') successProbability = 78;
+  if ((clientData.serviceId || clientData.serviceType || '').toLowerCase().includes('dnv')) successProbability = 88;
+  if ((clientData.serviceId || clientData.serviceType || '').toLowerCase().includes('nlv')) successProbability = 78;
 
   const getPriorityColor = (p) => {
     if (p === 'High') return 'error';
@@ -42,7 +84,7 @@ export const AiSummaryModal = ({ open, onClose, clientData, isLead = false }) =>
   const getTempColor = (t) => {
     if (t === 'Hot') return '#EF4444';
     if (t === 'Warm') return '#F59E0B';
-    return '#3B82F6';
+    return '#3B82F6'; // Cold
   };
 
   return (
@@ -107,7 +149,10 @@ export const AiSummaryModal = ({ open, onClose, clientData, isLead = false }) =>
             <Box sx={{ mb: 2.5 }}>
               <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary', mb: 0.5 }}>🎯 Client Objective & Interest</Typography>
               <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-                Client is focused on securing Spanish residency via the <strong>{clientData.serviceId?.toUpperCase() || 'visa'} Pathway</strong>. Target timeline is immediate relocation. Wants full assistance including sworn translations for family setup.
+                Client is focused on securing Spanish residency via the <strong>{clientData.serviceId?.toUpperCase() || clientData.serviceType || 'Spain Visa'} Pathway</strong>. Target timeline is immediate relocation. Wants full assistance including sworn translations for family setup.
+              </Typography>
+              <Typography variant="body2" color="secondary.main" sx={{ fontWeight: 700, mt: 1 }}>
+                Recommended Package: {recommendedPackage}
               </Typography>
             </Box>
 

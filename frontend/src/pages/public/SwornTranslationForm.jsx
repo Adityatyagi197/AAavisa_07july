@@ -11,6 +11,28 @@ const LANGUAGES = [
   { value: 'Urdu', label: 'Urdu 🇵🇰' }
 ];
 
+const NATIONALITIES = [
+  "Pakistani",
+  "Indian",
+  "Bangladeshi",
+  "Egyptian",
+  "Moroccan",
+  "Algerian",
+  "Saudi Arabian",
+  "Emirati",
+  "Nigerian",
+  "British",
+  "American",
+  "Canadian",
+  "Filipino",
+  "Indonesian",
+  "Syrian",
+  "Lebanese",
+  "Jordanian",
+  "Yemeni",
+  "Other"
+];
+
 const SwornTranslationForm = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -266,15 +288,21 @@ const SwornTranslationForm = () => {
             {/* Grid: Nationality & Source Language */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
               <div>
-                <label style={labelStyle}>Nationality</label>
-                <input
-                  type="text"
+                <label style={labelStyle}>Nationality *</label>
+                <select
                   name="nationality"
-                  placeholder="Search nationality..."
+                  required
                   value={formData.nationality}
                   onChange={handleInputChange}
-                  style={inputStyle}
-                />
+                  style={{ ...inputStyle, color: '#fff' }}
+                >
+                  <option value="" style={{ background: '#24243e' }}>Select Nationality</option>
+                  {NATIONALITIES.map((n) => (
+                    <option key={n} value={n} style={{ background: '#24243e', color: '#fff' }}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label style={labelStyle}>Source Language *</label>

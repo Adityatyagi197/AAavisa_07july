@@ -469,7 +469,7 @@ export const DashboardLayout = () => {
       label: 'Refunds & Commissions',
       icon: <MonetizationOnIcon />,
       path: '/payments/refund-commission',
-      roles: ['super_admin'],
+      roles: ['admin', 'operations', 'finance', 'super_admin'],
     },
     {
       label: 'Closed Cases',

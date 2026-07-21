@@ -11,6 +11,7 @@ import PageHeader from '../../components/PageHeader';
 import StatCard from '../../components/StatCard';
 import ChartCard from '../../components/ChartCard';
 import AppCard from '../../components/AppCard';
+import AppTable from '../../components/AppTable';
 import { dbService } from '../../services/dbService';
 import { useAuth } from '../../hooks/useAuth';
 import { useAlert } from '../../contexts/AlertContext';
@@ -61,6 +62,18 @@ export const MarketingDashboard = () => {
   });
 
   const sourcePerformanceData = Object.values(sourceMap).sort((a, b) => b.leads - a.leads);
+
+  const campaignColumns = [
+    { id: 'name', label: 'Campaign Source' },
+    { id: 'leads', label: 'Raw Leads Generated' },
+    { id: 'consultations', label: 'Assessments Booked' },
+    { id: 'clients', label: 'Converted Paid Clients' },
+    { 
+      id: 'rate', 
+      label: 'Acquisition Rate (%)',
+      render: (row) => `${row.leads > 0 ? ((row.clients / row.leads) * 100).toFixed(1) : 0}%`
+    }
+  ];
   
   const leadSourceDistribution = sourcePerformanceData.map(item => ({
     name: item.name,
@@ -217,6 +230,26 @@ export const MarketingDashboard = () => {
             </ResponsiveContainer>
           </ChartCard>
         </Box>
+      </Box>
+
+      {/* Campaign Performance Log Table */}
+      <Box sx={{ mt: 3 }}>
+        <AppCard
+          title="Campaign Channels Performance Breakdown"
+          subheader="Assess the acquisition efficiency, raw volume, and conversion metrics across marketing streams"
+          noPadding
+        >
+          {sourcePerformanceData.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+              No campaign source data logged.
+            </Typography>
+          ) : (
+            <AppTable
+              columns={campaignColumns}
+              data={sourcePerformanceData}
+            />
+          )}
+        </AppCard>
       </Box>
     </Box>
   );

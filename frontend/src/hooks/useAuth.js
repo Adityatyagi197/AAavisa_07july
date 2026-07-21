@@ -31,14 +31,31 @@ export const useAuth = () => {
     isMarketing,
     isViewOnlyMenu: (customizationSettings, menuName) => {
       if (!customizationSettings || !currentUser) return false;
-      const roleConfig = customizationSettings[currentUser.id] || customizationSettings[currentUser.role];
-      return roleConfig?.viewOnlyMenus?.includes(menuName) || false;
+      const userOverride = customizationSettings[currentUser.id];
+      const roleConfig = customizationSettings[currentUser.role];
+      const resolvedViewOnly = userOverride?.viewOnlyMenus || roleConfig?.viewOnlyMenus || [];
+      return resolvedViewOnly.includes(menuName);
+    },
+    getResolvedCustomization: (customizationSettings) => {
+      if (!customizationSettings || !currentUser) return null;
+      const roleDefaults = customizationSettings[currentUser.role] || {};
+      const userOverrides = customizationSettings[currentUser.id] || {};
+      return {
+        ...roleDefaults,
+        ...userOverrides,
+        menus: userOverrides.menus || roleDefaults.menus || [],
+        viewOnlyMenus: userOverrides.viewOnlyMenus || roleDefaults.viewOnlyMenus || [],
+        actions: {
+          ...(roleDefaults.actions || {}),
+          ...(userOverrides.actions || {})
+        }
+      };
     },
     hasFeature: (customizationSettings, featureName) => {
       if (!currentUser) return false;
       if (currentUser.role === 'super_admin') return true;
       if (!customizationSettings) return false;
-      const roleConfig = customizationSettings[currentUser.role];
+      const roleConfig = customizationSettings[currentUser.id] || customizationSettings[currentUser.role];
       return roleConfig?.features?.includes(featureName) || false;
     }
   };

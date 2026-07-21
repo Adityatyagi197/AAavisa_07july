@@ -87,6 +87,8 @@ export const AgentLeadDetails = () => {
   const [convertModalOpen, setConvertModalOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [aiSummaryOpen, setAiSummaryOpen] = useState(false);
+  const [isCustomStatus, setIsCustomStatus] = useState(false);
+  const [customStatus, setCustomStatus] = useState('');
 
   // Convert lead state
   const [selectedPackageId, setSelectedPackageId] = useState('full_process');
@@ -301,11 +303,18 @@ export const AgentLeadDetails = () => {
 
   const handleOpenStatusModal = () => {
     setSelectedStatus(lead.status);
+    setCustomStatus('');
+    setIsCustomStatus(false);
     setStatusModalOpen(true);
   };
 
   const handleStatusSubmit = () => {
-    updateStatusMutation.mutate({ leadId: lead.id, status: selectedStatus });
+    const finalStatus = isCustomStatus ? customStatus.trim() : selectedStatus;
+    if (isCustomStatus && !customStatus.trim()) {
+      showAlert('Please enter a custom status name', 'warning');
+      return;
+    }
+    updateStatusMutation.mutate({ leadId: lead.id, status: finalStatus });
   };
 
   const handleConvertLead = () => {
@@ -463,132 +472,136 @@ export const AgentLeadDetails = () => {
       />
 
       {/* Grid of basic information */}
-      <Box className="grid grid-cols-12 gap-2" sx={{ mb: 4 }}>
+      <Box className="grid grid-cols-12 gap-4" sx={{ mb: 3, alignItems: 'stretch' }}>
         <Box className="col-span-12 md:col-span-3">
-          <Paper sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none', textAlign: 'center' }}>
-            <Avatar
-              sx={{ width: 80, height: 80, mx: 'auto', mb: 2, bgcolor: 'secondary.main', fontSize: '2rem', fontWeight: 600 }}
-            >
-              {lead.firstName[0]}
-              {lead.lastName[0]}
-            </Avatar>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              {lead.firstName} {lead.lastName}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              {getMaskedEmail(lead.email)}
-            </Typography>
-            <StatusBadge status={lead.status} />
+          <Paper sx={{ p: 2.5, borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none', textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Box>
+              <Avatar
+                sx={{ width: 72, height: 72, mx: 'auto', mb: 1.5, bgcolor: 'secondary.main', fontSize: '1.75rem', fontWeight: 600 }}
+              >
+                {lead.firstName[0]}
+                {lead.lastName[0]}
+              </Avatar>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {lead.firstName} {lead.lastName}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: 'block', wordBreak: 'break-all' }}>
+                {getMaskedEmail(lead.email)}
+              </Typography>
+              <StatusBadge status={lead.status} />
+            </Box>
 
-            <Divider sx={{ my: 2.5 }} />
+            <Box>
+              <Divider sx={{ my: 2 }} />
 
-            <Box sx={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              <Box>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  Assigned Agent
-                </Typography>
-                {(isAdmin || isOperations) ? (
-                  <FormControl fullWidth size="small" sx={{ mt: 0.5 }}>
-                    <Select
-                      value={lead.assignedConsultantId || ''}
-                      onChange={(e) => {
-                        const newId = e.target.value;
-                        reassignConsultantMutation.mutate(newId);
-                      }}
-                      displayEmpty
-                      sx={{ fontSize: '0.875rem', py: 0.2 }}
-                    >
-                      <MenuItem value="">Unassigned</MenuItem>
-                      {consultants.filter(c => c.role === 'consultant').map((c) => (
-                        <MenuItem key={c.id} value={c.id}>
-                          {c.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                ) : (
-                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                    {consultantObj ? consultantObj.name : 'Unassigned'}
+              <Box sx={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Assigned Agent
                   </Typography>
-                )}
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  Target Service
-                </Typography>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                  {serviceObj ? serviceObj.name : lead.serviceId}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography variant="caption" color="text.secondary" display="block">
-                  Source
-                </Typography>
-                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                  {lead.source}
-                </Typography>
+                  {(isAdmin || isOperations) ? (
+                    <FormControl fullWidth size="small" sx={{ mt: 0.5 }}>
+                      <Select
+                        value={lead.assignedConsultantId || ''}
+                        onChange={(e) => {
+                          const newId = e.target.value;
+                          reassignConsultantMutation.mutate(newId);
+                        }}
+                        displayEmpty
+                        sx={{ fontSize: '0.825rem', py: 0.2 }}
+                      >
+                        <MenuItem value="">Unassigned</MenuItem>
+                        {consultants.filter(c => c.role === 'consultant').map((c) => (
+                          <MenuItem key={c.id} value={c.id}>
+                            {c.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  ) : (
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                      {consultantObj ? consultantObj.name : 'Unassigned'}
+                    </Typography>
+                  )}
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Target Service
+                  </Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    {serviceObj ? serviceObj.name : lead.serviceId}
+                  </Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Source
+                  </Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    {lead.source}
+                  </Typography>
+                </Box>
               </Box>
             </Box>
           </Paper>
         </Box>
 
-        <Box className="col-span-12 md:col-span-9">
-          <AppCard noPadding>
+        <Box className="col-span-12 md:col-span-9" sx={{ display: 'flex', flexDirection: 'column' }}>
+          <AppCard noPadding sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             <Tabs
               value={activeTab}
               onChange={(e, newTab) => setActiveTab(newTab)}
               variant="scrollable"
               scrollButtons="auto"
-              sx={{ px: 3, pt: 1, borderBottom: '1px solid', borderColor: 'divider' }}
+              sx={{ px: 2.5, pt: 0.5, borderBottom: '1px solid', borderColor: 'divider' }}
             >
-              <Tab label="Overview" sx={{ fontWeight: 600 }} />
-              <Tab label="Meetings / Consultations" sx={{ fontWeight: 600 }} />
-              <Tab label="Payments & Invoices" sx={{ fontWeight: 600 }} />
-              <Tab label="Documents" sx={{ fontWeight: 600 }} />
-              <Tab label="Timeline" sx={{ fontWeight: 600 }} />
-              <Tab icon={<WhatsAppIcon fontSize="small" />} iconPosition="start" label="Comms & Chat" sx={{ fontWeight: 600 }} />
+              <Tab label="Overview" sx={{ fontWeight: 600, fontSize: '0.85rem' }} />
+              <Tab label="Meetings / Consultations" sx={{ fontWeight: 600, fontSize: '0.85rem' }} />
+              <Tab label="Payments & Invoices" sx={{ fontWeight: 600, fontSize: '0.85rem' }} />
+              <Tab label="Documents" sx={{ fontWeight: 600, fontSize: '0.85rem' }} />
+              <Tab label="Timeline" sx={{ fontWeight: 600, fontSize: '0.85rem' }} />
+              <Tab icon={<WhatsAppIcon fontSize="small" />} iconPosition="start" label="Comms & Chat" sx={{ fontWeight: 600, fontSize: '0.85rem' }} />
             </Tabs>
 
-            <Box sx={{ p: 3 }}>
+            <Box sx={{ p: 2.5, flex: 1 }}>
               {/* TAB 0: Overview & Qualifications */}
               {activeTab === 0 && (
-                <Box className="grid grid-cols-12 gap-2">
+                <Box className="grid grid-cols-12 gap-4">
                   <Box className="col-span-12 md:col-span-6">
-                    <Typography variant="h5" sx={{ fontWeight: 600, mb: 2 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5, color: 'text.primary' }}>
                       Personal & Contact Details
                     </Typography>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
                       <Box>
                         <Typography variant="caption" color="text.secondary">Phone Number</Typography>
-                        <Typography variant="body1" sx={{ fontWeight: 500 }}>{getMaskedPhone(lead.phone)}</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{getMaskedPhone(lead.phone)}</Typography>
                       </Box>
                       <Box>
                         <Typography variant="caption" color="text.secondary">Nationality</Typography>
-                        <Typography variant="body1" sx={{ fontWeight: 500 }}>{lead.nationality}</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{lead.nationality}</Typography>
                       </Box>
                       <Box>
                         <Typography variant="caption" color="text.secondary">Preferred Communication Language</Typography>
-                        <Typography variant="body1" sx={{ fontWeight: 500 }}>{lead.preferredLanguage}</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{lead.preferredLanguage}</Typography>
                       </Box>
                       <Box>
                         <Typography variant="caption" color="text.secondary">Applicants Included</Typography>
-                        <Typography variant="body1" sx={{ fontWeight: 500 }}>{lead.applicantsCount || 1} Person(s)</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{lead.applicantsCount || 1} Person(s)</Typography>
                       </Box>
                     </Box>
                   </Box>
 
                   <Box className="col-span-12 md:col-span-6">
-                    <Typography variant="h5" sx={{ fontWeight: 600, mb: 2 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5, color: 'text.primary' }}>
                       Lead Qualification Data
                     </Typography>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
                       {lead.qualificationData ? (
                         Object.entries(lead.qualificationData).map(([key, value]) => (
                           <Box key={key}>
                             <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>
                               {key.replace(/([A-Z])/g, ' $1')}
                             </Typography>
-                            <Typography variant="body1" sx={{ fontWeight: 500 }}>{value}</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>{value}</Typography>
                           </Box>
                         ))
                       ) : (
@@ -599,9 +612,35 @@ export const AgentLeadDetails = () => {
                     </Box>
                   </Box>
 
+                  {/* Property Investment Details — only for property service leads */}
+                  {(lead.serviceType || lead.serviceId || '').toLowerCase().includes('property') || (lead.serviceType || lead.serviceId || '').toLowerCase().includes('investment') ? (
+                    <Box className="col-span-12">
+                      <Divider sx={{ my: 1.5 }} />
+                      <Box sx={{ p: 2, borderRadius: 2, background: 'rgba(245, 158, 11, 0.06)', border: '1px solid rgba(245, 158, 11, 0.25)', mb: 1.5 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
+                          🏠 Property Investment Details
+                        </Typography>
+                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+                          <Box>
+                            <Typography variant="caption" color="text.secondary">Preferable Area in Spain</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              📍 {lead.preferableArea || (lead.qualificationData?.preferableAreaInSpain) || '—'}
+                            </Typography>
+                          </Box>
+                          <Box>
+                            <Typography variant="caption" color="text.secondary">Investment Budget</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              💰 {lead.budget || (lead.qualificationData?.budget) || '—'}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Box>
+                    </Box>
+                  ) : null}
+
                   <Box className="col-span-12">
-                    <Divider sx={{ my: 2 }} />
-                    <Typography variant="h5" sx={{ fontWeight: 600, mb: 2 }}>
+                    <Divider sx={{ my: 1.5 }} />
+                    <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5 }}>
                       Case Notes File
                     </Typography>
                     <Paper
@@ -611,9 +650,9 @@ export const AgentLeadDetails = () => {
                         maxHeight: 250,
                         overflowY: 'auto',
                         backgroundColor: 'background.neutral',
-                        mb: 2,
+                        mb: 1.5,
                         whiteSpace: 'pre-wrap',
-                        fontSize: '0.875rem' }}
+                        fontSize: '0.85rem' }}
                     >
                       {lead.notes || 'No notes logged on file yet.'}
                     </Paper>
@@ -1055,21 +1094,40 @@ export const AgentLeadDetails = () => {
         }
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <FormControl fullWidth size="small">
-            <InputLabel id="pipeline-status-label">Pipeline Status</InputLabel>
-            <Select
-              labelId="pipeline-status-label"
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              label="Pipeline Status"
-            >
-              {leadStatuses.map((st) => (
-                <MenuItem key={st} value={st}>
-                  {st}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          {!isCustomStatus ? (
+            <FormControl fullWidth size="small">
+              <InputLabel id="pipeline-status-label">Pipeline Status</InputLabel>
+              <Select
+                labelId="pipeline-status-label"
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                label="Pipeline Status"
+              >
+                {leadStatuses.map((st) => (
+                  <MenuItem key={st} value={st}>
+                    {st}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          ) : (
+            <TextField
+              label="Custom Pipeline Status *"
+              value={customStatus}
+              onChange={(e) => setCustomStatus(e.target.value)}
+              fullWidth
+              size="small"
+              placeholder="e.g. In Review, Warm Follow-up"
+            />
+          )}
+
+          <Button 
+            size="small" 
+            onClick={() => setIsCustomStatus(!isCustomStatus)}
+            sx={{ alignSelf: 'flex-start', textTransform: 'none' }}
+          >
+            {isCustomStatus ? "← Select from standard list" : "+ Create custom status name"}
+          </Button>
         </Box>
       </AppModal>
 

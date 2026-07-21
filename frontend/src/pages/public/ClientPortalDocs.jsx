@@ -317,6 +317,13 @@ export const ClientPortalDocs = () => {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [translationStatus, setTranslationStatus] = useState('word_calculated');
   const [translationFiles, setTranslationFiles] = useState([]);
+
+  // Refund Claim Form State
+  const [claimCategory, setClaimCategory] = useState('Visa Rejection');
+  const [claimReason, setClaimReason] = useState('');
+  const [claimProofUrl, setClaimProofUrl] = useState('');
+  const [claimBankName, setClaimBankName] = useState('');
+  const [claimBankIban, setClaimBankIban] = useState('');
  
   // Sworn Translation Add-on State
   const [addonFile, setAddonFile] = useState(null);
@@ -423,6 +430,27 @@ export const ClientPortalDocs = () => {
   const { data: allPayments = [], isLoading: isPaymentsLoading } = useQuery({
     queryKey: ['payments'],
     queryFn: dbService.getPayments
+  });
+
+  const { data: allRefunds = [], refetch: refetchRefunds } = useQuery({
+    queryKey: ['refundRequests'],
+    queryFn: dbService.getRefundRequests
+  });
+
+  const createRefundMutation = useMutation({
+    mutationFn: dbService.createRefundRequest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['refundRequests'] });
+      refetchRefunds();
+      setClaimReason('');
+      setClaimProofUrl('');
+      setClaimBankName('');
+      setClaimBankIban('');
+      showAlert('Your Refund & Guarantee claim has been registered successfully! Our audit team will review your rejection letter within 48 hours.', 'success');
+    },
+    onError: (err) => {
+      showAlert('Failed to submit refund request: ' + (err.message || 'Server error'), 'error');
+    }
   });
 
   const { data: agents = [] } = useQuery({
@@ -790,7 +818,12 @@ export const ClientPortalDocs = () => {
 
   const selectAndPayPackageMutation = useMutation({
     mutationFn: async ({ packageId, amount, discount }) => {
-      const res = await dbService.createCheckoutSession({ packageId, amount, discount });
+      const res = await dbService.createCheckoutSession({ 
+        packageId, 
+        amount, 
+        discount,
+        paymentMethod: billingPaymentMethod 
+      });
       if (res.success && res.url) {
         window.location.href = res.url;
       } else {
@@ -1169,6 +1202,18 @@ export const ClientPortalDocs = () => {
                 fontFamily: 'Outfit, sans-serif',
                 fontSize: '0.9rem',
                 color: tabValue === 1 ? '#C59B27' : 'text.secondary',
+                '&.Mui-selected': { color: '#C59B27' }
+              }} 
+            />
+            <Tab 
+              label={client.documentUploadAllowed ? "3. Refund & Guarantee Claims 🛡️" : "3. Refund & Guarantee Claims 🔒"} 
+              disabled={!client.documentUploadAllowed}
+              sx={{ 
+                textTransform: 'none', 
+                fontWeight: 800, 
+                fontFamily: 'Outfit, sans-serif',
+                fontSize: '0.9rem',
+                color: tabValue === 2 ? '#C59B27' : !client.documentUploadAllowed ? 'text.disabled' : 'text.secondary',
                 '&.Mui-selected': { color: '#C59B27' }
               }} 
             />
@@ -2131,18 +2176,36 @@ export const ClientPortalDocs = () => {
         )}
 
         {tabValue === 1 && client && client.serviceId !== 'sworn_translation' && client.serviceId !== 'translation' && client.serviceId !== 'sworn' && client.serviceType !== 'Spanish Sworn Translation' && (() => {
-          const baseServicePrice = SERVICES.find(s => s.id === client.serviceId)?.basePrice || 1500;
-          const numApplicants = client.applicantsCount || 1;
+          const getApplicantsCount = (countStr) => {
+            if (!countStr || countStr === 'Main Only') return 1;
+            const numericVal = parseInt(countStr, 10);
+            if (!isNaN(numericVal) && String(numericVal) === countStr.trim()) {
+              return numericVal;
+            }
+            const match = countStr.match(/Main\s*\+\s*(\d+)/i);
+            if (match) {
+              return 1 + parseInt(match[1], 10);
+            }
+            return 1;
+          };
 
-          const optionAPrice = baseServicePrice;
-          const optionBPrice = baseServicePrice + 700;
-          
-          let optionBDiscount = 0;
-          if (numApplicants >= 1) optionBDiscount += 500;
-          if (numApplicants > 1) optionBDiscount += (numApplicants - 1) * 250;
+          const totalApplicants = getApplicantsCount(client.applicantsCount);
+          const addApplicants = totalApplicants - 1;
 
-          const optionCPrice = 700;
-          const schengenPrice = 400;
+          // Option A: Full Processing (base €3500, additional €500)
+          const optionAPrice = 3500 + (addApplicants * 500);
+
+          // Option B: Premium (base €4750, additional €750)
+          const optionBPrice = 4750 + (addApplicants * 750);
+          const optionBDiscount = 0;
+
+          // Option C: Administrative Relocation (base €1750, additional €500)
+          const optionCPrice = 1750 + (addApplicants * 500);
+
+          // Tourist Schengen Visa (base €500, additional €250)
+          const schengenPrice = 500 + (addApplicants * 250);
+
+          const baseServicePrice = optionAPrice;
 
           return (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -2388,6 +2451,261 @@ export const ClientPortalDocs = () => {
             </Box>
           );
         })()}
+
+        {/* Tab 2: Refund & Guarantee Claims */}
+        {tabValue === 2 && !isTranslationClient && (
+          <Box className="grid grid-cols-12 gap-4 items-stretch">
+            {/* Header Banner */}
+            <Box className="col-span-12">
+              <Paper sx={{ p: 3, borderRadius: 3, border: '1px solid rgba(197, 155, 39, 0.3)', bgcolor: '#FAF6ED' }}>
+                <Typography variant="h6" sx={{ fontWeight: 800, color: '#051A3B', fontFamily: 'Outfit, sans-serif', mb: 0.5 }}>
+                  🛡️ Spain Visa 50% Money-Back Guarantee & Refund Center
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  If your visa application gets refused by the Spanish Embassy/Consulate, you can submit your official rejection resolution letter here to claim your 50% Money-Back Guarantee refund.
+                </Typography>
+              </Paper>
+            </Box>
+
+            {/* Refund Claim Form Card */}
+            <Box className="col-span-12 md:col-span-7 flex flex-col h-full">
+              <Paper sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#051A3B', mb: 2 }}>
+                  Submit New Refund Claim
+                </Typography>
+                
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mb: 0.5, display: 'block' }}>
+                      Claim Category
+                    </Typography>
+                    <Select
+                      fullWidth
+                      size="small"
+                      value={claimCategory}
+                      onChange={(e) => setClaimCategory(e.target.value)}
+                      sx={{ borderRadius: 2 }}
+                    >
+                      <MenuItem value="Visa Rejection">Visa Rejection (50% Money-Back Guarantee)</MenuItem>
+                      <MenuItem value="Medical / Personal Emergency">Medical / Personal Emergency Cancellation</MenuItem>
+                      <MenuItem value="Relocation Plan Change">Relocation Plan Changed / Postponed</MenuItem>
+                      <MenuItem value="Service Issue">Service Issue / Dissatisfaction</MenuItem>
+                      <MenuItem value="Other">Other Reason</MenuItem>
+                    </Select>
+                  </Box>
+
+                  {/* Calculated Amount Box */}
+                  <Box sx={{ p: 2, borderRadius: 2, bgcolor: '#FAF6ED', border: '1px solid rgba(197, 155, 39, 0.3)' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: 'block' }}>
+                      Estimated Refund Calculation:
+                    </Typography>
+                    {(() => {
+                      const totalPaidAmt = allPayments.filter(p => p.clientId === clientId && p.status === 'Paid').reduce((s, p) => s + p.amount, 0);
+                      const guaranteePct = customizationSettings?.refundGuaranteePercentage ?? 50;
+                      const estimatedRefund = totalPaidAmt * (guaranteePct / 100);
+                      return (
+                        <Typography variant="h5" sx={{ fontWeight: 900, color: '#C59B27', fontFamily: 'Outfit, sans-serif' }}>
+                          €{estimatedRefund.toLocaleString()} 
+                          <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1, fontWeight: 600 }}>
+                            ({guaranteePct}% of Total Paid Fees €{totalPaidAmt.toLocaleString()})
+                          </Typography>
+                        </Typography>
+                      );
+                    })()}
+                  </Box>
+
+                  {/* Proof Document File Uploader Styled Box */}
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mb: 0.5, display: 'block' }}>
+                      Upload Embassy Rejection Letter (PDF / JPG / PNG) *
+                    </Typography>
+                    
+                    <Paper 
+                      variant="outlined" 
+                      sx={{ 
+                        p: 2.5, 
+                        textAlign: 'center', 
+                        border: '2px dashed rgba(197, 155, 39, 0.4)', 
+                        borderRadius: 3, 
+                        bgcolor: 'background.neutral',
+                        cursor: 'pointer',
+                        '&:hover': { bgcolor: '#FAF6ED', borderColor: '#C59B27' }
+                      }}
+                      onClick={() => document.getElementById('claim-proof-file-input')?.click()}
+                    >
+                      <input 
+                        id="claim-proof-file-input"
+                        type="file" 
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        style={{ display: 'none' }}
+                        onChange={async (e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            try {
+                              const res = await dbService.uploadDocument({
+                                clientId: client.id,
+                                file,
+                                category: 'Rejection Letter',
+                                belongsTo: 'Main Applicant'
+                              });
+                              setClaimProofUrl(res.url || res.document?.url || '');
+                              showAlert('Official Rejection Letter attached successfully!', 'success');
+                            } catch (err) {
+                              showAlert('Failed to upload proof document.', 'error');
+                            }
+                          }
+                        }}
+                      />
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: '#051A3B' }}>
+                        📁 Click to Browse & Upload Official Embassy Resolution PDF
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                        Supported Formats: PDF, JPG, PNG (Max 15MB)
+                      </Typography>
+
+                      {claimProofUrl && (
+                        <Chip 
+                          label="File Attached Successfully ✅" 
+                          color="success" 
+                          size="small" 
+                          sx={{ mt: 1.5, fontWeight: 800 }} 
+                        />
+                      )}
+                    </Paper>
+                  </Box>
+
+                  {/* Bank Details Inputs */}
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mt: 1, mb: -1, display: 'block' }}>
+                    Client Payout Bank Details (For Wire Transfer if applicable):
+                  </Typography>
+                  <Grid container spacing={1}>
+                    <Grid item xs={12} sm={6}>
+                      <TextField 
+                        fullWidth 
+                        size="small" 
+                        label="Account Holder Name" 
+                        value={claimBankName}
+                        onChange={(e) => setClaimBankName(e.target.value)}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <TextField 
+                        fullWidth 
+                        size="small" 
+                        label="IBAN / Account Number" 
+                        value={claimBankIban}
+                        onChange={(e) => setClaimBankIban(e.target.value)}
+                      />
+                    </Grid>
+                  </Grid>
+
+                  {/* Reason / Remarks */}
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, mb: 0.5, display: 'block' }}>
+                      Notes / Statement
+                    </Typography>
+                    <TextField 
+                      fullWidth 
+                      multiline 
+                      rows={2} 
+                      size="small" 
+                      placeholder="Please add any details regarding your visa resolution sheet..." 
+                      value={claimReason}
+                      onChange={(e) => setClaimReason(e.target.value)}
+                    />
+                  </Box>
+
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    size="large"
+                    disabled={createRefundMutation.isPending}
+                    onClick={() => {
+                      if (!claimProofUrl) {
+                        showAlert('Please upload your official Embassy Rejection Letter before submitting your claim.', 'warning');
+                        return;
+                      }
+                      createRefundMutation.mutate({
+                        clientId: client.id,
+                        category: claimCategory,
+                        reason: claimReason,
+                        proofUrl: claimProofUrl,
+                        bankAccountName: claimBankName,
+                        bankIban: claimBankIban,
+                        amount: (allPayments.filter(p => p.clientId === clientId && p.status === 'Paid').reduce((s, p) => s + p.amount, 0)) * 0.5
+                      });
+                    }}
+                    sx={{ mt: 1, py: 1.2, fontWeight: 800 }}
+                  >
+                    Submit Refund Claim
+                  </Button>
+                </Box>
+              </Paper>
+            </Box>
+
+            {/* Right Side: Existing Claims History */}
+            <Box className="col-span-12 md:col-span-5 flex flex-col h-full">
+              <Paper sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider', boxShadow: 'none', height: '100%' }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 800, color: '#051A3B', mb: 2 }}>
+                  Your Refund Claim History
+                </Typography>
+
+                {allRefunds.filter(r => r.clientId === client.id).length === 0 ? (
+                  <Box sx={{ p: 3, textAlign: 'center', bgcolor: 'background.neutral', borderRadius: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No active or past refund claims found for your profile.
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    {allRefunds.filter(r => r.clientId === client.id).map(r => (
+                      <Paper key={r.id} sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2, bgcolor: '#FAF6ED' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                          <Typography variant="caption" sx={{ fontWeight: 700 }}>Ticket #{r.id.substring(0, 8)}</Typography>
+                          <Chip 
+                            label={r.status} 
+                            color={r.status === 'Processed' ? 'success' : r.status === 'Approved' ? 'info' : 'warning'} 
+                            size="small" 
+                            sx={{ fontWeight: 700 }}
+                          />
+                        </Box>
+                        <Typography variant="h6" color="error.main" sx={{ fontWeight: 800 }}>
+                          €{r.amount.toLocaleString()}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Category: {r.category} | Date: {r.date}
+                        </Typography>
+                        {r.transactionRef && (
+                          <Typography variant="caption" color="success.main" sx={{ fontWeight: 700, mt: 0.5, display: 'block' }}>
+                            Ref / UTR: {r.transactionRef}
+                          </Typography>
+                        )}
+                        {r.proofUrl && (
+                          <Button size="small" href={r.proofUrl} target="_blank" rel="noopener noreferrer" sx={{ mt: 1, textTransform: 'none', fontWeight: 700 }}>
+                            View Attached Proof PDF
+                          </Button>
+                        )}
+                        {r.status === 'Processed' && (
+                          <Button 
+                            size="small" 
+                            variant="contained" 
+                            color="success" 
+                            onClick={() => {
+                              window.print();
+                            }}
+                            sx={{ mt: 1, ml: 1, textTransform: 'none', fontWeight: 800 }}
+                          >
+                            📄 Download Refund Receipt PDF
+                          </Button>
+                        )}
+                      </Paper>
+                    ))}
+                  </Box>
+                )}
+              </Paper>
+            </Box>
+          </Box>
+        )}
       </Box>
 
       {/* Modal: Translation Payment Simulation */}
