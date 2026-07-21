@@ -280,8 +280,10 @@ model Template {
 
 model CommunicationLog {
   id                 String   @id @default(uuid())
-  clientId           String
-  client             Client   @relation(fields: [clientId], references: [id])
+  clientId           String?
+  client             Client?  @relation(fields: [clientId], references: [id])
+  phone              String?
+  name               String?
   channel            String   // WHATSAPP, EMAIL, MEETING
   direction          String   // INBOUND, OUTBOUND
   messageId          String?  @unique // Deduplication (Meta/WA Message ID)

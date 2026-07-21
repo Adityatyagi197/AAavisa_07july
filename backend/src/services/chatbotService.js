@@ -23,6 +23,9 @@ exports.handleChatbotMessage = async (phone, name, text) => {
     cleanPhone = '+' + cleanPhone;
   }
 
+  // Log incoming message to Database
+  await logCommunication(cleanPhone, text, "INBOUND", name);
+
   // 1. Check if Live Agent Mode is active for this user
   const agentModeKey = `chatbot:agent_mode:${cleanPhone}`;
   const isAgentMode = await redis.get(agentModeKey);
@@ -79,38 +82,17 @@ exports.handleChatbotMessage = async (phone, name, text) => {
       lead = await prisma.lead.findFirst({
         where: { phone: { contains: numberPart } }
       });
-
-      if (!lead) {
-        const nameParts = name ? name.split(' ') : ['WhatsApp', 'Lead'];
-        lead = await prisma.lead.create({
-          data: {
-            firstName: nameParts[0] || 'WhatsApp',
-            lastName: nameParts.slice(1).join(' ') || 'Lead',
-            phone: cleanPhone,
-            email: `${numberPart}@whatsapp.com`, // Placeholder email
-            status: 'New Lead',
-            source: detectedSource
-          }
-        });
-        console.log(`[CHATBOT] Instantly created lead ${lead.id} for phone ${cleanPhone}`);
-      } else {
-        // Update source if it's currently default WhatsApp
-        if (lead.source === 'WhatsApp' && detectedSource !== 'WhatsApp') {
-          lead = await prisma.lead.update({
-            where: { id: lead.id },
-            data: { source: detectedSource }
-          });
-        }
+      if (lead) {
         console.log(`[CHATBOT] Found existing lead ${lead.id} for phone ${cleanPhone}`);
       }
     } catch (dbError) {
-      console.warn("[CHATBOT] Error handling lead DB check/create:", dbError.message);
+      console.warn("[CHATBOT] Error checking existing lead:", dbError.message);
     }
 
     // Send Greeting & Lead Booking Form Link
     const greetingMsg = `Greetings from *AAA Business Consultancy LLC*. Thank you for contacting us regarding Spain Visa & Residency Services.✈️✈️`;
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const bookingLink = `${frontendUrl}/#/public/lead-form?source=${encodeURIComponent(detectedSource)}&id=${lead ? lead.id : ''}`;
+    const bookingLink = `${frontendUrl}/#/public/lead-form?source=${encodeURIComponent(detectedSource)}&phone=${encodeURIComponent(cleanPhone)}`;
     const instructionMsg = `To book your Free 20-Minute Eligibility Assessment & Verification, please click the link below to select your preferred date and time:\n\n${bookingLink}`;
 
     await sendCustomWhatsApp(cleanPhone, greetingMsg);
@@ -194,23 +176,33 @@ async function sendCustomWhatsApp(phone, messageBody) {
 /**
  * Creates a record in CommunicationLog linked to the matching client.
  */
-async function logCommunication(phone, messageText, direction) {
+async function logCommunication(phone, messageText, direction, name = 'Applicant') {
   try {
-    const numberPart = phone.replace('+', '');
+    let cleanPhone = phone.trim();
+    if (cleanPhone.startsWith('whatsapp:')) {
+      cleanPhone = cleanPhone.substring(9);
+    }
+    cleanPhone = cleanPhone.replace(/[^\d+]/g, '');
+    if (!cleanPhone.startsWith('+')) {
+      cleanPhone = '+' + cleanPhone;
+    }
+    const numberPart = cleanPhone.replace('+', '');
+
     const client = await prisma.client.findFirst({
       where: { phone: { contains: numberPart } }
     });
-    if (client) {
-      await prisma.communicationLog.create({
-        data: {
-          clientId: client.id,
-          channel: 'WHATSAPP',
-          direction: direction,
-          content: messageText,
-          deliveryStatus: 'SENT'
-        }
-      });
-    }
+
+    await prisma.communicationLog.create({
+      data: {
+        clientId: client ? client.id : null,
+        phone: cleanPhone,
+        name: name,
+        channel: 'WHATSAPP',
+        direction: direction,
+        content: messageText,
+        deliveryStatus: 'SENT'
+      }
+    });
   } catch (e) {
     console.warn("Could not log chatbot message to Database:", e.message);
   }

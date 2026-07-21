@@ -324,7 +324,45 @@ export const dbService = {
   addNotification: async () => ({}),
   markNotificationRead: async (id) => ({ id }),
   markAllNotificationsRead: async () => ({}),
-  getConversations: async () => [],
+  getConversations: async () => {
+    const res = await apiClient.get('/social/conversations');
+    return res.data;
+  },
+  addConversation: async (newConv) => {
+    return newConv;
+  },
+  markConversationRead: async (conversationId) => {
+    try {
+      const res = await apiClient.get('/social/conversations');
+      const conversations = res.data;
+      const conv = conversations.find(c => c.id === conversationId);
+      const phone = conv ? conv.phone : conversationId.replace('conv_phone_', '');
+      const readRes = await apiClient.get(`/social/messages/${encodeURIComponent(phone)}`);
+      return readRes.data;
+    } catch (e) {
+      console.error('Failed to mark conversation as read:', e);
+      return { success: false };
+    }
+  },
+  receiveSocialMessage: async ({ conversationId, message, isActive }) => {
+    return { success: true };
+  },
+  sendSocialMessage: async ({ conversationId, message }) => {
+    try {
+      const res = await apiClient.get('/social/conversations');
+      const conversations = res.data;
+      const conv = conversations.find(c => c.id === conversationId);
+      const phone = conv ? conv.phone : conversationId.replace('conv_phone_', '');
+      const sendRes = await apiClient.post('/social/messages/send', {
+        phone: phone,
+        text: message.text
+      });
+      return sendRes.data;
+    } catch (e) {
+      console.error('Failed to send social message:', e);
+      throw e;
+    }
+  },
   getSettings: async () => {
     const res = await apiClient.get('/settings/company');
     return res.data;

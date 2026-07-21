@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { dbService } from '../../services/dbService';
+import { io } from 'socket.io-client';
 import Box from '@mui/material/Box';
 
 import Paper from '@mui/material/Paper';
@@ -142,64 +143,23 @@ export const AdminSocialInbox = () => {
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const messageEndRef = useRef(null);
 
+  // Connect to socket to handle real-time inbound/outbound WhatsApp updates
   useEffect(() => {
-    clients.forEach((client) => {
-      const hasConv = conversations.some(
-        (c) =>
-          c.leadId === client.leadId ||
-          c.email === client.email ||
-          c.phone === client.phone ||
-          c.name.toLowerCase() === `${client.firstName} ${client.lastName}`.toLowerCase()
-      );
+    const socketUrl = import.meta.env.VITE_API_URL 
+      ? import.meta.env.VITE_API_URL.replace('/api/v1', '') 
+      : 'https://aaa-consultancy-production.up.railway.app';
+      
+    const socket = io(socketUrl);
 
-      if (!hasConv) {
-        const matchedLead = leads.find(
-          (l) =>
-            l.id === client.leadId ||
-            (client.email && l.email === client.email) ||
-            (client.phone && l.phone === client.phone)
-        );
-
-        let platform = 'whatsapp'; // default
-        if (matchedLead && matchedLead.source) {
-          const src = matchedLead.source.toLowerCase();
-          if (src.includes('whatsapp')) {
-            platform = 'whatsapp';
-          } else if (src.includes('instagram') || src.includes('insta')) {
-            platform = 'instagram';
-          } else if (src.includes('facebook')) {
-            platform = 'facebook';
-          } else if (src.includes('telegram')) {
-            platform = 'telegram';
-          }
-        }
-
-        const newConv = {
-          id: 'conv_client_' + client.id,
-          leadId: client.leadId || '',
-          name: `${client.firstName} ${client.lastName}`,
-          avatar: '',
-          platform,
-          unreadCount: 0,
-          status: client.status || 'Under Process',
-          email: client.email,
-          phone: client.phone,
-          country: client.nationality || 'Spain',
-          preferredLanguage: client.preferredLanguage || 'English',
-          serviceId: client.serviceId,
-          messages: [
-            {
-              sender: 'system',
-              text: `Client ${client.firstName} ${client.lastName} has been onboarded for Spain ${client.serviceId || 'Visa'} processing.`,
-              timestamp: 'Onboarded'
-            }
-          ]
-        };
-
-        addConversationMutation.mutate(newConv);
-      }
+    socket.on('new_whatsapp_message', (data) => {
+      console.log('Real-time WhatsApp message received via socket:', data);
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
     });
-  }, [clients, conversations, leads]);
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [queryClient]);
 
   const activeConvIdRef = useRef(activeConvId);
   useEffect(() => {
